@@ -5,7 +5,7 @@ function detailForMajor(m){
   return MAJOR_DETAILS_BY_CODE[majorDetailKey(m)] || null;
 }
 /* version: 专业细分移动折叠版；重构专业组干净度：财会/数理/带电工科/医学等按同一报考逻辑判断；新增筛选栏一键折叠 */
-const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'normal',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null};
+const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'all',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null};
 const $ = id => document.getElementById(id);
 const fmt = v => (v===null || v===undefined || v==='') ? '—' : (typeof v==='number' ? v.toLocaleString('zh-CN') : v);
 const delta = v => v>0 ? `<span class="delta-pos">+${v}</span>` : (v<0 ? `<span class="delta-neg">${v}</span>` : '0');
@@ -560,7 +560,7 @@ function setProvinceSelection(list){
 function renderProvincePanel(provinces){
   const grid=$('provinceGrid');
   if(!grid) return;
-  const blocks=provinceRegionBlocks(provinces);
+  const source=(provinces&&provinces.length)?provinces:ALL_PROVINCES_STATIC; const blocks=(typeof provinceRegionBlocks==='function') ? provinceRegionBlocks(source) : [{name:'全部省份',provinces:source||[]}];
   grid.innerHTML=blocks.map(block=>`
     <div class="region-block">
       <div class="region-name">${esc(block.name)}</div>
@@ -570,13 +570,15 @@ function renderProvincePanel(provinces){
     </div>
   `).join('');
   grid.querySelectorAll('input').forEach(cb=>{
-    cb.checked=state.provinces.includes(cb.value);
+    cb.checked=(state.provinces||[]).includes(cb.value);
     cb.addEventListener('change',()=>{
       const vals=[...grid.querySelectorAll('input:checked')].map(x=>x.value);
       setProvinceSelection(vals);
     });
   });
 }
+const ALL_PROVINCES_STATIC = ["上海", "云南", "内蒙古", "北京", "吉林", "四川", "天津", "宁夏", "安徽", "山东", "山西", "广东", "广西", "新疆", "江苏", "江西", "河北", "河南", "浙江", "海南", "湖北", "湖南", "甘肃", "福建", "西藏", "贵州", "辽宁", "重庆", "陕西", "青海", "香港", "黑龙江"];
+const ALL_LEVELS_STATIC = ["985", "211", "一流", "保研", "合办保研", "民办保研", "公办", "合办", "港校", "民办"];
 function provinceRegionSorted(provinces){
   const set=new Set(provinces||[]);
   const out=[];
@@ -634,10 +636,10 @@ function levelSorted(levels){
 function renderLevelPanel(levels){
   const grid=$('levelGrid');
   if(!grid) return;
-  const arr=levelSorted(levels);
+  const source=(levels&&levels.length)?levels:ALL_LEVELS_STATIC; const arr=(typeof levelSorted==='function') ? levelSorted(source||[]) : [...(source||[])];
   grid.innerHTML=arr.map(x=>`<label class="level-check"><input type="checkbox" value="${esc(x)}"> <span>${esc(x)}</span></label>`).join('');
   grid.querySelectorAll('input').forEach(cb=>{
-    cb.checked=state.levels.includes(cb.value);
+    cb.checked=(state.levels||[]).includes(cb.value);
     cb.addEventListener('change',()=>{
       const vals=[...grid.querySelectorAll('input:checked')].map(x=>x.value);
       setLevelSelection(vals);
@@ -650,6 +652,23 @@ function levelMatchesSchool(s){
   return arr.includes(s.level);
 }
 
+
+function isNewGroupStrict(g){
+  // 新增专业组：优先采用数据库自带 isNewGroup；避免仅因 25 分/计划缺失误判旧校旧组。
+  if(g && g.isNewGroup===true) return true;
+  const hasSource = Array.isArray(g?.sourceContext) && g.sourceContext.length>0;
+  const p25 = Number(g?.plan25||0);
+  const p26 = Number(g?.plan26||0);
+  // 更保守的兜底：没有来源组、25计划为0、26计划大于0，且组内绝大多数专业标记为疑似新增。
+  const majors = g?.majors || [];
+  const newMajors = majors.filter(m=>String(m.status||'').includes('新增')).length;
+  if(!hasSource && p25<=0 && p26>0 && majors.length>0 && newMajors/majors.length>=0.8) return true;
+  return false;
+}
+function schoolHasNewGroup(s){
+  return (s.groups||[]).some(isNewGroupStrict);
+}
+
 function schoolMatches(s){
   if(state.batch && s.batch!==state.batch) return false;
   if(state.subject && s.subject!==state.subject) return false;
@@ -657,6 +676,7 @@ function schoolMatches(s){
   if(!levelMatchesSchool(s)) return false;
   let groups = s.groups.filter(groupMatchesBase);
   if(state.newSchoolFilter==='only' && !isNewSchool(s)) return false;
+  if(state.newSchoolFilter==='newGroup' && !schoolHasNewGroup(s)) return false;
   if(state.newSchoolFilter==='hide' && isNewSchool(s)) return false;
   if((scoreActive() || state.groupType || state.specialPathFilter || state.risk || state.onlyNew || state.onlyStop || state.onlyCross || state.onlyHigh || state.q) && groups.length===0) return false;
   if(state.risk && !groups.some(g=>groupAssessment(g).kind===state.risk)) return false;
@@ -681,6 +701,7 @@ function groupMatchesBase(g){
     if(v<scoreLow() || v>scoreHigh()) return false;
   }
   if(state.risk && groupAssessment(g).kind!==state.risk) return false;
+  if(state.newSchoolFilter==='newGroup' && !isNewGroupStrict(g)) return false;
   if(state.groupType && !(g.typeTags||[]).includes(state.groupType)) return false;
   if(!groupMatchesSpecialPath(g)) return false;
   if(state.onlyNew && g.newCount<=0) return false;
@@ -731,7 +752,11 @@ function filteredSchools(){
       const an=isNewSchool(a), bn=isNewSchool(b);
       if(an!==bn) return an ? 1 : -1;
     }
-    if(state.newSchoolFilter!=='only'){
+    if(state.newSchoolFilter!=='only' && state.newSchoolFilter!=='all'){
+      const tierDiff=schoolTierRank(a)-schoolTierRank(b);
+      if(tierDiff!==0) return tierDiff;
+    }
+    if(state.newSchoolFilter==='normal'){
       const tierDiff=schoolTierRank(a)-schoolTierRank(b);
       if(tierDiff!==0) return tierDiff;
     }
@@ -740,30 +765,58 @@ function filteredSchools(){
     return a.name.localeCompare(b.name,'zh-CN');
   });
 }
+
+function bindStaticMultiPanels(){
+  const pg=$('provinceGrid');
+  if(pg && !pg.dataset.bound){
+    pg.dataset.bound='1';
+    pg.addEventListener('change',e=>{
+      if(e.target && e.target.matches('input[type="checkbox"]')){
+        const vals=[...pg.querySelectorAll('input:checked')].map(x=>x.value);
+        setProvinceSelection(vals);
+      }
+    });
+  }
+  const lg=$('levelGrid');
+  if(lg && !lg.dataset.bound){
+    lg.dataset.bound='1';
+    lg.addEventListener('change',e=>{
+      if(e.target && e.target.matches('input[type="checkbox"]')){
+        const vals=[...lg.querySelectorAll('input:checked')].map(x=>x.value);
+        setLevelSelection(vals);
+      }
+    });
+  }
+}
+
 function initOptions(){
-  const provinces=provinceRegionSorted([...new Set(DB.schools.map(s=>s.province).filter(Boolean))]);
-  const levels=levelSorted([...new Set(DB.schools.map(s=>s.level).filter(Boolean))]);
+  const provinces=provinceRegionSorted(([...new Set(DB.schools.map(s=>s.province).filter(Boolean))]).length ? [...new Set(DB.schools.map(s=>s.province).filter(Boolean))] : ALL_PROVINCES_STATIC);
+  const levels=levelSorted(([...new Set(DB.schools.map(s=>s.level).filter(Boolean))]).length ? [...new Set(DB.schools.map(s=>s.level).filter(Boolean))] : ALL_LEVELS_STATIC);
   if($('provinceFilter')) $('provinceFilter').innerHTML='<option value="">全部省份</option>'+provinces.map(x=>`<option>${esc(x)}</option>`).join('');
   $('levelFilter').innerHTML='<option value="">全部层次</option>'+levels.map(x=>`<option>${esc(x)}</option>`).join('');
   renderProvincePanel(provinces);
   renderLevelPanel(levels);
+  bindStaticMultiPanels();
 }
 function renderList(){
   const arr=filteredSchools(); $('listCount').textContent=`（${arr.length}）`;
   function item(s){
     const ns=isNewSchool(s);
-    return `<button class="school-item ${ns?'new-school':''} ${state.selected===s.id?'active':''}" onclick="selectSchool('${esc(s.id)}')"><div class="school-name">${esc(s.name)}</div><div class="school-meta"><span>${esc(s.province)}</span><span>${esc(s.level)}</span><span>${esc(s.subject)}</span><span>${esc(s.batch.replace('本科',''))}</span><span class="badge-mini">组${s.summary.groups}</span><span class="badge-mini">${esc(schoolTierLabel(s))}</span><span class="badge-mini">学校加权${schoolScoreLabel(s)}</span></div></button>`;
+    const ng=schoolHasNewGroup(s);
+    return `<button class="school-item ${ns?'new-school':''} ${state.selected===s.id?'active':''}" onclick="selectSchool('${esc(s.id)}')"><div class="school-name">${esc(s.name)}</div><div class="school-meta"><span>${esc(s.province)}</span><span>${esc(s.level)}</span><span>${esc(s.subject)}</span><span>${esc(s.batch.replace('本科',''))}</span><span class="badge-mini">组${s.summary.groups}</span>${ng?'<span class="badge-mini">含新增专业组</span>':''}<span class="badge-mini">${esc(schoolTierLabel(s))}</span><span class="badge-mini">学校加权${schoolScoreLabel(s)}</span></div></button>`;
   }
   if(!arr.length){
     $('schoolList').innerHTML='<div class="empty">没有匹配院校</div>';
   }else if(state.newSchoolFilter==='normal'){
     const normal=arr.filter(s=>!isNewSchool(s));
     const newer=arr.filter(isNewSchool);
+    const newGroup=arr.filter(s=>!isNewSchool(s) && schoolHasNewGroup(s));
     $('schoolList').innerHTML =
       (normal.length?`<div class="school-section-title">正常院校（${normal.length}）</div>`+normal.slice(0,1200).map(item).join(''):'')+
-      (newer.length?`<div class="school-section-title">新增院校｜已沉底（${newer.length}）</div>`+newer.slice(0,1200).map(item).join(''):'');
+      (newer.length?`<div class="school-section-title">新增院校｜已沉底（${newer.length}）</div>`+newer.slice(0,1200).map(item).join(''):'')+
+      (newGroup.length?`<div class="school-section-title new-group-section">含新增专业组的院校（${newGroup.length}）</div>`:'');
   }else{
-    const title=state.newSchoolFilter==='only'?'新增院校':'院校';
+    const title=state.newSchoolFilter==='only'?'新增院校':(state.newSchoolFilter==='newGroup'?'新增专业组':'院校');
     $('schoolList').innerHTML=`<div class="school-section-title">${title}（${arr.length}）</div>`+arr.slice(0,1200).map(item).join('');
   }
   if(!state.selected || !arr.some(s=>s.id===state.selected)) state.selected = arr[0]?.id || null;
@@ -774,7 +827,7 @@ function renderHome(){
   <div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
-  <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span></div></div>
+  <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
   </section>`;
 }
 function selectSchool(id){state.selected=id; render(); window.scrollTo({top:0,behavior:'smooth'})}
@@ -822,24 +875,60 @@ function renderSchool(){
   const s=findSchool(state.selected); if(!s) return renderHome();
   const groups=s.groups.filter(groupMatchesBase);
   const sum=s.summary;
-  const groupNav=groups.map(g=>{const a=groupAssessment(g);const pc=planAudit(g);return `<div class="group-tile ${g.bucket} ${a.cls}" onclick="document.getElementById('grp-${cssId(g.id)}').scrollIntoView({behavior:'smooth',block:'start'})"><div class="tile-top"><span class="group-code">${esc(g.groupCode)}组</span><span class="tile-tags">${visibleSpecialTags(g).map(t=>`<span class="tile-tag">${esc(t)}</span>`).join('')}</span></div><div class="group-name">${esc(groupDisplayTitle(g))}</div><div class="tile-metrics compact">${compactScore(g)}${planCompact(pc,g)}</div></div>`}).join('');
+  const groupNav=groups.map(g=>{const a=groupAssessment(g);const pc=planAudit(g);return `<div class="group-tile ${g.bucket} ${a.cls} ${isNewGroupStrict(g)?'new-group-tile':''}" onclick="document.getElementById('grp-${cssId(g.id)}').scrollIntoView({behavior:'smooth',block:'start'})"><div class="tile-top"><span class="group-code">${esc(g.groupCode)}组</span><span class="tile-tags">${visibleSpecialTags(g).map(t=>`<span class="tile-tag">${esc(t)}</span>`).join('')}</span></div><div class="group-name">${esc(groupDisplayTitle(g))}</div><div class="tile-metrics compact">${compactScore(g)}${planCompact(pc,g)}</div></div>`}).join('');
   const cards=groups.map(renderGroup).join('') || '<div class="empty">当前筛选下没有专业组。</div>';
   const scoreNote = scoreActive() ? `<span class="pill blue">分数段：${scoreBandText()}</span>` : '';
+  const newGroupNote = state.newSchoolFilter==='newGroup' ? `<span class="pill new-group">只看新增专业组</span>` : '';
   const newNote=isNewSchool(s)?`<div class="new-school-note"><b>新增院校：</b>该院校/科类/批次在当前库中缺少可直接继承的 2025 对照数据，默认在普通院校列表中沉底；分数、位次与计划变化仅作结构性参考，最终需回到官方计划书核对。</div>`:'';
-  $('main').innerHTML = `<section class="school-view"><div class="school-header"><div><div class="school-title">${esc(s.name)}｜${esc(s.subject)}｜${esc(s.batch)}</div><div class="summary-line"><span class="pill">${esc(s.province)}${s.city?' · '+esc(s.city):''}</span><span class="pill">${esc(s.level)}</span><span class="pill ${isNewSchool(s)?'new-school':''}">${esc(schoolTierLabel(s))}</span><span class="pill">当前显示 ${groups.length} 组</span>${scoreNote}</div>${newNote}</div><div class="actions"><button class="btn" onclick="exportCSV()">导出CSV</button><button class="btn" onclick="window.print()">打印</button><button class="btn primary" onclick="renderHome()">首页</button></div></div><div class="group-nav">${groupNav}</div>${cards}</section>`;
+  $('main').innerHTML = `<section class="school-view"><div class="school-header"><div><div class="school-title">${esc(s.name)}｜${esc(s.subject)}｜${esc(s.batch)}</div><div class="summary-line"><span class="pill">${esc(s.province)}${s.city?' · '+esc(s.city):''}</span><span class="pill">${esc(s.level)}</span><span class="pill ${isNewSchool(s)?'new-school':''}">${esc(schoolTierLabel(s))}</span><span class="pill">当前显示 ${groups.length} 组</span>${scoreNote}${newGroupNote}</div>${newNote}</div><div class="actions"><button class="btn" onclick="exportCSV()">导出CSV</button><button class="btn" onclick="window.print()">打印</button><button class="btn primary" onclick="renderHome()">首页</button></div></div><div class="group-nav">${groupNav}</div>${cards}</section>`;
 }
 function cssId(id){return id.replace(/[^a-zA-Z0-9一-龥_-]/g,'_')}
+
+function isWeakMajorByText(m){
+  const text=[m?.name,m?.majorClass,m?.direction,(m?.labels||[]).join(' '),(m?.tags||[]).join(' '),m?.remark].filter(Boolean).join(' ');
+  // 这类专业在多数志愿场景中容易成为组内兜底/调剂风险项。这里只做颜色提醒，不替代最终人工判断。
+  if(/护理学|康复治疗|助产|公共事业管理|健康服务与管理|劳动与社会保障|旅游管理|酒店管理|会展经济|电子商务|市场营销|工商管理|人力资源|物流管理|供应链管理|土地资源管理|社会工作|行政管理|政治学|哲学|宗教学|档案学|图书馆学|环境科学|环境工程|资源环境|材料|高分子|化学工程|化工|轻化工程|纺织|服装设计与工程|食品科学|食品质量|生物工程|生物技术|园艺|植物保护|水产|动物科学|动物医学|草业|林学|土木工程|给排水|建筑环境|城市地下|地质工程|采矿|矿物加工|安全工程|工程管理|房地产|测绘|遥感科学与技术|地理信息科学|海洋科学|船舶与海洋工程/.test(text)) return true;
+  return false;
+}
+
+function isDangerMajorByText(m,g){
+  // 仅保留为兜底函数，不参与主染色；绝不读取专业组标题，避免整组污染。
+  const text=[m?.name,m?.majorClass,m?.direction,(m?.labels||[]).join(' '),(m?.tags||[]).join(' '),m?.remark].filter(Boolean).join(' ');
+  if(/护理学|旅游管理|酒店管理|市场营销|工商管理|人力资源管理|公共事业管理|社会工作|环境工程|环境科学|材料科学|材料成型|高分子|化学工程|土木工程|给排水|建筑环境|地质工程|采矿|矿物加工|食品科学|生物工程|生物技术|水产|动物科学|草业|园艺|植物保护/.test(text)) return true;
+  return false;
+}
+
+function majorVisualRisk(m,g){
+  /*
+    恢复早期正确口径：
+    1. 不按专业名称全局扫色；
+    2. 不把专业组标题合并到每个专业行判断；
+    3. 只在“有好有坏”的专业组里，把偏离主体/低接受度的那几项挑出来；
+    4. 正常的计算机、人工智能、电子信息、电气、自动化等主体专业不染色。
+  */
+  const cls = (typeof majorRowRisk==='function') ? majorRowRisk(m,g) : '';
+  if(cls==='major-danger') return {level:'danger',tags:['组内刺客']};
+  if(cls==='major-warn') return {level:'warn',tags:['谨慎关注']};
+  return {level:'',tags:[]};
+}
+
+function majorRiskTagHtml(v){
+  if(!v || !v.tags || !v.tags.length) return '';
+  return `<div class="major-risk-tags">${v.tags.map(t=>`<span class="major-risk-tag ${v.level==='danger'?'danger':'warn'}">${esc(t)}</span>`).join('')}</div>`;
+}
+
 function renderGroup(g){
   const legacyClass=g.legacyOnly?'legacy':'';
   const assess=groupAssessment(g);
   const pc=planAudit(g);
   const compactMeta=[compactScore(g), planCompact(pc,g)].filter(Boolean).join('');
   const rows=g.majors.map((m,idx)=>{
-    const rowCls='';
+    const vr=majorVisualRisk(m,g);
+    const rowCls=vr.level==='danger'?'major-danger':(vr.level==='warn'?'major-warn':'');
     const scoreRank=(m.score25||m.rank25) ? `${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}` : '—';
-    return `<tr class="${rowCls}"><td>${esc(m.code||'—')}</td><td><div class="major-name major-click" onclick="openMajorDetail('${esc(g.id)}',${idx})">${iconSvg(m.direction)}${esc(m.name)}</div></td><td>${esc(m.majorClass||'—')}</td><td>${fmt(m.plan26)}</td><td>${majorPlanCell(m)}</td><td>${scoreRank}</td><td><button class="btn detail-btn" onclick="openMajorDetail('${esc(g.id)}',${idx})">详情</button></td></tr>`;
+    return `<tr class="${rowCls}"><td>${esc(m.code||'—')}</td><td><div class="major-name major-click" onclick="openMajorDetail('${esc(g.id)}',${idx})">${iconSvg(m.direction)}${esc(m.name)}${majorRiskTagHtml(vr)}</div></td><td>${esc(m.majorClass||'—')}</td><td>${fmt(m.plan26)}</td><td>${majorPlanCell(m)}</td><td>${scoreRank}</td><td><button class="btn detail-btn" onclick="openMajorDetail('${esc(g.id)}',${idx})">详情</button></td></tr>`;
   }).join('');
-  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass}" id="grp-${cssId(g.id)}"><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}</div></div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划</th><th>25计划/变化</th><th>25分/位次</th><th>专业详情</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
+  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}"><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}</div></div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划</th><th>25计划/变化</th><th>25分/位次</th><th>专业详情</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
 }
 function render(){renderList(); if(state.selected) renderSchool(); else renderHome();}
 function findGroup(id){for(const s of DB.schools) for(const g of s.groups) if(g.id===id) return g; return null;}
@@ -1240,7 +1329,7 @@ if($('coopFilter')) $('coopFilter').addEventListener('change',e=>{state.coopFilt
 if($('creditFilter')) $('creditFilter').addEventListener('change',e=>{state.creditFilter=e.target.value; state.selected=null; render();});
 
 if($('provinceMultiBtn')){
-  $('provinceMultiBtn').addEventListener('click',e=>{e.stopPropagation(); $('provincePanel').classList.toggle('open');});
+  $('provinceMultiBtn').addEventListener('click',e=>{e.stopPropagation(); if(!$('provinceGrid').querySelector('input')) renderProvincePanel(ALL_PROVINCES_STATIC); $('provincePanel').classList.toggle('open');});
 }
 if($('provincePanelClose')) $('provincePanelClose').addEventListener('click',()=> $('provincePanel').classList.remove('open'));
 if($('provinceSelectClear')) $('provinceSelectClear').addEventListener('click',()=> setProvinceSelection([]));
@@ -1265,7 +1354,7 @@ document.addEventListener('click',e=>{
 if($('levelMultiBtn')){
   $('levelMultiBtn').addEventListener('click',e=>{
     e.stopPropagation();
-    $('levelPanel').classList.toggle('open');
+    if(!$('levelGrid').querySelector('input')) renderLevelPanel(ALL_LEVELS_STATIC); $('levelPanel').classList.toggle('open');
   });
 }
 if($('levelPanelClose')) $('levelPanelClose').addEventListener('click',()=> $('levelPanel').classList.remove('open'));
@@ -1313,4 +1402,4 @@ if(collapseBtn){
 
 $('closeModal').onclick=()=>$('modal').classList.remove('open'); $('modal').onclick=e=>{if(e.target.id==='modal') $('modal').classList.remove('open');};
 $('backTop').onclick=()=>window.scrollTo({top:0,behavior:'smooth'}); window.addEventListener('scroll',()=>$('backTop').classList.toggle('show',window.scrollY>300));
-initOptions(); renderHome(); renderList();
+bindStaticMultiPanels(); initOptions(); renderHome(); renderList();
