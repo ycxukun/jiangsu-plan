@@ -492,10 +492,21 @@ function textOfGroup(g){
     ...(g.legacy||[]).flatMap(m=>[m.name,m.remark,m.majorClass,m.direction,...(m.tags||[])])
   ].filter(Boolean).join(' ');
 }
-function groupHasCoop(g){return !!g.hasCoop || /中外合作|合作办学|中外联合|中外/.test(textOfGroup(g));}
-function groupHasCredit(g){return !!g.hasCreditRecognition || /学分互认/.test(textOfGroup(g));}
-function groupHasJoint(g){return !!g.hasJointCultivation || /联合培养|联合学士|双学士|双学位|本硕|本博|长学制/.test(textOfGroup(g));}
-function groupHasSpecialPath(g){return groupHasCoop(g) || groupHasCredit(g) || groupHasJoint(g);}
+
+function textOfMajorForAttr(m){
+  return [m?.name,m?.remark,m?.majorClass,m?.direction,...(m?.tags||[]),...(m?.labels||[])].filter(Boolean).join(' ');
+}
+function textOfGroupForAttr(g){
+  return [g?.title,g?.riskTip,g?.elective,...(g?.importantTags||[]),...(g?.typeTags||[]),...(g?.majors||[]).map(textOfMajorForAttr)].filter(Boolean).join(' ');
+}
+// 严格中外合作：只认明确“中外合作/合作办学/中外联合”等，不再把普通“中法/中德/中俄项目班/学院”误判为中外合作。
+const COOP_STRICT_RE = /中外合作办学|中外合作|合作办学|中外联合培养|中外联合|中外合办/;
+const CREDIT_STRICT_RE = /学分互认|国际本科学术互认|ISEC|SQA|中美学分互认/;
+const JOINT_STRICT_RE = /联合培养|联合学士|双学士|双学位|本硕|本博|长学制/;
+function groupHasCoop(g){ return COOP_STRICT_RE.test(textOfGroupForAttr(g)); }
+function groupHasCredit(g){ return CREDIT_STRICT_RE.test(textOfGroupForAttr(g)); }
+function groupHasJoint(g){ return JOINT_STRICT_RE.test(textOfGroupForAttr(g)); }
+function groupHasSpecialPath(g){ return groupHasCoop(g) || groupHasCredit(g) || groupHasJoint(g); }
 function groupMatchesSpecialPath(g){
   const v=state.specialPathFilter || '';
   if(!v) return true;
@@ -506,6 +517,7 @@ function groupMatchesSpecialPath(g){
   if(v==='joint') return groupHasJoint(g);
   return true;
 }
+
 /* 新增院校：严格名称名单。不要用 25计划/分数为空推断，避免浙江大学、天津大学等旧校误伤。 */
 const RENAMED_SCHOOL_MAP = {'淮阴大学':'淮阴工学院'};
 const EXPLICIT_NEW_SCHOOL_NAMES = new Set([
@@ -669,6 +681,23 @@ function schoolHasNewGroup(s){
   return (s.groups||[]).some(isNewGroupStrict);
 }
 
+
+function isTrueNewGroup(g){
+  if(!isNewGroupStrict(g)) return false;
+  const hasSource = Array.isArray(g?.sourceContext) && g.sourceContext.length>0;
+  const p25 = Number(g?.plan25||0);
+  return !hasSource && p25<=0;
+}
+function isReorgGroup(g){
+  if(!g) return false;
+  if(isTrueNewGroup(g)) return false;
+  const hasSource = Array.isArray(g?.sourceContext) && g.sourceContext.length>0;
+  const changed = Number(g?.newCount||0)>0 || Number(g?.stopCount||0)>0 || Number(g?.crossCount||0)>0 || Number(g?.movedOutCount||0)>0 || /重组|改名|拆分|合并|跨组|来源/.test(String(g?.riskTip||'')+' '+String(g?.title||''));
+  return hasSource && changed;
+}
+function schoolHasTrueNewGroup(s){return (s.groups||[]).some(isTrueNewGroup);}
+function schoolHasReorgGroup(s){return (s.groups||[]).some(isReorgGroup);}
+
 function schoolMatches(s){
   if(state.batch && s.batch!==state.batch) return false;
   if(state.subject && s.subject!==state.subject) return false;
@@ -677,6 +706,8 @@ function schoolMatches(s){
   let groups = s.groups.filter(groupMatchesBase);
   if(state.newSchoolFilter==='only' && !isNewSchool(s)) return false;
   if(state.newSchoolFilter==='newGroup' && !schoolHasNewGroup(s)) return false;
+  if(state.newSchoolFilter==='trueNewGroup' && !schoolHasTrueNewGroup(s)) return false;
+  if(state.newSchoolFilter==='reorgGroup' && !schoolHasReorgGroup(s)) return false;
   if(state.newSchoolFilter==='hide' && isNewSchool(s)) return false;
   if((scoreActive() || state.groupType || state.specialPathFilter || state.risk || state.onlyNew || state.onlyStop || state.onlyCross || state.onlyHigh || state.q) && groups.length===0) return false;
   if(state.risk && !groups.some(g=>groupAssessment(g).kind===state.risk)) return false;
@@ -702,6 +733,8 @@ function groupMatchesBase(g){
   }
   if(state.risk && groupAssessment(g).kind!==state.risk) return false;
   if(state.newSchoolFilter==='newGroup' && !isNewGroupStrict(g)) return false;
+  if(state.newSchoolFilter==='trueNewGroup' && !isTrueNewGroup(g)) return false;
+  if(state.newSchoolFilter==='reorgGroup' && !isReorgGroup(g)) return false;
   if(state.groupType && !(g.typeTags||[]).includes(state.groupType)) return false;
   if(!groupMatchesSpecialPath(g)) return false;
   if(state.onlyNew && g.newCount<=0) return false;
@@ -816,7 +849,7 @@ function renderList(){
       (newer.length?`<div class="school-section-title">新增院校｜已沉底（${newer.length}）</div>`+newer.slice(0,1200).map(item).join(''):'')+
       (newGroup.length?`<div class="school-section-title new-group-section">含新增专业组的院校（${newGroup.length}）</div>`:'');
   }else{
-    const title=state.newSchoolFilter==='only'?'新增院校':(state.newSchoolFilter==='newGroup'?'新增专业组':'院校');
+    const title=state.newSchoolFilter==='only'?'新增院校':(state.newSchoolFilter==='newGroup'?'新增专业组':(state.newSchoolFilter==='trueNewGroup'?'真新增专业组':(state.newSchoolFilter==='reorgGroup'?'重组/改名专业组':'院校')));
     $('schoolList').innerHTML=`<div class="school-section-title">${title}（${arr.length}）</div>`+arr.slice(0,1200).map(item).join('');
   }
   if(!state.selected || !arr.some(s=>s.id===state.selected)) state.selected = arr[0]?.id || null;
@@ -824,7 +857,7 @@ function renderList(){
 function renderHome(){
   const st=DB.stats;
   $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  <div class="version-note"><b>当前版本：</b>V11 稳定回归版｜严格中外合作识别｜只标刺客专业｜专业组短标签<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
@@ -832,9 +865,52 @@ function renderHome(){
 }
 function selectSchool(id){state.selected=id; render(); window.scrollTo({top:0,behavior:'smooth'})}
 function findSchool(id){return DB.schools.find(s=>s.id===id)}
+function groupAttributeTags(g){
+  /*
+    专业组总览只显示短标签；详情仍进专业弹窗。
+    中外合作标签采用严格识别，避免把普通中法/中德/中俄/卓越工程师等误标为中外合作。
+  */
+  const text=textOfGroupForAttr(g);
+  const tags=[];
+  const add=(label,kind)=>{ if(!tags.some(x=>x.label===label)) tags.push({label,kind}); };
+
+  if(groupHasCoop(g)) add('中外合作','coop');
+  if(groupHasCredit(g)) add('学分互认','credit');
+  if(groupHasJoint(g)) add('联合/双学位','credit');
+
+  if(isTrueNewGroup(g)) add('真新增专业组','newgroup');
+  else if(isReorgGroup(g)) add('重组/改名','reorg');
+
+  if(/院士班|筑梦院士|正跃院士/.test(text)) add('院士班','elite');
+  if(/拔尖|拔尖创新|拔尖基地|强基/.test(text)) add('拔尖','elite');
+  if(/卓越班|卓越计划|卓越工程师/.test(text)) add('卓越','elite');
+  if(/实验班|试验班/.test(text)) add('实验/试验班','elite');
+  if(/创新班|复合创新班|AI复合创新|新文科复合创新|航空管理复合创新|长空创新/.test(text)) add('创新班','elite');
+  if(/基地班|国家拔尖基地/.test(text)) add('基地班','elite');
+  if(/英才/.test(text)) add('英才班','elite');
+  if(/钱伟长/.test(text)) add('钱伟长班','elite');
+  if(/未来技术|未来学院/.test(text)) add('未来技术','elite');
+  if(/书院/.test(text)) add('书院制','elite');
+  if(/产教融合|产业学院/.test(text)) add('产教融合','elite');
+  if(/本博/.test(text)) add('本博','elite');
+  if(/本硕/.test(text)) add('本硕','elite');
+  if(/高收费|较高收费|收费标准/.test(text)) add('高收费','warn');
+  if(/只招英语|英语考生|外语语种/.test(text)) add('语种限制','warn');
+  if(/校区|异地校区|分校区/.test(text)) add('校区','warn');
+  if(/公费师范|乡村教师|定向师范/.test(text)) add('师范专项','warn');
+  return tags;
+}
+
 function visibleSpecialTags(g){
-  // 专业组总览只保留分数与计划变化；班型/合作/学科实力等放入专业详情弹窗。
-  return [];
+  return groupAttributeTags(g);
+}
+function groupAttrTagHtml(g){
+  const tags=groupAttributeTags(g);
+  if(!tags.length) return '';
+  return `<div class="group-attr-line">${tags.map(t=>`<span class="group-attr-tag ${esc(t.kind||'')}">${esc(t.label)}</span>`).join('')}</div>`;
+}
+function tileTagHtml(tags){
+  return (tags||[]).slice(0,5).map(t=>`<span class="tile-tag ${esc(t.kind||'')}">${esc(t.label||t)}</span>`).join('');
 }
 function planDeltaClass(pc){
   if(!pc) return 'plan-unknown';
@@ -875,7 +951,7 @@ function renderSchool(){
   const s=findSchool(state.selected); if(!s) return renderHome();
   const groups=s.groups.filter(groupMatchesBase);
   const sum=s.summary;
-  const groupNav=groups.map(g=>{const a=groupAssessment(g);const pc=planAudit(g);return `<div class="group-tile ${g.bucket} ${a.cls} ${isNewGroupStrict(g)?'new-group-tile':''}" onclick="document.getElementById('grp-${cssId(g.id)}').scrollIntoView({behavior:'smooth',block:'start'})"><div class="tile-top"><span class="group-code">${esc(g.groupCode)}组</span><span class="tile-tags">${visibleSpecialTags(g).map(t=>`<span class="tile-tag">${esc(t)}</span>`).join('')}</span></div><div class="group-name">${esc(groupDisplayTitle(g))}</div><div class="tile-metrics compact">${compactScore(g)}${planCompact(pc,g)}</div></div>`}).join('');
+  const groupNav=groups.map(g=>{const a=groupAssessment(g);const pc=planAudit(g);return `<div class="group-tile ${g.bucket} ${a.cls} ${isNewGroupStrict(g)?'new-group-tile':''}" onclick="document.getElementById('grp-${cssId(g.id)}').scrollIntoView({behavior:'smooth',block:'start'})"><div class="tile-top"><span class="group-code">${esc(g.groupCode)}组</span><span class="tile-tags">${tileTagHtml(visibleSpecialTags(g))}</span></div><div class="group-name">${esc(groupDisplayTitle(g))}</div><div class="tile-metrics compact">${compactScore(g)}${planCompact(pc,g)}</div></div>`}).join('');
   const cards=groups.map(renderGroup).join('') || '<div class="empty">当前筛选下没有专业组。</div>';
   const scoreNote = scoreActive() ? `<span class="pill blue">分数段：${scoreBandText()}</span>` : '';
   const newGroupNote = state.newSchoolFilter==='newGroup' ? `<span class="pill new-group">只看新增专业组</span>` : '';
@@ -928,7 +1004,7 @@ function renderGroup(g){
     const scoreRank=(m.score25||m.rank25) ? `${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}` : '—';
     return `<tr class="${rowCls}"><td>${esc(m.code||'—')}</td><td><div class="major-name major-click" onclick="openMajorDetail('${esc(g.id)}',${idx})">${iconSvg(m.direction)}${esc(m.name)}${majorRiskTagHtml(vr)}</div></td><td>${esc(m.majorClass||'—')}</td><td>${fmt(m.plan26)}</td><td>${majorPlanCell(m)}</td><td>${scoreRank}</td><td><button class="btn detail-btn" onclick="openMajorDetail('${esc(g.id)}',${idx})">详情</button></td></tr>`;
   }).join('');
-  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}"><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}</div></div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划</th><th>25计划/变化</th><th>25分/位次</th><th>专业详情</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
+  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}"><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划</th><th>25计划/变化</th><th>25分/位次</th><th>专业详情</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
 }
 function render(){renderList(); if(state.selected) renderSchool(); else renderHome();}
 function findGroup(id){for(const s of DB.schools) for(const g of s.groups) if(g.id===id) return g; return null;}
@@ -1402,4 +1478,4 @@ if(collapseBtn){
 
 $('closeModal').onclick=()=>$('modal').classList.remove('open'); $('modal').onclick=e=>{if(e.target.id==='modal') $('modal').classList.remove('open');};
 $('backTop').onclick=()=>window.scrollTo({top:0,behavior:'smooth'}); window.addEventListener('scroll',()=>$('backTop').classList.toggle('show',window.scrollY>300));
-bindStaticMultiPanels(); initOptions(); renderHome(); renderList();
+bindStaticMultiPanels(); initOptions(); const vb=$('versionBadge'); if(vb) vb.textContent=APP_VERSION; renderHome(); renderList();
