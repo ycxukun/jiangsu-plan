@@ -1,19 +1,30 @@
-# 江苏省招生计划变化知识库
+# 江苏省招生计划变化知识库｜省份层次多选｜大区排序｜拆分部署版
 
-这是 GitHub Pages 静态网页部署包。
+## 本版变化
 
-## 文件说明
+1. 省份筛选支持多选。
+2. 省份不再按拼音排序，改为按大区排序：
+   - 华东地区
+   - 华中地区
+   - 华北地区
+   - 华南地区
+   - 西南地区
+   - 西北地区
+   - 东北地区
+   - 其他地区
+3. 院校层次支持多选，例如可以同时选择 985、211。
+4. 保留严格新增院校识别与民办/独立学院层级防误判。
+5. 保留 GitHub Pages 拆分部署结构，避免单文件超过 25MB。
 
-- `index.html`：网站首页
-- `.nojekyll`：关闭 Jekyll 处理，按纯静态 HTML 发布
-- `README.md`：说明文件
+## 上传方式
 
-## GitHub Pages 设置
+解压后，将本文件夹内所有文件上传到 GitHub 仓库根目录并覆盖旧文件：
 
-Repository → Settings → Pages → Build and deployment：
+- index.html
+- data-db.js
+- data-major-details.js
+- app.js
+- .nojekyll
+- README.md
 
-- Source: Deploy from a branch
-- Branch: main
-- Folder: /root
-
-保存后等待 GitHub Pages 自动发布。
+注意：不要把 zip 原样上传到仓库，需要解压后上传里面的文件。
