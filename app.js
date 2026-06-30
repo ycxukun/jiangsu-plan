@@ -4,6 +4,94 @@ function majorDetailKey(m){
 function detailForMajor(m){
   return MAJOR_DETAILS_BY_CODE[majorDetailKey(m)] || null;
 }
+const HISTORY_YEARS = [2025, 2024, 2023];
+const majorHistoryAvgCache = new WeakMap();
+const groupHistoryAvgCache = new WeakMap();
+function positiveNumber(v){
+  const n=Number(v);
+  return Number.isFinite(n) && n>0 ? n : null;
+}
+function avgValue(values){
+  const arr=(values||[]).filter(v=>Number.isFinite(v));
+  return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+}
+function yearScore(d,m,year){
+  return positiveNumber(d?.[`${year}最低分`]) ?? (year===2025 ? positiveNumber(m?.score25) : null);
+}
+function yearRank(d,m,year){
+  return positiveNumber(d?.[`${year}最低位次`]) ?? (year===2025 ? positiveNumber(m?.rank25) : null);
+}
+function yearPlanWeight(d,m,year){
+  return positiveNumber(d?.[`${year}计划`]) ?? (year===2025 ? positiveNumber(m?.plan25) : null) ?? 1;
+}
+function majorHistoryAverage(m){
+  if(!m || typeof m!=='object') return {score:null,rank:null,yearCount:0};
+  if(majorHistoryAvgCache.has(m)) return majorHistoryAvgCache.get(m);
+  const d=detailForMajor(m) || {};
+  const years=new Set(), scores=[], ranks=[];
+  HISTORY_YEARS.forEach(year=>{
+    const score=yearScore(d,m,year);
+    const rank=yearRank(d,m,year);
+    if(score || rank) years.add(year);
+    if(score) scores.push(score);
+    if(rank) ranks.push(rank);
+  });
+  const out={score:avgValue(scores),rank:avgValue(ranks),yearCount:years.size};
+  majorHistoryAvgCache.set(m,out);
+  return out;
+}
+function groupHistoryAverage(g){
+  if(!g || typeof g!=='object') return {score:null,rank:null,yearCount:0};
+  if(groupHistoryAvgCache.has(g)) return groupHistoryAvgCache.get(g);
+  let scoreSum=0, scoreWeight=0, rankSum=0, rankWeight=0;
+  const years=new Set();
+  (g.majors||[]).forEach(m=>{
+    const d=detailForMajor(m) || {};
+    HISTORY_YEARS.forEach(year=>{
+      const score=yearScore(d,m,year);
+      const rank=yearRank(d,m,year);
+      if(score || rank) years.add(year);
+      const weight=yearPlanWeight(d,m,year);
+      if(score){scoreSum+=score*weight; scoreWeight+=weight;}
+      if(rank){rankSum+=rank*weight; rankWeight+=weight;}
+    });
+  });
+  const out={
+    score:scoreWeight ? scoreSum/scoreWeight : null,
+    rank:rankWeight ? rankSum/rankWeight : null,
+    yearCount:years.size
+  };
+  groupHistoryAvgCache.set(g,out);
+  return out;
+}
+function hasHistoryAverage(avg){
+  return !!avg && (Number.isFinite(avg.score) || Number.isFinite(avg.rank));
+}
+function formatAvgScore(v){
+  if(!Number.isFinite(v)) return '—';
+  const rounded=Math.round(v*10)/10;
+  return Number.isInteger(rounded) ? fmt(rounded) : rounded.toFixed(1);
+}
+function formatAvgRank(v){
+  return Number.isFinite(v) ? fmt(Math.round(v)) : '—';
+}
+function historyAverageText(avg,showYearCount=false){
+  if(!hasHistoryAverage(avg)) return '—';
+  const suffix=showYearCount && avg.yearCount>0 && avg.yearCount<3 ? `（${avg.yearCount}年）` : '';
+  return `${formatAvgScore(avg.score)} / ${formatAvgRank(avg.rank)}${suffix}`;
+}
+function historyAverageTitle(avg){
+  const count=avg?.yearCount || 0;
+  return `按2023-2025中有有效分/位次的年份平均${count ? `，覆盖${count}年` : ''}`;
+}
+function historyAverageCell(avg){
+  if(!hasHistoryAverage(avg)) return '—';
+  return `<span title="${esc(historyAverageTitle(avg))}">${historyAverageText(avg,true)}</span>`;
+}
+function historyAveragePill(avg,label='三年均分/位次'){
+  if(!hasHistoryAverage(avg)) return '';
+  return `<span class="detail-pill" title="${esc(historyAverageTitle(avg))}">${label} ${historyAverageText(avg,true)}</span>`;
+}
 /* version: 专业细分移动折叠版；重构专业组干净度：财会/数理/带电工科/医学等按同一报考逻辑判断；新增筛选栏一键折叠 */
 const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'all',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null};
 const $ = id => document.getElementById(id);
@@ -591,6 +679,15 @@ function renderProvincePanel(provinces){
 }
 const ALL_PROVINCES_STATIC = ["上海", "云南", "内蒙古", "北京", "吉林", "四川", "天津", "宁夏", "安徽", "山东", "山西", "广东", "广西", "新疆", "江苏", "江西", "河北", "河南", "浙江", "海南", "湖北", "湖南", "甘肃", "福建", "西藏", "贵州", "辽宁", "重庆", "陕西", "青海", "香港", "黑龙江"];
 const ALL_LEVELS_STATIC = ["985", "211", "一流", "保研", "合办保研", "民办保研", "公办", "合办", "港校", "民办"];
+const PROVINCE_REGION_ORDER = [
+  {name:'华东地区', provinces:['上海','江苏','浙江','安徽','福建','江西','山东']},
+  {name:'华中地区', provinces:['河南','湖北','湖南']},
+  {name:'华北地区', provinces:['北京','天津','河北','山西','内蒙古']},
+  {name:'华南地区', provinces:['广东','广西','海南','香港']},
+  {name:'西南地区', provinces:['重庆','四川','贵州','云南','西藏']},
+  {name:'西北地区', provinces:['陕西','甘肃','青海','宁夏','新疆']},
+  {name:'东北地区', provinces:['辽宁','吉林','黑龙江']}
+];
 function provinceRegionSorted(provinces){
   const set=new Set(provinces||[]);
   const out=[];
@@ -858,7 +955,7 @@ function renderHome(){
   const st=DB.stats;
   $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
   <div class="version-note"><b>当前版本：</b>V11 稳定回归版｜严格中外合作识别｜只标刺客专业｜专业组短标签<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
-  <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
+  <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、三年均分/位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
   </section>`;
@@ -942,10 +1039,12 @@ function majorPlanCell(m){
 }
 function compactScore(g){
   const a=[];
-  if(g.avgScore) a.push(`25均分 ${fmt(g.avgScore)}`);
-  if(g.avgRank) a.push(`位次 ${fmt(g.avgRank)}`);
-  if(g.majorCount) a.push(`专业 ${fmt(g.majorCount)}`);
-  return a.map(x=>`<span>${x}</span>`).join('');
+  const hist=groupHistoryAverage(g);
+  if(g.avgScore) a.push(`<span>25均分 ${fmt(g.avgScore)}</span>`);
+  if(g.avgRank) a.push(`<span>位次 ${fmt(g.avgRank)}</span>`);
+  if(hasHistoryAverage(hist)) a.push(`<span title="${esc(historyAverageTitle(hist))}">三年均分/位次 ${historyAverageText(hist)}</span>`);
+  if(g.majorCount) a.push(`<span>专业 ${fmt(g.majorCount)}</span>`);
+  return a.join('');
 }
 function renderSchool(){
   const s=findSchool(state.selected); if(!s) return renderHome();
@@ -1002,9 +1101,10 @@ function renderGroup(g){
     const vr=majorVisualRisk(m,g);
     const rowCls=vr.level==='danger'?'major-danger':(vr.level==='warn'?'major-warn':'');
     const scoreRank=(m.score25||m.rank25) ? `${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}` : '—';
-    return `<tr class="${rowCls}"><td>${esc(m.code||'—')}</td><td><div class="major-name major-click" onclick="openMajorDetail('${esc(g.id)}',${idx})">${iconSvg(m.direction)}${esc(m.name)}${majorRiskTagHtml(vr)}</div></td><td>${esc(m.majorClass||'—')}</td><td>${fmt(m.plan26)}</td><td>${majorPlanCell(m)}</td><td>${scoreRank}</td><td><button class="btn detail-btn" onclick="openMajorDetail('${esc(g.id)}',${idx})">详情</button></td></tr>`;
+    const histAvg=majorHistoryAverage(m);
+    return `<tr class="${rowCls}"><td>${esc(m.code||'—')}</td><td><div class="major-name major-click" onclick="openMajorDetail('${esc(g.id)}',${idx})">${iconSvg(m.direction)}${esc(m.name)}${majorRiskTagHtml(vr)}</div></td><td>${esc(m.majorClass||'—')}</td><td>${fmt(m.plan26)}</td><td>${majorPlanCell(m)}</td><td>${scoreRank}</td><td>${historyAverageCell(histAvg)}</td><td><button class="btn detail-btn" onclick="openMajorDetail('${esc(g.id)}',${idx})">详情</button></td></tr>`;
   }).join('');
-  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}"><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划</th><th>25计划/变化</th><th>25分/位次</th><th>专业详情</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
+  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}"><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划</th><th>25计划/变化</th><th>25分/位次</th><th>三年均分/位次</th><th>专业详情</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
 }
 function render(){renderList(); if(state.selected) renderSchool(); else renderHome();}
 function findGroup(id){for(const s of DB.schools) for(const g of s.groups) if(g.id===id) return g; return null;}
@@ -1290,12 +1390,14 @@ function openMajorDetail(groupId, majorIndex){
   const d=detailForMajor(m) || {};
   $('modalTitle').textContent=`${m.school}｜${g.groupCode}组｜${m.name}`;
   const planDelta=safeNum(m.plan26)-safeNum(m.plan25);
+  const histAvg=majorHistoryAverage(m);
   const lead=[
     `<span class="detail-pill">${esc(m.subject||g.subject||'')}</span>`,
     `<span class="detail-pill">${esc(m.batch||g.batch||'')}</span>`,
     `<span class="detail-pill">${esc(g.groupCode)}组</span>`,
     `<span class="detail-pill">计划 ${fmt(safeNum(m.plan25))}→${fmt(safeNum(m.plan26))}（${planDelta>0?`+${fmt(planDelta)}`:fmt(planDelta)}）</span>`,
-    (m.score25||m.rank25)?`<span class="detail-pill">25分/位次 ${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}</span>`:''
+    (m.score25||m.rank25)?`<span class="detail-pill">25分/位次 ${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}</span>`:'',
+    historyAveragePill(histAvg)
   ].filter(Boolean).join('');
   const sections=[
     sectionHTML('培养属性', [
@@ -1326,6 +1428,8 @@ function openMajorDetail(groupId, majorIndex){
       ['2025最高分', d['2025最高分'] || m.max25],
       ['2025最低分', d['2025最低分'] || m.score25],
       ['2025最低位次', d['2025最低位次'] || m.rank25],
+      ['三年平均分', hasHistoryAverage(histAvg) ? formatAvgScore(histAvg.score) : ''],
+      ['三年平均位次', hasHistoryAverage(histAvg) ? formatAvgRank(histAvg.rank) : ''],
       ['2024计划', d['2024计划']],
       ['2024最低分', d['2024最低分']],
       ['2024最低位次', d['2024最低位次']],
@@ -1386,10 +1490,10 @@ function openEvo(id){
 
 function exportCSV(){
   const s=findSchool(state.selected); if(!s) return;
-  const lines=[['学校','批次','科类','专业组','专业组名称','专业组类型','再选','组内颜色','专业匹配度','风险等级','25对照组计划','26组计划','组计划增减','组计划口径','25加权均分','模拟参考分','模拟区间','筛选分','模拟依据','专业代码','专业名称','专业类','标签','26专业计划','25专业计划','行级增减','25最低分','25最低位次','风险提示']];
+  const lines=[['学校','批次','科类','专业组','专业组名称','专业组类型','再选','组内颜色','专业匹配度','风险等级','25对照组计划','26组计划','组计划增减','组计划口径','25加权均分','三年平均分','三年平均位次','模拟参考分','模拟区间','筛选分','模拟依据','专业代码','专业名称','专业类','标签','26专业计划','25专业计划','行级增减','25最低分','25最低位次','专业三年平均分','专业三年平均位次','风险提示']];
   s.groups.forEach(g=>{
     if(!groupMatchesBase(g)) return;
-    { const pc=planAudit(g); g.majors.forEach(m=>lines.push([s.name,s.batch,s.subject,g.groupCode,groupDisplayTitle(g),(g.typeTags||[]).map(typeTagLabel).join('|'),g.elective,groupAssessment(g).label,groupAssessment(g).score,g.riskLevel,pc.oldPlan??'待核对',pc.plan26,pc.delta??'待核对',pc.basis,g.avgScore||'',g.predScore||'',(g.predLow!==null&&g.predHigh!==null)?`${g.predLow}-${g.predHigh}`:'',scoreForFilter(g)||'',g.predBasis||'',m.code,m.name,m.majorClass||'',(m.labels||[]).join('|'),m.plan26,m.plan25,(m.plan26||0)-(m.plan25||0),m.score25||'',m.rank25||'',(m.auditNote||m.riskTip||'')])); }
+    { const pc=planAudit(g); const groupHist=groupHistoryAverage(g); g.majors.forEach(m=>{const majorHist=majorHistoryAverage(m); lines.push([s.name,s.batch,s.subject,g.groupCode,groupDisplayTitle(g),(g.typeTags||[]).map(typeTagLabel).join('|'),g.elective,groupAssessment(g).label,groupAssessment(g).score,g.riskLevel,pc.oldPlan??'待核对',pc.plan26,pc.delta??'待核对',pc.basis,g.avgScore||'',hasHistoryAverage(groupHist)?formatAvgScore(groupHist.score):'',hasHistoryAverage(groupHist)?formatAvgRank(groupHist.rank):'',g.predScore||'',(g.predLow!==null&&g.predHigh!==null)?`${g.predLow}-${g.predHigh}`:'',scoreForFilter(g)||'',g.predBasis||'',m.code,m.name,m.majorClass||'',(m.labels||[]).join('|'),m.plan26,m.plan25,(m.plan26||0)-(m.plan25||0),m.score25||'',m.rank25||'',hasHistoryAverage(majorHist)?formatAvgScore(majorHist.score):'',hasHistoryAverage(majorHist)?formatAvgRank(majorHist.rank):'',(m.auditNote||m.riskTip||'')]); }); }
   });
   const csv=lines.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
