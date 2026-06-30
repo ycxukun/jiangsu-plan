@@ -1,33 +1,20 @@
-# 江苏省招生计划变化知识库｜V16 Supabase 数据库备注版
+# 江苏省招生计划变化知识库｜V16.2 去除主观层级标签版
 
-## 入口
+## 本版修改
 
-公开页：
+1. 去掉学校展示中的主观层级标签：
+   - 顶尖
+   - 强校
+   - 985/顶尖
+   - 211/双一流
+   - 保研/强校
+   - 双一流/一流
+2. 保留客观信息：
+   - 985、211、公办、民办/独立、新增/更名等事实性/业务性标签
+   - 省份、科类、批次、专业组数
+   - 中外合作、真实新增专业组、重组改名等专业组标签
+3. Supabase 数据库备注功能保留。
+4. index.html 是公开页。
+5. admin.html 是管理员页。
 
-`https://ycxukun.github.io/jiangsu-plan/`
-
-管理员页：
-
-`https://ycxukun.github.io/jiangsu-plan/admin.html`
-
-## Supabase 配置
-
-- Project URL: https://qnspmqsrbjcgrgpqkzgl.supabase.co
-- REST URL: https://qnspmqsrbjcgrgpqkzgl.supabase.co/rest/v1
-- 管理员邮箱: ycxukun@gmail.com
-- 前端 key: publishable/anon key 已内置。
-
-## 功能
-
-1. 公开页自动读取 Supabase `notes` 表，展示备注。
-2. 管理员页登录 Supabase Auth 后，右键学校/专业组/专业即可编辑备注。
-3. 保存备注直接写入 Supabase `notes` 表。
-4. 普通访问者只能看，不能写。
-5. 不再需要 GitHub Token。
-6. 不再需要手动导出 annotations.json。
-7. 三年均分/位次合并列保留。
-8. 固定备注面板、详情页备注保留。
-
-## 注意
-
-需要先在 Supabase 里创建 `notes` 和 `admin_users` 表，并把管理员邮箱对应用户加入 `admin_users`。
+当前版本：V16.2 Supabase备注版｜去除主观层级标签｜公开只读
