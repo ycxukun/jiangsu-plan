@@ -1544,19 +1544,24 @@ body.note-admin-mode .sb-login-modal.open{
 .sb-login-actions{padding:12px 16px;display:flex;justify-content:flex-end;border-top:1px solid #eaecf0}
 body.sb-logged-in #sbLoginBtn::after{content:" ✓";}
 
+
+/* === V16.4：教育部专业大类筛选 === */
+#majorClassFilter{min-width:140px;}
+
 </style>
 </head>
 <body class="admin-page note-admin-mode">
-<div id="versionBadge" class="version-badge" style="display:none!important">V16.3 Supabase备注版｜清除学校展示标签｜公开只读</div>
+<div id="versionBadge" class="version-badge" style="display:none!important">V16.4 Supabase备注版｜新增教育部专业大类筛选｜公开只读</div>
 <div class="topbar">
   <div class="top-inner">
-    <div class="brand"><div class="brand-main"><span>江苏省招生计划变化知识库</span><button id="filterCollapseBtn" class="filter-collapse" type="button">折叠筛选</button></div><small>2026在招专业组版｜V16.3管理员页</small></div>
+    <div class="brand"><div class="brand-main"><span>江苏省招生计划变化知识库</span><button id="filterCollapseBtn" class="filter-collapse" type="button">折叠筛选</button></div><small>2026在招专业组版｜V16.4管理员页</small></div>
     <div class="filters">
       <select id="batchFilter"><option value="">全部批次</option><option>本科普通批次</option><option>本科提前批</option><option disabled>本科高校专项（待数据）</option><option disabled>本科国家专项（待数据）</option><option disabled>本科地方专项（待数据）</option><option disabled>专科普通批次（待数据）</option><option disabled>专科提前批（待数据）</option></select>
       <select id="subjectFilter"><option value="">全部科类</option><option>物理类</option><option>历史类</option></select>
       <select id="provinceFilter" style="display:none"><option value="">全部省份</option></select><div class="province-multi-wrap"><button id="provinceMultiBtn" class="multi-btn" type="button">全部省份</button></div>
       <select id="levelFilter" style="display:none"><option value="">全部层次</option></select><div class="level-multi-wrap"><button id="levelMultiBtn" class="multi-btn" type="button">全部层次</button></div>
       <select id="riskFilter"><option value="">全部组色</option><option value="excellent">深绿：高纯干净</option><option value="good">浅绿：相邻干净</option><option value="yellow">黄色：整体一般</option><option value="orange">橙色：大杂混组</option><option value="red">红色：刺客混组</option></select>
+      <select id="majorClassFilter"><option value="">全部专业大类</option></select>
       <select id="groupTypeFilter" style="display:none"><option value="">全部专业组类型</option><option>师范</option><option>医学药学</option><option>财会经管</option><option>法学人文社科</option><option>热门工科</option><option>计算机/人工智能</option><option>电子信息/通信/芯片</option><option>电气/自动化</option><option>传统工科</option><option value="材料化工环境生物食品">材料/化工/环境/生物/食品</option><option>理学基础</option><option>语言文史新闻</option><option>艺体</option><option>其他小众</option></select>
       <select id="specialPathFilter"><option value="">中外合作/学分互认不限</option><option value="only">只看中外合作/学分互认</option><option value="exclude">排除中外合作/学分互认</option><option value="coop">只看中外合作</option><option value="credit">只看学分互认</option><option value="joint">只看联合培养/双学位</option></select>
       <select id="newSchoolFilter"><option value="all">全部院校/专业组</option><option value="normal">新增院校沉底</option><option value="only">只看新增院校</option><option value="newGroup">只看新增专业组</option><option value="trueNewGroup">只看真新增专业组</option><option value="reorgGroup">只看重组/改名专业组</option><option value="hide">隐藏新增院校</option></select>
@@ -1712,72 +1717,72 @@ body.sb-logged-in #sbLoginBtn::after{content:" ✓";}
 
 <div class="rc-note-float fixed-panel" id="rcNoteFloat"><div class="rc-note-float-title" id="rcNoteFloatTitle">备注</div><div class="rc-note-float-content" id="rcNoteFloatContent"></div></div>
 
-<script src="data-db-part-01.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-02.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-03.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-04.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-05.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-06.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-07.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-08.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-09.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-10.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-11.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-12.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-13.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-14.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-15.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-16.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-17.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-18.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-19.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-20.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-21.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-22.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-23.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-24.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-25.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-26.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-27.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-28.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-29.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-30.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-31.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-32.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-33.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-34.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-35.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-36.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-37.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-38.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-39.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-40.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-41.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db-part-42.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-db.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-01.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-02.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-03.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-04.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-05.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-06.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-07.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-08.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-09.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-10.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-11.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-12.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-13.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-14.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-15.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-16.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-17.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-18.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-19.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-20.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details-part-21.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="data-major-details.js?v=20260630-v16-3-clean-school-badges"></script>
-<script src="app.js?v=20260630-v16-3-clean-school-badges"></script>
+<script src="data-db-part-01.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-02.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-03.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-04.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-05.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-06.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-07.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-08.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-09.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-10.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-11.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-12.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-13.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-14.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-15.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-16.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-17.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-18.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-19.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-20.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-21.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-22.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-23.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-24.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-25.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-26.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-27.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-28.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-29.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-30.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-31.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-32.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-33.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-34.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-35.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-36.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-37.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-38.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-39.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-40.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-41.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db-part-42.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-db.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-01.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-02.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-03.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-04.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-05.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-06.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-07.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-08.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-09.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-10.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-11.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-12.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-13.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-14.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-15.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-16.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-17.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-18.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-19.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-20.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details-part-21.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="data-major-details.js?v=20260630-v16-4-major-class-filter"></script>
+<script src="app.js?v=20260630-v16-4-major-class-filter"></script>
 <button class="btn" id="annoModalClose" type="button" onclick="closeAnnotationEditor()">关闭</button>
     </div>
     <div class="anno-panel-body">

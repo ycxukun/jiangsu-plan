@@ -5,7 +5,7 @@ function detailForMajor(m){
   return MAJOR_DETAILS_BY_CODE[majorDetailKey(m)] || null;
 }
 /* version: 专业细分移动折叠版；重构专业组干净度：财会/数理/带电工科/医学等按同一报考逻辑判断；新增筛选栏一键折叠 */
-const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'all',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null};
+const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',majorClass:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'all',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null};
 const $ = id => document.getElementById(id);
 const fmt = v => (v===null || v===undefined || v==='') ? '—' : (typeof v==='number' ? v.toLocaleString('zh-CN') : v);
 const delta = v => v>0 ? `<span class="delta-pos">+${v}</span>` : (v<0 ? `<span class="delta-neg">${v}</span>` : '0');
@@ -698,6 +698,24 @@ function isReorgGroup(g){
 function schoolHasTrueNewGroup(s){return (s.groups||[]).some(isTrueNewGroup);}
 function schoolHasReorgGroup(s){return (s.groups||[]).some(isReorgGroup);}
 
+
+function majorClassOfMajor(m){ return String(m?.majorClass || '').trim(); }
+function groupHasMajorClass(g, cls){
+  const c=String(cls||'').trim();
+  if(!c) return true;
+  return (g?.majors||[]).some(m=>majorClassOfMajor(m)===c);
+}
+function majorClassSorted(list){
+  return [...new Set((list||[]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
+}
+function allMajorClasses(){
+  const vals=[];
+  (DB.schools||[]).forEach(s=>(s.groups||[]).forEach(g=>(g.majors||[]).forEach(m=>{
+    const c=majorClassOfMajor(m); if(c) vals.push(c);
+  })));
+  return majorClassSorted(vals);
+}
+
 function schoolMatches(s){
   if(state.batch && s.batch!==state.batch) return false;
   if(state.subject && s.subject!==state.subject) return false;
@@ -709,7 +727,7 @@ function schoolMatches(s){
   if(state.newSchoolFilter==='trueNewGroup' && !schoolHasTrueNewGroup(s)) return false;
   if(state.newSchoolFilter==='reorgGroup' && !schoolHasReorgGroup(s)) return false;
   if(state.newSchoolFilter==='hide' && isNewSchool(s)) return false;
-  if((scoreActive() || state.groupType || state.specialPathFilter || state.risk || state.onlyNew || state.onlyStop || state.onlyCross || state.onlyHigh || state.q) && groups.length===0) return false;
+  if((scoreActive() || state.majorClass || state.groupType || state.specialPathFilter || state.risk || state.onlyNew || state.onlyStop || state.onlyCross || state.onlyHigh || state.q) && groups.length===0) return false;
   if(state.risk && !groups.some(g=>groupAssessment(g).kind===state.risk)) return false;
   if(state.onlyNew && !groups.some(g=>g.newCount>0)) return false;
   if(state.onlyStop && !groups.some(g=>g.stopCount>0 || g.legacyOnly)) return false;
@@ -720,7 +738,7 @@ function schoolMatches(s){
     const text=(s.name+' '+s.province+' '+s.level+' '+s.subject+' '+s.batch).toLowerCase();
     const hitSchool=text.includes(q);
     const hitGroup=s.groups.some(g=>(g.groupCode+' '+g.title+' '+g.elective).toLowerCase().includes(q));
-    const hitMajor=s.groups.some(g=>g.majors.some(m=>(m.name+' '+(m.labels||[]).join(' ')).toLowerCase().includes(q)) || g.legacy.some(m=>m.name.toLowerCase().includes(q)));
+    const hitMajor=s.groups.some(g=>g.majors.some(m=>(m.name+' '+(m.majorClass||'')+' '+(m.labels||[]).join(' ')).toLowerCase().includes(q)) || g.legacy.some(m=>m.name.toLowerCase().includes(q)));
     if(!hitSchool && !hitGroup && !hitMajor) return false;
   }
   return true;
@@ -736,6 +754,7 @@ function groupMatchesBase(g){
   if(state.newSchoolFilter==='trueNewGroup' && !isTrueNewGroup(g)) return false;
   if(state.newSchoolFilter==='reorgGroup' && !isReorgGroup(g)) return false;
   if(state.groupType && !(g.typeTags||[]).includes(state.groupType)) return false;
+  if(state.majorClass && !groupHasMajorClass(g,state.majorClass)) return false;
   if(!groupMatchesSpecialPath(g)) return false;
   if(state.onlyNew && g.newCount<=0) return false;
   if(state.onlyStop && !(g.stopCount>0 || g.legacyOnly)) return false;
@@ -743,7 +762,7 @@ function groupMatchesBase(g){
   if(state.onlyHigh && groupAssessment(g).kind!=='red') return false;
   if(state.q){
     const q=state.q.toLowerCase();
-    const hit=(g.school+' '+g.groupCode+' '+g.title+' '+g.elective+' '+g.riskTip).toLowerCase().includes(q) || g.majors.some(m=>(m.name+' '+(m.labels||[]).filter(t=>!['疑似新增','跨组调入'].includes(t)).join(' ')).toLowerCase().includes(q)) || g.legacy.some(m=>m.name.toLowerCase().includes(q));
+    const hit=(g.school+' '+g.groupCode+' '+g.title+' '+g.elective+' '+g.riskTip).toLowerCase().includes(q) || g.majors.some(m=>(m.name+' '+(m.majorClass||'')+' '+(m.labels||[]).filter(t=>!['疑似新增','跨组调入'].includes(t)).join(' ')).toLowerCase().includes(q)) || g.legacy.some(m=>m.name.toLowerCase().includes(q));
     if(!hit) return false;
   }
   return true;
@@ -823,6 +842,8 @@ function bindStaticMultiPanels(){
 }
 
 function initOptions(){
+  const majorClasses=allMajorClasses();
+  if($('majorClassFilter')) $('majorClassFilter').innerHTML='<option value="">全部专业大类</option>'+majorClasses.map(x=>`<option>${esc(x)}</option>`).join('');
   const provinces=provinceRegionSorted(([...new Set(DB.schools.map(s=>s.province).filter(Boolean))]).length ? [...new Set(DB.schools.map(s=>s.province).filter(Boolean))] : ALL_PROVINCES_STATIC);
   const levels=levelSorted(([...new Set(DB.schools.map(s=>s.level).filter(Boolean))]).length ? [...new Set(DB.schools.map(s=>s.level).filter(Boolean))] : ALL_LEVELS_STATIC);
   if($('provinceFilter')) $('provinceFilter').innerHTML='<option value="">全部省份</option>'+provinces.map(x=>`<option>${esc(x)}</option>`).join('');
@@ -856,8 +877,8 @@ function renderList(){
 }
 function renderHome(){
   const st=DB.stats;
-  $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="version-note"><b>当前版本：</b>V16.3 Supabase备注版｜清除学校展示标签｜公开只读<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；新增“教育部专业大类”筛选，可按计算机类、电子信息类、临床医学类等直接定位包含该大类的专业组；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
+  <div class="version-note"><b>当前版本：</b>V16.4 Supabase备注版｜新增教育部专业大类筛选｜公开只读<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
@@ -2153,6 +2174,7 @@ function exportCSV(){
 ['batch','subject','risk'].forEach(k=>{
   const id=k+'Filter'; const el=$(id); if(el) el.addEventListener('change',e=>{state[k]=e.target.value; state.selected=null; render();});
 });
+if($('majorClassFilter')) $('majorClassFilter').addEventListener('change',e=>{state.majorClass=e.target.value; state.selected=null; render();});
 $('groupTypeFilter').addEventListener('change',e=>{state.groupType=e.target.value; state.selected=null; render();});
 $('specialPathFilter').addEventListener('change',e=>{state.specialPathFilter=e.target.value; state.selected=null; render();});
 $('newSchoolFilter').addEventListener('change',e=>{state.newSchoolFilter=e.target.value; state.selected=null; render();});
