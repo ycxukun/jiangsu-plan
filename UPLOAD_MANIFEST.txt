@@ -17,6 +17,7 @@ data-db-part-11.js
 data-db-part-12.js
 data-db-part-13.js
 data-group-names.js
+data-group-changes.js
 data-major-details.js
 data-major-details-part-01.js
 data-major-details-part-02.js

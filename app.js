@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.7 giscus批注+组色版';
+const VERSION='2026在招专业组版｜V1.1.7 giscus批注+组色+变迁版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -17,7 +17,8 @@ const hotOrder=['计算机类','电子信息类','电气类','自动化类','机
 let DB=Array.isArray(window.DB)?window.DB:[];
 let DETAILS=window.MAJOR_DETAILS||{};
 let GROUP_NAMING=window.GROUP_NAMING||{};
-let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,compact:false,activeSchoolId:null,filtered:[]};
+let GROUP_CHANGES=window.GROUP_CHANGES||{};
+let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 const $=sel=>document.querySelector(sel);
@@ -35,7 +36,10 @@ function formatSigned(v){if(v===null||v===undefined||v==='')return '—'; return
 function signedClass(v){return v>0?'change-pos':v<0?'change-neg':'';}
 function planChangeInline(v){if(v===null||v===undefined||v==='')return '—'; return `<span class="${signedClass(v)}">${formatSigned(v)}</span>`;}
 function planDeltaBadge(v){if(v===null||v===undefined||v==='')return ''; const cls=signedClass(v); const label=v>0?'计划增加':v<0?'计划减少':'计划持平'; return `<span class="badge ${v>0?'green':v<0?'red':''} ${cls}">${label} ${formatSigned(v)}</span>`;}
-function groupNamingMeta(s,g){return GROUP_NAMING[keyGroup(s,g)]||null;}
+function groupNamingMeta(s,g){
+  const meta=GROUP_NAMING[keyGroup(s,g)]||null;
+  return meta&&meta.sourceYear===2026?meta:null;
+}
 function classBucket(c){
   const t=String(c||'');
   if(/计算机|软件|网络空间|数据科学|智能科学/.test(t))return '计算机';
@@ -55,14 +59,33 @@ function classBucket(c){
   if(/大类|试验|交叉/.test(t))return '试验班未细分';
   return t.replace(/类$/,'')||'其他未细分';
 }
+function groupBucketStats(g){
+  const map=new Map();
+  const add=(bucket,plan)=>{
+    if(!bucket)return;
+    const old=map.get(bucket)||{bucket,plan:0,count:0};
+    old.plan+=Number(plan)||0;
+    old.count+=1;
+    map.set(bucket,old);
+  };
+  (g.majors||[]).forEach(m=>add(classBucket(m.majorClass||m.name),m.plan26||1));
+  if(!map.size)(g.majorClasses||[]).forEach(c=>add(classBucket(c),1));
+  return [...map.values()].sort((a,b)=>(b.plan-a.plan)||(b.count-a.count)||a.bucket.localeCompare(b.bucket,'zh-Hans-CN'));
+}
+function cooperationSuffix(g){
+  const text=`${(g.tags||[]).join(' ')} ${g.remark||''} ${(g.majors||[]).map(m=>m.name).join(' ')}`;
+  if(/中外合作|合作办学/.test(text))return '（中外合作）';
+  if(/联合培养|双学位/.test(text))return '（联合培养）';
+  return '';
+}
 function inferGroupName(g){
-  const buckets=[];
-  (g.majorClasses||[]).forEach(c=>{const b=classBucket(c); if(b&&!buckets.includes(b))buckets.push(b);});
-  if(!buckets.length)return '';
-  if(buckets.length>=5)return '大杂组';
-  if(buckets.length===1)return `${buckets[0]}组`;
-  if(buckets.length===2)return `${buckets[0]}、${buckets[1]}复合组`;
-  return `${buckets.slice(0,3).join('、')}为主混合组`;
+  const stats=groupBucketStats(g);
+  const suffix=cooperationSuffix(g);
+  if(!stats.length)return suffix.replace(/[（）]/g,'');
+  const buckets=stats.map(x=>x.bucket);
+  if(buckets.length===1)return `${buckets[0]}组${suffix}`;
+  if(buckets.length<=4)return `${buckets.join('、')}复合组${suffix}`;
+  return `${buckets.slice(0,4).join('、')}等混合组${suffix}`;
 }
 function groupDisplayName(s,g){return groupNamingMeta(s,g)?.name||inferGroupName(g);}
 function groupDisplayTitleText(s,g){const name=groupDisplayName(s,g); return name?`${g.groupName} ${name}`:g.groupName;}
@@ -79,21 +102,28 @@ function groupQuality(s,g){
   const coldCount=majors.filter(isColdMajor).length;
   const total=majors.length||0;
   const name=groupDisplayName(s,g);
-  const metaText=`${meta?.name||''} ${meta?.type||''} ${meta?.category||''}`;
-  const mixed=/大杂|主导混合/.test(metaText)||(!meta&&/大杂|主导混合/.test(name));
   const allCold=total>0&&(riskCount===total||coldCount===total||(coldCount/total>=0.75&&riskCount/total>=0.5));
   if(allCold)return {tone:'yellow',label:'整体冷门',title:`整组以冷门/风险专业为主：${coldCount}/${total} 个冷门，${riskCount}/${total} 个已标风险`};
   if(riskCount>0)return {tone:'red',label:`含风险专业 ${riskCount} 个`,title:`组内夹有相对风险专业：${riskCount}/${total} 个`};
-  if(mixed)return {tone:'red',label:'大杂/混合组',title:'专业组结构不够干净，按提醒组处理'};
   return {tone:'green',label:'干净组',title:'组内未发现风险专业，结构相对清爽'};
 }
 function groupQualityBadge(status){return `<span class="group-quality-badge ${status.tone}" title="${esc(status.title)}">${esc(status.label)}</span>`;}
+function groupChangeKey(s,g){return keyGroup(s,g);}
+function groupChangeData(s,g){return GROUP_CHANGES[groupChangeKey(s,g)]||null;}
+function groupChangeButtonHTML(s,g,variant){
+  const data=groupChangeData(s,g);
+  const cls=`change-btn ${variant||''} ${data?'':'muted'}`.trim();
+  const label=data&&data.advice==='重点核对'?'变迁*':'变迁';
+  return `<button class="${cls}" type="button" data-change-key="${esc(groupChangeKey(s,g))}" data-change-title="${esc(`${s.name} ${groupDisplayTitleText(s,g)}`)}" title="${data?'查看 2025-2026 专业组变迁':'暂无普通批变迁数据'}">${label}</button>`;
+}
+function percent(v){return typeof v==='number'?`${Math.round(v*1000)/10}%`:fmt(v);}
+function diffText(a,b){return typeof a==='number'&&typeof b==='number'?formatSigned(a-b):'—';}
 function createLayout(){
-  document.body.className+=(document.body.dataset.admin==='1'?' admin-page':'');
+  document.body.className=[document.body.dataset.admin==='1'?'admin-page':'',state.compact?'compact-mode':''].filter(Boolean).join(' ');
   document.body.innerHTML=`
   <div class="app-shell">
     <header class="topbar">
-      <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据、2025 专业最低分与招生计划生成；院校排序按 2025 专业最低分 × 2025 招生计划的加权平均分执行。</p></div><div class="top-actions"><div class="version">${VERSION}</div><button id="compactBtn" class="header-toggle" type="button">紧凑显示</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
+      <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据、2025 专业最低分与招生计划生成；院校排序按 2025 专业最低分 × 2025 招生计划的加权平均分执行。</p></div><div class="top-actions"><div class="version">${VERSION}</div><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
       <div class="filters">
         <select id="batchFilter"><option value="">全部批次</option></select>
         <select id="subjectFilter"><option value="">全部科类</option></select>
@@ -113,6 +143,7 @@ function createLayout(){
     <div id="requirementPanel" class="panel"><div class="panel-head"><h3>选科要求多选筛选</h3><button class="close-btn" data-close="requirementPanel">×</button></div><div class="panel-body"><div id="requirementPanelBody"></div></div></div>
     <div id="classPanel" class="panel"><div class="panel-head"><h3>专业大类二级多选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
+    <div id="changePanel" class="panel change-panel"><div class="panel-head"><div><h3>专业组变迁</h3><p id="changePanelTitle" class="panel-subtitle"></p></div><button class="close-btn" data-close="changePanel">×</button></div><div id="changePanelBody" class="panel-body"></div></div>
     <div id="annotationDrawer" class="annotation-drawer">
       <div class="annotation-head"><div><h3>批注</h3><p id="annotationObject">未选择批注对象</p></div><button id="closeAnnotationBtn" class="close-btn" type="button">×</button></div>
       <div class="annotation-body"><div id="giscusMount" class="giscus-mount"></div></div>
@@ -291,13 +322,13 @@ function groupCardHTML(s,g){
   const topTags=[...(g.tags||[]).slice(0,3),...(g.majorClasses||[]).slice(0,3)];
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><div class="grid"><div class="mini"><b>${fmtNum(g.score25)}</b><span>25分</span></div><div class="mini"><b>${fmtNum(g.rank25)}</b><span>25位次</span></div><div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions"><button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
+  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid"><div class="mini"><b>${fmtNum(g.score25)}</b><span>25分</span></div><div class="mini"><b>${fmtNum(g.rank25)}</b><span>25位次</span></div><div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions"><button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜25分 ${fmtNum(g.score25)}｜25位次 ${fmtNum(g.rank25)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions"><button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜25分 ${fmtNum(g.score25)}｜25位次 ${fmtNum(g.rank25)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions"><button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?`<br><span class="muted">${m.avgYears}年均值</span>`:'';
@@ -306,6 +337,7 @@ function majorRowHTML(s,g,m){
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
   $$('[data-detail-row]').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('button,a,input,label,textarea'))return; showDetail(tr.dataset.detailRow,tr.dataset.schoolKey,tr.dataset.groupKey);}));
+  bindGroupChangeButtons();
   bindAnnotationButtons();
   bindNoteHoverAndContext();
 }
@@ -333,6 +365,51 @@ function showDetail(key,schoolKey,groupKey){
 function noteBlock(title,text){return text?`<section class="metric" style="margin-top:12px"><b style="font-size:14px">${esc(title)}</b><span style="white-space:pre-wrap;color:#33443a">${esc(text)}</span></section>`:'';}
 function openModal(){$('#modalMask').classList.add('open');}
 function closeModal(){$('#modalMask').classList.remove('open');}
+
+function bindGroupChangeButtons(){
+  $$('[data-change-key]').forEach(btn=>{
+    btn.onclick=e=>{
+      e.stopPropagation();
+      openGroupChange(btn.dataset.changeKey,btn.dataset.changeTitle);
+    };
+  });
+}
+function openGroupChange(key,title){
+  $('#changePanelTitle').textContent=title||key;
+  const data=GROUP_CHANGES[key];
+  $('#changePanelBody').innerHTML=data?groupChangeHTML(data):`<div class="change-empty">暂无普通批 25-26 变迁数据。<br><span class="muted">当前变迁表主要覆盖普通类本科批；提前批或异常组可能未纳入。</span></div>`;
+  openPanel('changePanel');
+}
+function metricTile(label,value,sub){
+  return `<div class="change-metric"><b>${esc(fmt(value))}</b><span>${esc(label)}${sub?`｜${esc(sub)}`:''}</span></div>`;
+}
+function changeDetailLine(item){
+  const parts=[];
+  if(item.plan!==null&&item.plan!==undefined&&item.plan!=='')parts.push(`${item.plan}人`);
+  if(item.type)parts.push(item.type);
+  if(item.from)parts.push(`来源：${item.from}`);
+  if(item.to)parts.push(`去向：${item.to}`);
+  if(item.basis)parts.push(`依据：${item.basis}`);
+  if(item.note||item.reason)parts.push(item.note||item.reason);
+  return `<li><b>${esc(item.name||'未命名专业')}</b>${parts.length?`<br><span>${esc(parts.join('｜'))}</span>`:''}</li>`;
+}
+function changeDetailBlock(title,items){
+  const list=(items||[]).slice(0,80);
+  return `<section class="change-section"><h4>${esc(title)} <span class="muted">${(items||[]).length}</span></h4>${list.length?`<ol class="change-list">${list.map(changeDetailLine).join('')}</ol>${(items||[]).length>80?'<p class="muted">仅显示前 80 条。</p>':''}`:'<p class="muted">无</p>'}</section>`;
+}
+function groupChangeHTML(d){
+  const planDiff=diffText(d.plan26,d.plan25);
+  const majorDiff=diffText(d.majorCount26,d.majorCount25);
+  const adviceClass=d.advice==='重点核对'?'warn':'';
+  return `<div class="change-status-row"><span class="change-pill">${esc(d.status||'未标注状态')}</span><span class="change-pill ${adviceClass}">${esc(d.advice||'常规核对')}</span><span class="change-pill">置信度：${esc(fmt(d.confidence))}</span></div>
+  <div class="change-compare"><div class="change-side"><span>2026 当前组</span><b>${esc(d.group26||'—')}</b><p>再选：${esc(fmt(d.require26))}｜专业 ${esc(fmt(d.majorCount26))}｜计划 ${esc(fmt(d.plan26))}</p></div><div class="change-side"><span>2025 对应组</span><b>${esc(d.group25||'—')}</b><p>再选：${esc(fmt(d.require25))}｜专业 ${esc(fmt(d.majorCount25))}｜计划 ${esc(fmt(d.plan25))}</p></div></div>
+  <div class="change-metrics">${metricTile('计划变化',planDiff)}${metricTile('专业数变化',majorDiff)}${metricTile('综合相似度',percent(d.similarity))}${metricTile('26/25覆盖率',`${percent(d.cover26)} / ${percent(d.cover25)}`)}${metricTile('新增专业',d.addCount)}${metricTile('减少专业',d.removeCount)}${metricTile('拆入专业',d.inCount)}${metricTile('拆出专业',d.outCount)}</div>
+  <section class="change-section"><h4>变化摘要</h4><p class="change-summary-text">${esc(d.summary||'无明显变化')}</p></section>
+  ${changeDetailBlock('新增专业',d.details?.add)}
+  ${changeDetailBlock('减少专业',d.details?.remove)}
+  ${changeDetailBlock('拆入专业',d.details?.in)}
+  ${changeDetailBlock('拆出专业',d.details?.out)}`;
+}
 
 function stableTerm(scope,key){
   return `js-plan-annotation::${scope}::${key}`;
