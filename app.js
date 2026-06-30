@@ -531,9 +531,21 @@ function bindVolunteerPanelControls(){
   $$('[data-major-preset]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault(); const key=btn.dataset.majorPreset; const rec=getGroupRecord(key); if(!rec)return; if(btn.dataset.preset==='top6')volunteerMajorKeys[key]=defaultMajorKeys(rec.g); if(btn.dataset.preset==='all')volunteerMajorKeys[key]=(rec.g.majors||[]).map(m=>m.key); if(btn.dataset.preset==='none')volunteerMajorKeys[key]=[]; saveVolunteerMajorKeys(); renderVolunteerPanel();}));
 }
 function xlsCell(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function excelCell(v,style){
+  const isNum=typeof v==='number'&&Number.isFinite(v);
+  const styleAttr=style?` ss:StyleID="${style}"`:'';
+  return `<Cell${styleAttr}><Data ss:Type="${isNum?'Number':'String'}">${xlsCell(v)}</Data></Cell>`;
+}
+function excelRow(row,style){return `<Row>${row.map(v=>excelCell(v,style)).join('')}</Row>`;}
+function excelColumns(headers){return headers.map((h,i)=>`<Column ss:Index="${i+1}" ss:AutoFitWidth="1" ss:Width="${Math.min(Math.max(String(h).length*10,56),180)}"/>`).join('');}
+function excelWorksheet(name,headers,rows){
+  return `<Worksheet ss:Name="${xlsCell(name)}"><Table>${excelColumns(headers)}${excelRow(headers,'header')}${rows.map(r=>excelRow(r)).join('')}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>`;
+}
 function exportVolunteerXlsx(){
   const headers=['序号','定位','院校','地区','科类','批次','院校层次','院校专业组','专业组名称','再选科目','专业1','专业2','专业3','专业4','专业5','专业6','专业清单','服从调剂','2026计划','较25计划','2025最低分','2025位次','三年均分','三年均位次','组色判断','客观标签','2025对应组','变迁状态','核对建议','备注'];
+  const detailHeaders=['志愿序号','定位','院校','地区','科类','批次','院校专业组','专业组名称','再选科目','专业序号','专业代码','专业名称','专业类','学科门类','是否风险','2026计划','较25计划','2025最低分','2025位次','三年均分','三年均位次','服从调剂','备注'];
   const rows=[];
+  const detailRows=[];
   for(let i=0;i<VOLUNTEER_LIMIT;i++){
     const key=volunteerKeys[i];
     const rec=key?getGroupRecord(key):null;
@@ -550,14 +562,23 @@ function exportVolunteerXlsx(){
     const change=groupChangeData(s,g)||{};
     const planDiff=(g.plan26||0)-(g.plan25||0);
     rows.push([i+1,meta.strategy||'',s.name,s.province,s.subject,s.batch,s.level,g.groupName,groupDisplayName(s,g),g.requirement||'',majorNames[0]||'',majorNames[1]||'',majorNames[2]||'',majorNames[3]||'',majorNames[4]||'',majorNames[5]||'',majorNames.join('；'),meta.obey||'是',g.plan26,planDiff,g.score25,g.rank25,avgScore?Number(avgScore.toFixed(1)):'',avgRank?Number(avgRank.toFixed(1)):'',quality.label,(g.tags||[]).join('；'),change.group25||'',change.status||'',change.advice||'',meta.note||'']);
+    majors.forEach((m,j)=>detailRows.push([i+1,meta.strategy||'',s.name,s.province,s.subject,s.batch,g.groupName,groupDisplayName(s,g),g.requirement||'',j+1,m.code||'',m.name||'',m.majorClass||'其他',m.discipline||'其他',m.risk?'是':'否',m.plan26,m.planChange,m.score25,m.rank25,m.avgScore3,m.avgRank3,meta.obey||'是',meta.note||'']));
   }
-  const table=[headers,...rows].map((row,i)=>`<tr>${row.map(v=>`<${i?'td':'th'}>${xlsCell(v)}</${i?'td':'th'}>`).join('')}</tr>`).join('');
-  const html=`<!doctype html><html><head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Arial,'Microsoft YaHei',sans-serif;font-size:11pt}th{background:#0a7c42;color:white;font-weight:700}td,th{border:1px solid #d9e2dd;padding:6px 8px;vertical-align:top;white-space:pre-wrap}.num{text-align:right}</style></head><body><table>${table}</table></body></html>`;
-  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  const workbook=`<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11"/></Style>
+<Style ss:ID="header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A7C42" ss:Pattern="Solid"/></Style>
+</Styles>
+${excelWorksheet('40专业组志愿表',headers,rows)}
+${excelWorksheet('所选专业明细',detailHeaders,detailRows)}
+</Workbook>`;
+  const blob=new Blob(['\ufeff',workbook],{type:'application/vnd.ms-excel;charset=utf-8'});
   const a=document.createElement('a');
   const date=new Date().toISOString().slice(0,10).replace(/-/g,'');
   a.href=URL.createObjectURL(blob);
-  a.download=`江苏志愿填报基础表_40专业组_${date}.xls`;
+  a.download=`江苏志愿表_40专业组及专业明细_${date}.xls`;
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
