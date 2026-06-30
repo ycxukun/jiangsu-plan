@@ -1,6 +1,7 @@
-请上传本文件夹里的全部文件到 GitHub 仓库根目录；不要上传 zip；不要上传源文件 HTML。
+复制本文件夹全部文件到 GitHub Desktop 本地仓库根目录。不要上传 zip，不要上传源文件 HTML。
 
 .nojekyll
+README.md
 app.js
 data-db-part-01.js
 data-db-part-02.js

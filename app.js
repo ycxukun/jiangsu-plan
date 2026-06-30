@@ -4,94 +4,6 @@ function majorDetailKey(m){
 function detailForMajor(m){
   return MAJOR_DETAILS_BY_CODE[majorDetailKey(m)] || null;
 }
-const HISTORY_YEARS = [2025, 2024, 2023];
-const majorHistoryAvgCache = new WeakMap();
-const groupHistoryAvgCache = new WeakMap();
-function positiveNumber(v){
-  const n=Number(v);
-  return Number.isFinite(n) && n>0 ? n : null;
-}
-function avgValue(values){
-  const arr=(values||[]).filter(v=>Number.isFinite(v));
-  return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
-}
-function yearScore(d,m,year){
-  return positiveNumber(d?.[`${year}最低分`]) ?? (year===2025 ? positiveNumber(m?.score25) : null);
-}
-function yearRank(d,m,year){
-  return positiveNumber(d?.[`${year}最低位次`]) ?? (year===2025 ? positiveNumber(m?.rank25) : null);
-}
-function yearPlanWeight(d,m,year){
-  return positiveNumber(d?.[`${year}计划`]) ?? (year===2025 ? positiveNumber(m?.plan25) : null) ?? 1;
-}
-function majorHistoryAverage(m){
-  if(!m || typeof m!=='object') return {score:null,rank:null,yearCount:0};
-  if(majorHistoryAvgCache.has(m)) return majorHistoryAvgCache.get(m);
-  const d=detailForMajor(m) || {};
-  const years=new Set(), scores=[], ranks=[];
-  HISTORY_YEARS.forEach(year=>{
-    const score=yearScore(d,m,year);
-    const rank=yearRank(d,m,year);
-    if(score || rank) years.add(year);
-    if(score) scores.push(score);
-    if(rank) ranks.push(rank);
-  });
-  const out={score:avgValue(scores),rank:avgValue(ranks),yearCount:years.size};
-  majorHistoryAvgCache.set(m,out);
-  return out;
-}
-function groupHistoryAverage(g){
-  if(!g || typeof g!=='object') return {score:null,rank:null,yearCount:0};
-  if(groupHistoryAvgCache.has(g)) return groupHistoryAvgCache.get(g);
-  let scoreSum=0, scoreWeight=0, rankSum=0, rankWeight=0;
-  const years=new Set();
-  (g.majors||[]).forEach(m=>{
-    const d=detailForMajor(m) || {};
-    HISTORY_YEARS.forEach(year=>{
-      const score=yearScore(d,m,year);
-      const rank=yearRank(d,m,year);
-      if(score || rank) years.add(year);
-      const weight=yearPlanWeight(d,m,year);
-      if(score){scoreSum+=score*weight; scoreWeight+=weight;}
-      if(rank){rankSum+=rank*weight; rankWeight+=weight;}
-    });
-  });
-  const out={
-    score:scoreWeight ? scoreSum/scoreWeight : null,
-    rank:rankWeight ? rankSum/rankWeight : null,
-    yearCount:years.size
-  };
-  groupHistoryAvgCache.set(g,out);
-  return out;
-}
-function hasHistoryAverage(avg){
-  return !!avg && (Number.isFinite(avg.score) || Number.isFinite(avg.rank));
-}
-function formatAvgScore(v){
-  if(!Number.isFinite(v)) return '—';
-  const rounded=Math.round(v*10)/10;
-  return Number.isInteger(rounded) ? fmt(rounded) : rounded.toFixed(1);
-}
-function formatAvgRank(v){
-  return Number.isFinite(v) ? fmt(Math.round(v)) : '—';
-}
-function historyAverageText(avg,showYearCount=false){
-  if(!hasHistoryAverage(avg)) return '—';
-  const suffix=showYearCount && avg.yearCount>0 && avg.yearCount<3 ? `（${avg.yearCount}年）` : '';
-  return `${formatAvgScore(avg.score)} / ${formatAvgRank(avg.rank)}${suffix}`;
-}
-function historyAverageTitle(avg){
-  const count=avg?.yearCount || 0;
-  return `按2023-2025中有有效分/位次的年份平均${count ? `，覆盖${count}年` : ''}`;
-}
-function historyAverageCell(avg){
-  if(!hasHistoryAverage(avg)) return '—';
-  return `<span title="${esc(historyAverageTitle(avg))}">${historyAverageText(avg,true)}</span>`;
-}
-function historyAveragePill(avg,label='三年均分/位次'){
-  if(!hasHistoryAverage(avg)) return '';
-  return `<span class="detail-pill" title="${esc(historyAverageTitle(avg))}">${label} ${historyAverageText(avg,true)}</span>`;
-}
 /* version: 专业细分移动折叠版；重构专业组干净度：财会/数理/带电工科/医学等按同一报考逻辑判断；新增筛选栏一键折叠 */
 const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'all',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null};
 const $ = id => document.getElementById(id);
@@ -679,15 +591,6 @@ function renderProvincePanel(provinces){
 }
 const ALL_PROVINCES_STATIC = ["上海", "云南", "内蒙古", "北京", "吉林", "四川", "天津", "宁夏", "安徽", "山东", "山西", "广东", "广西", "新疆", "江苏", "江西", "河北", "河南", "浙江", "海南", "湖北", "湖南", "甘肃", "福建", "西藏", "贵州", "辽宁", "重庆", "陕西", "青海", "香港", "黑龙江"];
 const ALL_LEVELS_STATIC = ["985", "211", "一流", "保研", "合办保研", "民办保研", "公办", "合办", "港校", "民办"];
-const PROVINCE_REGION_ORDER = [
-  {name:'华东地区', provinces:['上海','江苏','浙江','安徽','福建','江西','山东']},
-  {name:'华中地区', provinces:['河南','湖北','湖南']},
-  {name:'华北地区', provinces:['北京','天津','河北','山西','内蒙古']},
-  {name:'华南地区', provinces:['广东','广西','海南','香港']},
-  {name:'西南地区', provinces:['重庆','四川','贵州','云南','西藏']},
-  {name:'西北地区', provinces:['陕西','甘肃','青海','宁夏','新疆']},
-  {name:'东北地区', provinces:['辽宁','吉林','黑龙江']}
-];
 function provinceRegionSorted(provinces){
   const set=new Set(provinces||[]);
   const out=[];
@@ -926,7 +829,7 @@ function initOptions(){
   $('levelFilter').innerHTML='<option value="">全部层次</option>'+levels.map(x=>`<option>${esc(x)}</option>`).join('');
   renderProvincePanel(provinces);
   renderLevelPanel(levels);
-  bindStaticMultiPanels();
+  simpleBindNotes(); rcBindNotes(); bindStaticMultiPanels();
 }
 function renderList(){
   const arr=filteredSchools(); $('listCount').textContent=`（${arr.length}）`;
@@ -954,8 +857,8 @@ function renderList(){
 function renderHome(){
   const st=DB.stats;
   $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="version-note"><b>当前版本：</b>V11 稳定回归版｜严格中外合作识别｜只标刺客专业｜专业组短标签<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
-  <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、三年均分/位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
+  <div class="version-note"><b>当前版本：</b>V14.1 右键备注版｜固定备注面板｜详情带备注<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
   </section>`;
@@ -1039,23 +942,467 @@ function majorPlanCell(m){
 }
 function compactScore(g){
   const a=[];
-  const hist=groupHistoryAverage(g);
-  if(g.avgScore) a.push(`<span>25均分 ${fmt(g.avgScore)}</span>`);
-  if(g.avgRank) a.push(`<span>位次 ${fmt(g.avgRank)}</span>`);
-  if(hasHistoryAverage(hist)) a.push(`<span title="${esc(historyAverageTitle(hist))}">三年均分/位次 ${historyAverageText(hist)}</span>`);
-  if(g.majorCount) a.push(`<span>专业 ${fmt(g.majorCount)}</span>`);
-  return a.join('');
+  if(g.avgScore) a.push(`25均分 ${fmt(g.avgScore)}`);
+  if(g.avgRank) a.push(`位次 ${fmt(g.avgRank)}`);
+  if(g.majorCount) a.push(`专业 ${fmt(g.majorCount)}`);
+  return a.map(x=>`<span>${x}</span>`).join('');
 }
+
+const ANNO_STORAGE_KEY = 'jiangsu_plan_annotations_v1';
+let ANNO_EDIT_MODE = false;
+let ANNO_CURRENT_TARGET = null;
+let ANNOTATIONS = loadLocalAnnotations();
+
+function blankAnnotations(){ return {schools:{},groups:{},majors:{}}; }
+function normalizeAnnotations(x){
+  const b=blankAnnotations();
+  if(!x || typeof x!=='object') return b;
+  b.schools = (x.schools && typeof x.schools==='object') ? x.schools : {};
+  b.groups = (x.groups && typeof x.groups==='object') ? x.groups : {};
+  b.majors = (x.majors && typeof x.majors==='object') ? x.majors : {};
+  return b;
+}
+function mergeAnnotations(base, override){
+  const b=normalizeAnnotations(base), o=normalizeAnnotations(override);
+  return {
+    schools:{...b.schools,...o.schools},
+    groups:{...b.groups,...o.groups},
+    majors:{...b.majors,...o.majors}
+  };
+}
+function loadLocalAnnotations(){
+  try{
+    const raw=localStorage.getItem(ANNO_STORAGE_KEY);
+    return raw ? normalizeAnnotations(JSON.parse(raw)) : blankAnnotations();
+  }catch(e){ return blankAnnotations(); }
+}
+function saveLocalAnnotations(){
+  try{
+    localStorage.setItem(ANNO_STORAGE_KEY, JSON.stringify(normalizeAnnotations(ANNOTATIONS)));
+    setAnnoStatus('备注已保存到本机');
+  }catch(e){ setAnnoStatus('保存失败：浏览器本地存储不可用'); }
+}
+function setAnnoStatus(text){
+  const el=$('annoStatus'); if(!el) return;
+  el.textContent=text||'';
+  if(text) setTimeout(()=>{ if(el.textContent===text) el.textContent=''; }, 2800);
+}
+async function loadRemoteAnnotations(){
+  let local=loadLocalAnnotations();
+  try{
+    const r=await fetch('annotations.json?v='+(typeof CACHE_VERSION!=='undefined'?CACHE_VERSION:Date.now()), {cache:'no-store'});
+    if(r.ok){
+      const remote=normalizeAnnotations(await r.json());
+      ANNOTATIONS=mergeAnnotations(remote, local);
+      render();
+      setAnnoStatus('已读取线上备注');
+    }
+  }catch(e){}
+}
+function annotationSchoolKey(s){ return [s?.name||'',s?.subject||'',s?.batch||''].join('|'); }
+function annotationGroupKey(g){ return [g?.school||'',g?.subject||'',g?.batch||'',g?.groupCode||''].join('|'); }
+function annotationMajorKey(m){ return (typeof majorDetailKey==='function') ? majorDetailKey(m) : [m?.subject||'',m?.batch||'',m?.school||'',m?.groupCode||'',String(m?.code||'').padStart(2,'0')].join('|'); }
+function getAnnotation(scope,key){
+  const store=normalizeAnnotations(ANNOTATIONS);
+  return (store[scope] && store[scope][key]) ? store[scope][key] : null;
+}
+function cleanAnnotation(obj){
+  const note=String(obj?.note||'').trim();
+  const images=(Array.isArray(obj?.images)?obj.images:String(obj?.images||'').split(/\n+/))
+    .map(x=>String(x||'').trim()).filter(Boolean);
+  return {note,images};
+}
+function hasAnnotation(a){ return !!(a && (String(a.note||'').trim() || (a.images||[]).length)); }
+function annotationBox(scope,key,title,small=false){ return ''; }
+function jsArg(x){ return JSON.stringify(String(x??'')); }
+function openAnnotationEditor(scope,key,title){
+  ANNO_CURRENT_TARGET={scope,key};
+  const a=cleanAnnotation(getAnnotation(scope,key)||{});
+  $('annoModalTitle').textContent=title||'编辑备注';
+  $('annoNoteInput').value=a.note||'';
+  $('annoImagesInput').value=(a.images||[]).join('\n');
+  $('annoModal').classList.add('open');
+}
+function closeAnnotationEditor(){ $('annoModal').classList.remove('open'); ANNO_CURRENT_TARGET=null; }
+function saveAnnotationFromModal(){
+  if(!ANNO_CURRENT_TARGET) return;
+  const {scope,key}=ANNO_CURRENT_TARGET;
+  const obj=cleanAnnotation({note:$('annoNoteInput').value, images:$('annoImagesInput').value});
+  ANNOTATIONS=normalizeAnnotations(ANNOTATIONS);
+  if(!ANNOTATIONS[scope]) ANNOTATIONS[scope]={};
+  if(hasAnnotation(obj)) ANNOTATIONS[scope][key]=obj;
+  else delete ANNOTATIONS[scope][key];
+  saveLocalAnnotations();
+  closeAnnotationEditor();
+  render();
+}
+function deleteAnnotationFromModal(){
+  if(!ANNO_CURRENT_TARGET) return;
+  const {scope,key}=ANNO_CURRENT_TARGET;
+  ANNOTATIONS=normalizeAnnotations(ANNOTATIONS);
+  if(ANNOTATIONS[scope]) delete ANNOTATIONS[scope][key];
+  saveLocalAnnotations();
+  closeAnnotationEditor();
+  render();
+}
+function exportAnnotations(){
+  const blob=new Blob([JSON.stringify(normalizeAnnotations(ANNOTATIONS),null,2)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='annotations.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importAnnotationsFile(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const incoming=normalizeAnnotations(JSON.parse(reader.result));
+      ANNOTATIONS=mergeAnnotations(ANNOTATIONS,incoming);
+      saveLocalAnnotations();
+      render();
+      setAnnoStatus('备注导入成功');
+    }catch(e){ setAnnoStatus('备注文件格式错误'); }
+  };
+  reader.readAsText(file,'utf-8');
+}
+function clearLocalAnnotations(){
+  if(!confirm('确定清除本机保存的备注吗？线上 annotations.json 不会被删除。')) return;
+  try{localStorage.removeItem(ANNO_STORAGE_KEY);}catch(e){}
+  ANNOTATIONS=blankAnnotations();
+  render();
+  setAnnoStatus('本机备注已清除');
+}
+
+
+
+function setAnnotationEditMode(on){
+  ANNO_EDIT_MODE=!!on;
+  document.body.classList.toggle('anno-edit-mode', ANNO_EDIT_MODE);
+  const btn=$('annoToggleEdit');
+  if(btn){
+    btn.classList.toggle('active', ANNO_EDIT_MODE);
+    btn.textContent=ANNO_EDIT_MODE?'退出编辑':'编辑备注';
+  }
+}
+
+function toggleAnnotationEditMode(){
+  setAnnotationEditMode(!ANNO_EDIT_MODE);
+  // 备注框已常驻 DOM，一般不需要 render；这里保留轻量刷新，确保切换学校后状态一致。
+  try{ render(); setAnnotationEditMode(ANNO_EDIT_MODE); }catch(e){}
+}
+function bindAnnotationControlsSafe(){
+  const byId=(id)=>document.getElementById(id);
+  const edit=byId('annoToggleEdit');
+  if(edit && !edit.dataset.boundAnno){
+    edit.dataset.boundAnno='1';
+    edit.addEventListener('click',e=>{e.preventDefault(); toggleAnnotationEditMode();});
+  }
+  const exp=byId('annoExportBtn');
+  if(exp && !exp.dataset.boundAnno){
+    exp.dataset.boundAnno='1';
+    exp.addEventListener('click',e=>{e.preventDefault(); exportAnnotations();});
+  }
+  const imp=byId('annoImportBtn');
+  if(imp && !imp.dataset.boundAnno){
+    imp.dataset.boundAnno='1';
+    imp.addEventListener('click',e=>{e.preventDefault(); const f=byId('annoFileInput'); if(f) f.click();});
+  }
+  const file=byId('annoFileInput');
+  if(file && !file.dataset.boundAnno){
+    file.dataset.boundAnno='1';
+    file.addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; if(f) importAnnotationsFile(f); e.target.value='';});
+  }
+  const clear=byId('annoClearBtn');
+  if(clear && !clear.dataset.boundAnno){
+    clear.dataset.boundAnno='1';
+    clear.addEventListener('click',e=>{e.preventDefault(); clearLocalAnnotations();});
+  }
+  const close=byId('annoModalClose');
+  if(close && !close.dataset.boundAnno){
+    close.dataset.boundAnno='1';
+    close.addEventListener('click',e=>{e.preventDefault(); closeAnnotationEditor();});
+  }
+  const modal=byId('annoModal');
+  if(modal && !modal.dataset.boundAnno){
+    modal.dataset.boundAnno='1';
+    modal.addEventListener('click',e=>{if(e.target && e.target.id==='annoModal') closeAnnotationEditor();});
+  }
+  const save=byId('annoSaveBtn');
+  if(save && !save.dataset.boundAnno){
+    save.dataset.boundAnno='1';
+    save.addEventListener('click',e=>{e.preventDefault(); saveAnnotationFromModal();});
+  }
+  const del=byId('annoDeleteBtn');
+  if(del && !del.dataset.boundAnno){
+    del.dataset.boundAnno='1';
+    del.addEventListener('click',e=>{e.preventDefault(); deleteAnnotationFromModal();});
+  }
+}
+
+
+/* === V13.3 简单备注系统：一个按钮直接新建备注 === */
+const SIMPLE_NOTE_KEY = 'jiangsu_plan_annotations_v1';
+let SIMPLE_NOTE_CURRENT = null;
+
+function simpleBlankNotes(){return {schools:{},groups:{},majors:{}};}
+function simpleNormNotes(x){
+  const b=simpleBlankNotes();
+  if(!x||typeof x!=='object') return b;
+  b.schools=(x.schools&&typeof x.schools==='object')?x.schools:{};
+  b.groups=(x.groups&&typeof x.groups==='object')?x.groups:{};
+  b.majors=(x.majors&&typeof x.majors==='object')?x.majors:{};
+  return b;
+}
+function simpleLoadNotes(){
+  try{return simpleNormNotes(JSON.parse(localStorage.getItem(SIMPLE_NOTE_KEY)||'{}'));}catch(e){return simpleBlankNotes();}
+}
+function simpleSaveNotes(x){
+  localStorage.setItem(SIMPLE_NOTE_KEY, JSON.stringify(simpleNormNotes(x)));
+  SIMPLE_NOTES=simpleNormNotes(x);
+}
+let SIMPLE_NOTES = simpleLoadNotes();
+
+function simpleStatus(t){
+  const el=document.getElementById('simpleNoteStatus');
+  if(!el) return;
+  el.textContent=t||'';
+  if(t) setTimeout(()=>{if(el.textContent===t) el.textContent='';},2500);
+}
+function simpleCurrentSchoolKey(){
+  try{
+    const s=state && state.selected ? findSchool(state.selected) : null;
+    if(s) return [s.name||'',s.subject||'',s.batch||''].join('|');
+  }catch(e){}
+  return '';
+}
+function simpleOpenNote(scope,key){
+  scope=scope||'schools';
+  key=key||simpleCurrentSchoolKey()||'';
+  SIMPLE_NOTE_CURRENT={scope,key};
+  const store=simpleNormNotes(SIMPLE_NOTES);
+  const old=(store[scope]&&store[scope][key])?store[scope][key]:{note:'',images:[]};
+  document.getElementById('simpleNoteScope').value=scope;
+  document.getElementById('simpleNoteKey').value=key;
+  document.getElementById('simpleNoteText').value=old.note||'';
+  document.getElementById('simpleNoteImages').value=(old.images||[]).join('\n');
+  document.getElementById('simpleNoteModal').classList.add('open');
+}
+function simpleCloseNote(){document.getElementById('simpleNoteModal').classList.remove('open');}
+function simpleCleanObj(note,imgs){
+  const images=String(imgs||'').split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  return {note:String(note||'').trim(),images};
+}
+function simpleSaveCurrentNote(){
+  const scope=document.getElementById('simpleNoteScope').value||'schools';
+  const key=document.getElementById('simpleNoteKey').value.trim();
+  if(!key){alert('请填写备注对象 KEY / 关键词');return;}
+  const obj=simpleCleanObj(document.getElementById('simpleNoteText').value,document.getElementById('simpleNoteImages').value);
+  const store=simpleNormNotes(SIMPLE_NOTES);
+  if(!store[scope]) store[scope]={};
+  if(obj.note||obj.images.length) store[scope][key]=obj;
+  else delete store[scope][key];
+  simpleSaveNotes(store);
+  try{ANNOTATIONS=store;}catch(e){}
+  simpleCloseNote();
+  simpleStatus('备注已保存');
+  try{render();}catch(e){}
+}
+function simpleDeleteCurrentNote(){
+  const scope=document.getElementById('simpleNoteScope').value||'schools';
+  const key=document.getElementById('simpleNoteKey').value.trim();
+  if(!key) return;
+  const store=simpleNormNotes(SIMPLE_NOTES);
+  if(store[scope]) delete store[scope][key];
+  simpleSaveNotes(store);
+  try{ANNOTATIONS=store;}catch(e){}
+  simpleCloseNote();
+  simpleStatus('备注已删除');
+  try{render();}catch(e){}
+}
+function simpleExportNotes(){
+  const blob=new Blob([JSON.stringify(simpleNormNotes(SIMPLE_NOTES),null,2)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='annotations.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function simpleImportNotes(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const incoming=simpleNormNotes(JSON.parse(r.result));
+      const cur=simpleNormNotes(SIMPLE_NOTES);
+      const merged={schools:{...cur.schools,...incoming.schools},groups:{...cur.groups,...incoming.groups},majors:{...cur.majors,...incoming.majors}};
+      simpleSaveNotes(merged);
+      try{ANNOTATIONS=merged;}catch(e){}
+      simpleStatus('备注已导入');
+      try{render();}catch(e){}
+    }catch(e){alert('备注文件格式错误');}
+  };
+  r.readAsText(file,'utf-8');
+}
+function simpleClearNotes(){
+  if(!confirm('确定清空本机备注吗？')) return;
+  localStorage.removeItem(SIMPLE_NOTE_KEY);
+  SIMPLE_NOTES=simpleBlankNotes();
+  try{ANNOTATIONS=SIMPLE_NOTES;}catch(e){}
+  simpleStatus('本机备注已清空');
+  try{render();}catch(e){}
+}
+function simpleNoteHtml(scope,key){ return ''; }
+function simpleBindNotes(){
+  const by=id=>document.getElementById(id);
+  if(by('simpleNewNoteBtn')) by('simpleNewNoteBtn').onclick=()=>simpleOpenNote('schools',simpleCurrentSchoolKey());
+  if(by('simpleExportNoteBtn')) by('simpleExportNoteBtn').onclick=simpleExportNotes;
+  if(by('simpleImportNoteBtn')) by('simpleImportNoteBtn').onclick=()=>by('simpleNoteFile').click();
+  if(by('simpleNoteFile')) by('simpleNoteFile').onchange=e=>{const f=e.target.files&&e.target.files[0]; if(f) simpleImportNotes(f); e.target.value='';};
+  if(by('simpleClearNoteBtn')) by('simpleClearNoteBtn').onclick=simpleClearNotes;
+  if(by('simpleNoteClose')) by('simpleNoteClose').onclick=simpleCloseNote;
+  if(by('simpleSaveNote')) by('simpleSaveNote').onclick=simpleSaveCurrentNote;
+  if(by('simpleDeleteNote')) by('simpleDeleteNote').onclick=simpleDeleteCurrentNote;
+  if(by('simpleNoteModal')) by('simpleNoteModal').onclick=e=>{if(e.target.id==='simpleNoteModal') simpleCloseNote();};
+}
+try{document.addEventListener('DOMContentLoaded',simpleBindNotes);}catch(e){}
+
+
+/* === V14 右键文字备注系统 === */
+const RC_NOTE_STORAGE_KEY = 'jiangsu_plan_annotations_v1';
+let RC_NOTE_TARGET = null;
+let RC_NOTES = rcLoadNotes();
+
+function rcBlankNotes(){return {schools:{},groups:{},majors:{}};}
+function rcNormalizeNotes(x){
+  const b=rcBlankNotes();
+  if(!x||typeof x!=='object') return b;
+  for(const scope of ['schools','groups','majors']){
+    const src=(x[scope]&&typeof x[scope]==='object')?x[scope]:{};
+    b[scope]={};
+    for(const [k,v] of Object.entries(src)){
+      if(typeof v==='string') b[scope][k]={note:v};
+      else if(v&&typeof v==='object') b[scope][k]={note:String(v.note||'')};
+    }
+  }
+  return b;
+}
+function rcLoadNotes(){try{return rcNormalizeNotes(JSON.parse(localStorage.getItem(RC_NOTE_STORAGE_KEY)||'{}'));}catch(e){return rcBlankNotes();}}
+function rcSaveNotes(){localStorage.setItem(RC_NOTE_STORAGE_KEY,JSON.stringify(rcNormalizeNotes(RC_NOTES)));try{ANNOTATIONS=RC_NOTES;}catch(e){}}
+function rcStatus(t){const el=$('rcNoteStatus');if(!el)return;el.textContent=t||'';if(t)setTimeout(()=>{if(el.textContent===t)el.textContent='';},2600)}
+function rcNoteObj(scope,key){const s=rcNormalizeNotes(RC_NOTES);return s[scope]&&s[scope][key]?s[scope][key]:null}
+function rcNoteText(scope,key){const o=rcNoteObj(scope,key);return o?String(o.note||'').trim():''}
+function rcHasNote(scope,key){return !!rcNoteText(scope,key)}
+function rcAttr(scope,key,title){return `data-note-scope="${esc(scope)}" data-note-key="${esc(key)}" data-note-title="${esc(title||'')}"`}
+function rcBadge(scope,key){return rcHasNote(scope,key)?'<span class="note-badge">备注</span>':''}
+function rcDetailNote(scope,key,label){const txt=rcNoteText(scope,key);return txt?`<div class="rc-detail-note"><b>${esc(label||'人工备注')}：</b>${esc(txt)}</div>`:''}
+function rcOpenNote(scope,key,title){
+  RC_NOTE_TARGET={scope,key,title};
+  $('rcNoteTitle').textContent=title?`备注｜${title}`:'编辑备注';
+  $('rcNoteSub').textContent=`层级：${scope==='schools'?'学校':scope==='groups'?'专业组':'专业'}｜对象已由右键位置自动绑定`;
+  $('rcNoteText').value=rcNoteText(scope,key)||'';
+  $('rcNoteModal').classList.add('open');
+  setTimeout(()=>$('rcNoteText').focus(),30);
+}
+function rcCloseNote(){$('rcNoteModal').classList.remove('open');RC_NOTE_TARGET=null}
+function rcSaveNote(){
+  if(!RC_NOTE_TARGET)return;
+  const {scope,key}=RC_NOTE_TARGET;
+  const txt=String($('rcNoteText').value||'').trim();
+  RC_NOTES=rcNormalizeNotes(RC_NOTES);
+  if(!RC_NOTES[scope])RC_NOTES[scope]={};
+  if(txt)RC_NOTES[scope][key]={note:txt}; else delete RC_NOTES[scope][key];
+  rcSaveNotes();rcCloseNote();rcStatus('备注已保存');render();
+}
+function rcDeleteNote(){
+  if(!RC_NOTE_TARGET)return;
+  const {scope,key}=RC_NOTE_TARGET;
+  RC_NOTES=rcNormalizeNotes(RC_NOTES);
+  if(RC_NOTES[scope])delete RC_NOTES[scope][key];
+  rcSaveNotes();rcCloseNote();rcStatus('备注已删除');render();
+}
+function rcExportNotes(){
+  const blob=new Blob([JSON.stringify(rcNormalizeNotes(RC_NOTES),null,2)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='annotations.json';a.click();URL.revokeObjectURL(a.href);
+}
+function rcImportNotes(file){
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const incoming=rcNormalizeNotes(JSON.parse(r.result)),cur=rcNormalizeNotes(RC_NOTES);
+    RC_NOTES={schools:{...cur.schools,...incoming.schools},groups:{...cur.groups,...incoming.groups},majors:{...cur.majors,...incoming.majors}};
+    rcSaveNotes();rcStatus('备注已导入');render();
+  }catch(e){alert('备注文件格式错误')}};
+  r.readAsText(file,'utf-8');
+}
+function rcClearNotes(){
+  if(!confirm('确定清空本机备注吗？线上 annotations.json 不会被删除。'))return;
+  localStorage.removeItem(RC_NOTE_STORAGE_KEY);RC_NOTES=rcBlankNotes();try{ANNOTATIONS=RC_NOTES;}catch(e){};rcStatus('本机备注已清空');render();
+}
+async function rcLoadRemoteNotes(){
+  try{
+    const r=await fetch('annotations.json?v='+(typeof CACHE_VERSION!=='undefined'?CACHE_VERSION:Date.now()),{cache:'no-store'});
+    if(r.ok){
+      const remote=rcNormalizeNotes(await r.json()),local=rcNormalizeNotes(RC_NOTES);
+      RC_NOTES={schools:{...remote.schools,...local.schools},groups:{...remote.groups,...local.groups},majors:{...remote.majors,...local.majors}};
+      rcSaveNotes();rcStatus('已读取线上备注');render();
+    }
+  }catch(e){}
+}
+function rcBindNotes(){
+  if($('rcExportNoteBtn'))$('rcExportNoteBtn').onclick=rcExportNotes;
+  if($('rcImportNoteBtn'))$('rcImportNoteBtn').onclick=()=>$('rcNoteFile').click();
+  if($('rcNoteFile'))$('rcNoteFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)rcImportNotes(f);e.target.value=''};
+  if($('rcClearNoteBtn'))$('rcClearNoteBtn').onclick=rcClearNotes;
+  if($('rcNoteClose'))$('rcNoteClose').onclick=rcCloseNote;
+  if($('rcSaveNoteBtn'))$('rcSaveNoteBtn').onclick=rcSaveNote;
+  if($('rcDeleteNoteBtn'))$('rcDeleteNoteBtn').onclick=rcDeleteNote;
+  if($('rcNoteModal'))$('rcNoteModal').onclick=e=>{if(e.target.id==='rcNoteModal')rcCloseNote()};
+  document.addEventListener('contextmenu',e=>{
+    if(e.target.closest('button,input,select,textarea,a'))return;
+    const el=e.target.closest('[data-note-scope]');
+    if(!el)return;
+    e.preventDefault();rcOpenNote(el.dataset.noteScope,el.dataset.noteKey,el.dataset.noteTitle);
+  });
+  const tip=$('rcNoteFloat');
+  const tipTitle=$('rcNoteFloatTitle');
+  const tipContent=$('rcNoteFloatContent');
+  let hoverEl=null;
+  document.addEventListener('mouseover',e=>{
+    const el=e.target.closest('[data-note-scope]');
+    if(!el) return;
+    const txt=rcNoteText(el.dataset.noteScope,el.dataset.noteKey);
+    if(!txt) return;
+    hoverEl=el;
+    el.classList.add('note-hovering');
+    if(tipTitle) tipTitle.textContent=el.dataset.noteTitle || '备注';
+    if(tipContent) tipContent.textContent=txt;
+    else if(tip) tip.textContent=txt;
+    if(tip) tip.classList.add('open');
+  });
+  document.addEventListener('mouseout',e=>{
+    if(!hoverEl) return;
+    if(e.relatedTarget && hoverEl.contains(e.relatedTarget)) return;
+    hoverEl.classList.remove('note-hovering');
+    hoverEl=null;
+    if(tip) tip.classList.remove('open');
+  });
+}
+try{ANNOTATIONS=RC_NOTES;}catch(e){}
+try{document.addEventListener('DOMContentLoaded',rcBindNotes)}catch(e){}
+
 function renderSchool(){
   const s=findSchool(state.selected); if(!s) return renderHome();
   const groups=s.groups.filter(groupMatchesBase);
   const sum=s.summary;
-  const groupNav=groups.map(g=>{const a=groupAssessment(g);const pc=planAudit(g);return `<div class="group-tile ${g.bucket} ${a.cls} ${isNewGroupStrict(g)?'new-group-tile':''}" onclick="document.getElementById('grp-${cssId(g.id)}').scrollIntoView({behavior:'smooth',block:'start'})"><div class="tile-top"><span class="group-code">${esc(g.groupCode)}组</span><span class="tile-tags">${tileTagHtml(visibleSpecialTags(g))}</span></div><div class="group-name">${esc(groupDisplayTitle(g))}</div><div class="tile-metrics compact">${compactScore(g)}${planCompact(pc,g)}</div></div>`}).join('');
+  const groupNav=groups.map(g=>{const a=groupAssessment(g);const pc=planAudit(g);const gKey=annotationGroupKey(g);const gTitle=(g.school||'')+' '+(g.groupCode||'')+'组';return `<div class="group-tile ${g.bucket} ${a.cls} ${isNewGroupStrict(g)?'new-group-tile':''}" ${rcAttr('groups',gKey,gTitle)} onclick="document.getElementById('grp-${cssId(g.id)}').scrollIntoView({behavior:'smooth',block:'start'})"><div class="tile-top"><span class="group-code">${esc(g.groupCode)}组${rcBadge('groups',gKey)}</span><span class="tile-tags">${tileTagHtml(visibleSpecialTags(g))}</span></div><div class="group-name">${esc(groupDisplayTitle(g))}</div><div class="tile-metrics compact">${compactScore(g)}${planCompact(pc,g)}</div></div>`}).join('');
   const cards=groups.map(renderGroup).join('') || '<div class="empty">当前筛选下没有专业组。</div>';
   const scoreNote = scoreActive() ? `<span class="pill blue">分数段：${scoreBandText()}</span>` : '';
   const newGroupNote = state.newSchoolFilter==='newGroup' ? `<span class="pill new-group">只看新增专业组</span>` : '';
+  const schoolAnno=annotationBox('schools', annotationSchoolKey(s), '学校备注：'+s.name);
   const newNote=isNewSchool(s)?`<div class="new-school-note"><b>新增院校：</b>该院校/科类/批次在当前库中缺少可直接继承的 2025 对照数据，默认在普通院校列表中沉底；分数、位次与计划变化仅作结构性参考，最终需回到官方计划书核对。</div>`:'';
-  $('main').innerHTML = `<section class="school-view"><div class="school-header"><div><div class="school-title">${esc(s.name)}｜${esc(s.subject)}｜${esc(s.batch)}</div><div class="summary-line"><span class="pill">${esc(s.province)}${s.city?' · '+esc(s.city):''}</span><span class="pill">${esc(s.level)}</span><span class="pill ${isNewSchool(s)?'new-school':''}">${esc(schoolTierLabel(s))}</span><span class="pill">当前显示 ${groups.length} 组</span>${scoreNote}${newGroupNote}</div>${newNote}</div><div class="actions"><button class="btn" onclick="exportCSV()">导出CSV</button><button class="btn" onclick="window.print()">打印</button><button class="btn primary" onclick="renderHome()">首页</button></div></div><div class="group-nav">${groupNav}</div>${cards}</section>`;
+  const simpleSchoolNote='';
+  const schoolNoteKey=annotationSchoolKey(s);
+  const schoolNoteTitle=s.name+'｜'+s.subject+'｜'+s.batch;
+  $('main').innerHTML = `<section class="school-view"><div class="school-header" ${rcAttr('schools',schoolNoteKey,schoolNoteTitle)}><div><div class="school-title">${esc(s.name)}｜${esc(s.subject)}｜${esc(s.batch)}${rcBadge('schools',schoolNoteKey)}</div><div class="summary-line"><span class="pill">${esc(s.province)}${s.city?' · '+esc(s.city):''}</span><span class="pill">${esc(s.level)}</span><span class="pill ${isNewSchool(s)?'new-school':''}">${esc(schoolTierLabel(s))}</span><span class="pill">当前显示 ${groups.length} 组</span>${scoreNote}${newGroupNote}</div>${newNote}${schoolAnno}</div><div class="actions"><button class="btn" onclick="exportCSV()">导出CSV</button><button class="btn" onclick="window.print()">打印</button><button class="btn primary" onclick="renderHome()">首页</button></div></div><div class="group-nav">${groupNav}</div>${cards}</section>`;
 }
 function cssId(id){return id.replace(/[^a-zA-Z0-9一-龥_-]/g,'_')}
 
@@ -1092,19 +1439,78 @@ function majorRiskTagHtml(v){
   return `<div class="major-risk-tags">${v.tags.map(t=>`<span class="major-risk-tag ${v.level==='danger'?'danger':'warn'}">${esc(t)}</span>`).join('')}</div>`;
 }
 
+
+function parseNumLoose(v){
+  if(v===null || v===undefined || v==='') return null;
+  if(typeof v==='number') return Number.isFinite(v) ? v : null;
+  const s=String(v).replace(/,/g,'').replace(/名|分/g,'').trim();
+  if(!s || s==='—' || s==='-' || s==='无' || s==='暂无') return null;
+  const m=s.match(/-?\d+(\.\d+)?/);
+  if(!m) return null;
+  const n=Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+function avgNums(arr){
+  const xs=(arr||[]).map(parseNumLoose).filter(x=>Number.isFinite(x) && x>0);
+  if(!xs.length) return null;
+  return Math.round(xs.reduce((a,b)=>a+b,0)/xs.length);
+}
+function majorDetailValue(d, keys){
+  if(!d) return null;
+  for(const k of keys){
+    if(d[k]!==undefined && d[k]!==null && d[k]!=='') return d[k];
+  }
+  return null;
+}
+function threeYearMajorStats(m){
+  const d=(typeof detailForMajor==='function') ? detailForMajor(m) : null;
+  const s23=majorDetailValue(d,['2023最低分','2023分','2023录取分','2023专业最低分']) ?? m.score23 ?? m.minScore23;
+  const s24=majorDetailValue(d,['2024最低分','2024分','2024录取分','2024专业最低分']) ?? m.score24 ?? m.minScore24;
+  const s25=majorDetailValue(d,['2025最低分','2025分','2025录取分','2025专业最低分']) ?? m.score25 ?? m.minScore25;
+  const r23=majorDetailValue(d,['2023最低位次','2023位次','2023专业最低位次']) ?? m.rank23 ?? m.minRank23;
+  const r24=majorDetailValue(d,['2024最低位次','2024位次','2024专业最低位次']) ?? m.rank24 ?? m.minRank24;
+  const r25=majorDetailValue(d,['2025最低位次','2025位次','2025专业最低位次']) ?? m.rank25 ?? m.minRank25;
+  const scores=[s23,s24,s25].map(parseNumLoose).filter(x=>Number.isFinite(x) && x>0);
+  const ranks=[r23,r24,r25].map(parseNumLoose).filter(x=>Number.isFinite(x) && x>0);
+  return {
+    avgScore: scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null,
+    avgRank: ranks.length ? Math.round(ranks.reduce((a,b)=>a+b,0)/ranks.length) : null,
+    scoreYears: scores.length,
+    rankYears: ranks.length
+  };
+}
+function avgCell(v, years, suffix=''){
+  if(!v) return `<span class="avg-cell missing">—</span>`;
+  return `<span class="avg-cell">${fmt(v)}${suffix}</span>${years && years<3 ? `<span class="avg-note">${years}年均值</span>` : ''}`;
+}
+
 function renderGroup(g){
   const legacyClass=g.legacyOnly?'legacy':'';
   const assess=groupAssessment(g);
   const pc=planAudit(g);
   const compactMeta=[compactScore(g), planCompact(pc,g)].filter(Boolean).join('');
+  const groupAnno='';
+  const groupNoteKey=annotationGroupKey(g);
+  const groupNoteTitle=(g.school||'')+' '+(g.groupCode||'')+'组';
   const rows=g.majors.map((m,idx)=>{
     const vr=majorVisualRisk(m,g);
     const rowCls=vr.level==='danger'?'major-danger':(vr.level==='warn'?'major-warn':'');
     const scoreRank=(m.score25||m.rank25) ? `${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}` : '—';
-    const histAvg=majorHistoryAverage(m);
-    return `<tr class="${rowCls}"><td>${esc(m.code||'—')}</td><td><div class="major-name major-click" onclick="openMajorDetail('${esc(g.id)}',${idx})">${iconSvg(m.direction)}${esc(m.name)}${majorRiskTagHtml(vr)}</div></td><td>${esc(m.majorClass||'—')}</td><td>${fmt(m.plan26)}</td><td>${majorPlanCell(m)}</td><td>${scoreRank}</td><td>${historyAverageCell(histAvg)}</td><td><button class="btn detail-btn" onclick="openMajorDetail('${esc(g.id)}',${idx})">详情</button></td></tr>`;
+    const avg3=threeYearMajorStats(m);
+    const majorAnno='';
+    const majorNoteKey=annotationMajorKey(m);
+    const majorNoteTitle=(m.school||g.school||'')+' '+(g.groupCode||'')+'组 '+(m.code||'')+' '+(m.name||'');
+    return `<tr class="${rowCls}" ${rcAttr('majors',majorNoteKey,majorNoteTitle)}>
+      <td>${esc(m.code||'—')}</td>
+      <td><div class="major-name major-click" title="点击查看专业详情" onclick="openMajorDetail('${esc(g.id)}',${idx})">${iconSvg(m.direction)}${esc(m.name)}${majorRiskTagHtml(vr)}${rcBadge('majors',majorNoteKey)}</div>${majorAnno}</td>
+      <td>${esc(m.majorClass||'—')}</td>
+      <td>${majorPlanCell(m)}</td>
+      <td>${scoreRank}</td>
+      <td>${avgCell(avg3.avgScore,avg3.scoreYears,'')}</td>
+      <td>${avgCell(avg3.avgRank,avg3.rankYears,'')}</td>
+    </tr>`;
   }).join('');
-  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}"><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划</th><th>25计划/变化</th><th>25分/位次</th><th>三年均分/位次</th><th>专业详情</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
+  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}" ${rcAttr('groups',groupNoteKey,groupNoteTitle)}><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}${rcBadge('groups',groupNoteKey)}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>25计划/变化</th><th>25分/位次</th><th>三年平均分</th><th>三年平均位次</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
 }
 function render(){renderList(); if(state.selected) renderSchool(); else renderHome();}
 function findGroup(id){for(const s of DB.schools) for(const g of s.groups) if(g.id===id) return g; return null;}
@@ -1390,14 +1796,18 @@ function openMajorDetail(groupId, majorIndex){
   const d=detailForMajor(m) || {};
   $('modalTitle').textContent=`${m.school}｜${g.groupCode}组｜${m.name}`;
   const planDelta=safeNum(m.plan26)-safeNum(m.plan25);
-  const histAvg=majorHistoryAverage(m);
   const lead=[
     `<span class="detail-pill">${esc(m.subject||g.subject||'')}</span>`,
     `<span class="detail-pill">${esc(m.batch||g.batch||'')}</span>`,
     `<span class="detail-pill">${esc(g.groupCode)}组</span>`,
     `<span class="detail-pill">计划 ${fmt(safeNum(m.plan25))}→${fmt(safeNum(m.plan26))}（${planDelta>0?`+${fmt(planDelta)}`:fmt(planDelta)}）</span>`,
-    (m.score25||m.rank25)?`<span class="detail-pill">25分/位次 ${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}</span>`:'',
-    historyAveragePill(histAvg)
+    (m.score25||m.rank25)?`<span class="detail-pill">25分/位次 ${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}</span>`:''
+  ].filter(Boolean).join('');
+  const schoolForNote=findSchoolByGroup(g);
+  const detailNotes=[
+    schoolForNote ? rcDetailNote('schools', annotationSchoolKey(schoolForNote), '学校备注') : '',
+    rcDetailNote('groups', annotationGroupKey(g), '专业组备注'),
+    rcDetailNote('majors', annotationMajorKey(m), '专业备注')
   ].filter(Boolean).join('');
   const sections=[
     sectionHTML('培养属性', [
@@ -1428,8 +1838,6 @@ function openMajorDetail(groupId, majorIndex){
       ['2025最高分', d['2025最高分'] || m.max25],
       ['2025最低分', d['2025最低分'] || m.score25],
       ['2025最低位次', d['2025最低位次'] || m.rank25],
-      ['三年平均分', hasHistoryAverage(histAvg) ? formatAvgScore(histAvg.score) : ''],
-      ['三年平均位次', hasHistoryAverage(histAvg) ? formatAvgRank(histAvg.rank) : ''],
       ['2024计划', d['2024计划']],
       ['2024最低分', d['2024最低分']],
       ['2024最低位次', d['2024最低位次']],
@@ -1450,7 +1858,7 @@ function openMajorDetail(groupId, majorIndex){
       ['来源表', d['__sheet']]
     ])
   ].filter(Boolean).join('');
-  $('modalBody').innerHTML = `<div class="detail-lead">${lead}</div>${sections || '<div class="empty">该专业暂无可展示明细。</div>'}`;
+  $('modalBody').innerHTML = `<div class="detail-lead">${lead}</div>${detailNotes}${sections || '<div class="empty">该专业暂无可展示明细。</div>'}`;
   $('modal').classList.add('open');
 }
 
@@ -1474,11 +1882,13 @@ function openEvo(id){
     const riskMark = rk==='major-danger' ? '<span class="pill red">偏离主体</span>' : (rk==='major-warn' ? '<span class="pill orange">需确认接受度</span>' : '');
     return `<tr><td>${esc(m.name)}</td><td>${currentSourceBadge(core,flows)} ${riskMark}</td><td>${fmt(m.plan26)}</td><td>${m.score25?fmt(m.score25):'—'} / ${m.rank25?fmt(m.rank25):'—'}</td></tr>`;
   }).join('') || '<tr><td colspan="4">2026 本组未见在招专业</td></tr>';
+  const evoNotes=[s ? rcDetailNote('schools', annotationSchoolKey(s), '学校备注') : '', rcDetailNote('groups', annotationGroupKey(g), '专业组备注')].filter(Boolean).join('');
   const summary = flows.length>1
     ? `这个组不是单一旧组平移，而是由 ${flows.map(f=>`2025 ${f.match.old.code}组`).join(' + ')} 组合而来。先看主体来源，再看哪些专业从其他旧组并入。`
     : (flows.length===1 ? `这个组主要对应 2025 ${flows[0].match.old.code}组。` : '未找到可靠旧组来源。');
   const scoreNote = flows.length>1 ? '<div class="path" style="margin-bottom:14px"><b>分数理解：</b>不能直接沿用单一旧组投档线理解。今年并入其他方向后，投档线可能被新并入专业影响；主体专业仍应看专业级历史分和组内加权均分。</div>' : '';
   $('modalBody').innerHTML=`
+    ${evoNotes}
     <div class="path" style="margin-bottom:14px"><b>变化结论：</b>${esc(summary)}<div class="summary-line" style="margin-top:8px">${sourceLine}</div></div>
     <div class="path" style="margin-bottom:14px"><b>计划变化：</b><span class="pill">${pc.oldPlan===null?'25待核对':fmt(pc.oldPlan)} → ${fmt(pc.plan26)}${pc.delta!==null?`（${pc.delta>0?`+${pc.delta}`:pc.delta}）`:''}</span><span class="pill">口径：${esc(pc.confidence)}</span></div>
     ${scoreNote}
@@ -1490,10 +1900,10 @@ function openEvo(id){
 
 function exportCSV(){
   const s=findSchool(state.selected); if(!s) return;
-  const lines=[['学校','批次','科类','专业组','专业组名称','专业组类型','再选','组内颜色','专业匹配度','风险等级','25对照组计划','26组计划','组计划增减','组计划口径','25加权均分','三年平均分','三年平均位次','模拟参考分','模拟区间','筛选分','模拟依据','专业代码','专业名称','专业类','标签','26专业计划','25专业计划','行级增减','25最低分','25最低位次','专业三年平均分','专业三年平均位次','风险提示']];
+  const lines=[['学校','批次','科类','专业组','专业组名称','专业组类型','再选','组内颜色','专业匹配度','风险等级','25对照组计划','26组计划','组计划增减','组计划口径','25加权均分','模拟参考分','模拟区间','筛选分','模拟依据','专业代码','专业名称','专业类','标签','26专业计划','25专业计划','行级增减','25最低分','25最低位次','风险提示']];
   s.groups.forEach(g=>{
     if(!groupMatchesBase(g)) return;
-    { const pc=planAudit(g); const groupHist=groupHistoryAverage(g); g.majors.forEach(m=>{const majorHist=majorHistoryAverage(m); lines.push([s.name,s.batch,s.subject,g.groupCode,groupDisplayTitle(g),(g.typeTags||[]).map(typeTagLabel).join('|'),g.elective,groupAssessment(g).label,groupAssessment(g).score,g.riskLevel,pc.oldPlan??'待核对',pc.plan26,pc.delta??'待核对',pc.basis,g.avgScore||'',hasHistoryAverage(groupHist)?formatAvgScore(groupHist.score):'',hasHistoryAverage(groupHist)?formatAvgRank(groupHist.rank):'',g.predScore||'',(g.predLow!==null&&g.predHigh!==null)?`${g.predLow}-${g.predHigh}`:'',scoreForFilter(g)||'',g.predBasis||'',m.code,m.name,m.majorClass||'',(m.labels||[]).join('|'),m.plan26,m.plan25,(m.plan26||0)-(m.plan25||0),m.score25||'',m.rank25||'',hasHistoryAverage(majorHist)?formatAvgScore(majorHist.score):'',hasHistoryAverage(majorHist)?formatAvgRank(majorHist.rank):'',(m.auditNote||m.riskTip||'')]); }); }
+    { const pc=planAudit(g); g.majors.forEach(m=>lines.push([s.name,s.batch,s.subject,g.groupCode,groupDisplayTitle(g),(g.typeTags||[]).map(typeTagLabel).join('|'),g.elective,groupAssessment(g).label,groupAssessment(g).score,g.riskLevel,pc.oldPlan??'待核对',pc.plan26,pc.delta??'待核对',pc.basis,g.avgScore||'',g.predScore||'',(g.predLow!==null&&g.predHigh!==null)?`${g.predLow}-${g.predHigh}`:'',scoreForFilter(g)||'',g.predBasis||'',m.code,m.name,m.majorClass||'',(m.labels||[]).join('|'),m.plan26,m.plan25,(m.plan26||0)-(m.plan25||0),m.score25||'',m.rank25||'',(m.auditNote||m.riskTip||'')])); }
   });
   const csv=lines.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
@@ -1582,4 +1992,28 @@ if(collapseBtn){
 
 $('closeModal').onclick=()=>$('modal').classList.remove('open'); $('modal').onclick=e=>{if(e.target.id==='modal') $('modal').classList.remove('open');};
 $('backTop').onclick=()=>window.scrollTo({top:0,behavior:'smooth'}); window.addEventListener('scroll',()=>$('backTop').classList.toggle('show',window.scrollY>300));
-bindStaticMultiPanels(); initOptions(); const vb=$('versionBadge'); if(vb) vb.textContent=APP_VERSION; renderHome(); renderList();
+
+if($('annoToggleEdit')) $('annoToggleEdit').onclick=toggleAnnotationEditMode;
+if($('annoExportBtn')) $('annoExportBtn').onclick=exportAnnotations;
+if($('annoImportBtn')) $('annoImportBtn').onclick=()=>$('annoFileInput').click();
+if($('annoFileInput')) $('annoFileInput').onchange=e=>{const f=e.target.files&&e.target.files[0]; if(f) importAnnotationsFile(f); e.target.value='';};
+if($('annoClearBtn')) $('annoClearBtn').onclick=clearLocalAnnotations;
+if($('annoModalClose')) $('annoModalClose').onclick=closeAnnotationEditor;
+if($('annoModal')) $('annoModal').addEventListener('click',e=>{if(e.target.id==='annoModal') closeAnnotationEditor();});
+if($('annoSaveBtn')) $('annoSaveBtn').onclick=saveAnnotationFromModal;
+if($('annoDeleteBtn')) $('annoDeleteBtn').onclick=deleteAnnotationFromModal;
+
+bindStaticMultiPanels(); bindAnnotationControlsSafe(); setAnnotationEditMode(false); initOptions(); const vb=$('versionBadge'); if(vb) vb.textContent=APP_VERSION; renderHome(); renderList(); loadRemoteAnnotations(); rcLoadRemoteNotes();
+
+
+
+
+
+
+
+
+
+
+
+
+try{document.addEventListener('DOMContentLoaded',bindAnnotationControlsSafe);}catch(e){}
