@@ -1,34 +1,33 @@
-# 江苏省招生计划变化知识库｜V15.3 双入口版
+# 江苏省招生计划变化知识库｜V16 Supabase 数据库备注版
 
-## 两个入口
+## 入口
 
-### 公开展示页
-
-`index.html`
-
-线上地址：
+公开页：
 
 `https://ycxukun.github.io/jiangsu-plan/`
 
-公开只读，不显示备注编辑入口。
-
-### 管理员编辑页
-
-`admin.html`
-
-线上地址：
+管理员页：
 
 `https://ycxukun.github.io/jiangsu-plan/admin.html`
 
-打开后左下角直接显示“管理员备注”。
+## Supabase 配置
 
-## 管理员功能
+- Project URL: https://qnspmqsrbjcgrgpqkzgl.supabase.co
+- REST URL: https://qnspmqsrbjcgrgpqkzgl.supabase.co/rest/v1
+- 管理员邮箱: ycxukun@gmail.com
+- 前端 key: publishable/anon key 已内置。
 
-1. 新增当前学校备注。
-2. 右键专业组/专业新增备注。
-3. 连接 GitHub。
-4. 同步线上 annotations.json。
-5. 固定备注面板。
-6. 详情页显示备注。
+## 功能
 
-当前版本：V15.3 双入口版｜index公开只读｜admin管理员备注
+1. 公开页自动读取 Supabase `notes` 表，展示备注。
+2. 管理员页登录 Supabase Auth 后，右键学校/专业组/专业即可编辑备注。
+3. 保存备注直接写入 Supabase `notes` 表。
+4. 普通访问者只能看，不能写。
+5. 不再需要 GitHub Token。
+6. 不再需要手动导出 annotations.json。
+7. 三年均分/位次合并列保留。
+8. 固定备注面板、详情页备注保留。
+
+## 注意
+
+需要先在 Supabase 里创建 `notes` 和 `admin_users` 表，并把管理员邮箱对应用户加入 `admin_users`。

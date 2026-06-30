@@ -857,7 +857,7 @@ function renderList(){
 function renderHome(){
   const st=DB.stats;
   $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="version-note"><b>当前版本：</b>V15.3 双入口版｜index公开只读｜admin管理员备注<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  <div class="version-note"><b>当前版本：</b>V16 Supabase数据库备注版｜公开只读｜管理员在线保存<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
@@ -1349,6 +1349,7 @@ async function rcLoadRemoteNotes(){
 }
 
 
+
 function isNoteAdminMode(){
   try{
     const p=new URLSearchParams(location.search);
@@ -1556,6 +1557,14 @@ function rcOpenCurrentSchoolNote(){
 }
 
 function rcBindNotes(){
+  if($('rcNewCurrentSchoolNoteBtn')) $('rcNewCurrentSchoolNoteBtn').onclick=rcOpenCurrentSchoolNote;
+  if($('sbLoginBtn')) $('sbLoginBtn').onclick=sbOpenLogin;
+  if($('sbRefreshBtn')) $('sbRefreshBtn').onclick=()=>sbLoadNotesFromDatabase(true);
+  if($('sbLogoutBtn')) $('sbLogoutBtn').onclick=sbLogout;
+  if($('sbLoginCloseBtn')) $('sbLoginCloseBtn').onclick=sbCloseLogin;
+  if($('sbDoLoginBtn')) $('sbDoLoginBtn').onclick=sbLogin;
+  if($('sbLoginModal')) $('sbLoginModal').onclick=e=>{if(e.target.id==='sbLoginModal') sbCloseLogin();};
+
   if($('rcNewCurrentSchoolNoteBtn')) $('rcNewCurrentSchoolNoteBtn').onclick=rcOpenCurrentSchoolNote;
 
   if($('rcGithubSettingsBtn')) $('rcGithubSettingsBtn').onclick=rcOpenGhSettings;
@@ -2257,3 +2266,188 @@ try{document.addEventListener('DOMContentLoaded',bindAnnotationControlsSafe);}ca
 
 try{window.addEventListener('hashchange',applyNoteAdminMode);}catch(e){}
 try{document.addEventListener('DOMContentLoaded',applyNoteAdminMode);}catch(e){}
+
+
+
+
+
+
+
+
+/* === V16 Supabase 数据库备注 === */
+const SB_PROJECT_URL = "https://qnspmqsrbjcgrgpqkzgl.supabase.co";
+const SB_REST_URL = "https://qnspmqsrbjcgrgpqkzgl.supabase.co/rest/v1";
+const SB_AUTH_URL = "https://qnspmqsrbjcgrgpqkzgl.supabase.co/auth/v1";
+const SB_PUBLISHABLE_KEY = "sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V";
+const SB_ADMIN_EMAIL = "ycxukun@gmail.com";
+const SB_SESSION_KEY = 'jiangsu_plan_supabase_session_v1';
+
+function sbGetSession(){
+  try{return JSON.parse(sessionStorage.getItem(SB_SESSION_KEY)||'null');}catch(e){return null;}
+}
+function sbSetSession(s){
+  if(s) sessionStorage.setItem(SB_SESSION_KEY, JSON.stringify(s));
+  else sessionStorage.removeItem(SB_SESSION_KEY);
+  document.body.classList.toggle('sb-logged-in', !!s);
+}
+function sbAccessToken(){
+  const s=sbGetSession();
+  return s && s.access_token ? s.access_token : '';
+}
+function sbHeaders(auth=false){
+  const token=auth ? sbAccessToken() : '';
+  return {
+    'apikey': SB_PUBLISHABLE_KEY,
+    'Authorization': 'Bearer ' + (token || SB_PUBLISHABLE_KEY),
+    'Content-Type': 'application/json'
+  };
+}
+function sbOpenLogin(){
+  if(!isNoteAdminMode()){alert('请打开 admin.html 管理员页。');return;}
+  if($('sbEmailInput')) $('sbEmailInput').value=SB_ADMIN_EMAIL;
+  if($('sbPasswordInput')) $('sbPasswordInput').value='';
+  $('sbLoginModal').classList.add('open');
+  setTimeout(()=>{try{$('sbPasswordInput').focus();}catch(e){}},30);
+}
+function sbCloseLogin(){ if($('sbLoginModal')) $('sbLoginModal').classList.remove('open'); }
+async function sbLogin(){
+  const email=String($('sbEmailInput').value||'').trim();
+  const password=String($('sbPasswordInput').value||'');
+  if(!email || !password){alert('请输入邮箱和密码。');return;}
+  rcStatus('正在登录 Supabase...');
+  try{
+    const r=await fetch(SB_AUTH_URL + '/token?grant_type=password',{
+      method:'POST',
+      headers:{'apikey':SB_PUBLISHABLE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password})
+    });
+    if(!r.ok){
+      let msg=''; try{msg=(await r.json()).error_description || (await r.json()).message || '';}catch(e){msg=await r.text();}
+      throw new Error(msg || ('登录失败：'+r.status));
+    }
+    const data=await r.json();
+    sbSetSession(data);
+    sbCloseLogin();
+    rcStatus('数据库已登录');
+    await sbLoadNotesFromDatabase(true);
+  }catch(e){
+    rcStatus('登录失败');
+    alert(e.message||e);
+  }
+}
+function sbLogout(){
+  sbSetSession(null);
+  rcStatus('已退出数据库登录');
+}
+function sbRowsToNotes(rows){
+  const out=rcBlankNotes();
+  (rows||[]).forEach(r=>{
+    const scope=r.scope, key=r.target_key;
+    if(out[scope] && key) out[scope][key]={note:String(r.note||'')};
+  });
+  return out;
+}
+async function sbLoadNotesFromDatabase(manual=false){
+  try{
+    if(manual) rcStatus('正在读取数据库备注...');
+    const r=await fetch(SB_REST_URL + '/notes?select=scope,target_key,note&order=updated_at.desc',{
+      method:'GET',
+      headers:sbHeaders(false)
+    });
+    if(!r.ok){
+      let msg=''; try{msg=(await r.json()).message || '';}catch(e){msg=await r.text();}
+      throw new Error(msg || ('读取失败：'+r.status));
+    }
+    const rows=await r.json();
+    const remote=sbRowsToNotes(rows);
+    const local=rcNormalizeNotes(RC_NOTES);
+    // 数据库为准；本地未同步内容仍保留，避免误丢。
+    RC_NOTES={
+      schools:{...remote.schools,...local.schools},
+      groups:{...remote.groups,...local.groups},
+      majors:{...remote.majors,...local.majors}
+    };
+    rcSaveNotes();
+    if(manual) rcStatus('已读取数据库备注');
+    render();
+  }catch(e){
+    if(manual) alert(e.message||e);
+    rcStatus('数据库读取失败');
+  }
+}
+async function sbUpsertNote(scope,key,note){
+  const token=sbAccessToken();
+  if(!token) throw new Error('尚未登录数据库。请先点“登录数据库”。');
+  const r=await fetch(SB_REST_URL + '/notes?on_conflict=scope,target_key',{
+    method:'POST',
+    headers:{...sbHeaders(true),'Prefer':'resolution=merge-duplicates,return=representation'},
+    body:JSON.stringify({scope,target_key:key,note:String(note||'')})
+  });
+  if(!r.ok){
+    let msg=''; try{msg=(await r.json()).message || '';}catch(e){msg=await r.text();}
+    throw new Error(msg || ('保存失败：'+r.status));
+  }
+  return r.json();
+}
+async function sbDeleteNote(scope,key){
+  const token=sbAccessToken();
+  if(!token) throw new Error('尚未登录数据库。请先点“登录数据库”。');
+  const url=SB_REST_URL + '/notes?scope=eq.' + encodeURIComponent(scope) + '&target_key=eq.' + encodeURIComponent(key);
+  const r=await fetch(url,{method:'DELETE',headers:{...sbHeaders(true),'Prefer':'return=minimal'}});
+  if(!r.ok){
+    let msg=''; try{msg=(await r.json()).message || '';}catch(e){msg=await r.text();}
+    throw new Error(msg || ('删除失败：'+r.status));
+  }
+}
+async function rcSaveNote(){
+  if(!RC_NOTE_TARGET) return;
+  const {scope,key}=RC_NOTE_TARGET;
+  const txt=String($('rcNoteText').value||'').trim();
+  RC_NOTES=rcNormalizeNotes(RC_NOTES);
+  if(!RC_NOTES[scope]) RC_NOTES[scope]={};
+  if(txt) RC_NOTES[scope][key]={note:txt}; else delete RC_NOTES[scope][key];
+  rcSaveNotes();
+  rcCloseNote();
+  render();
+  if(isNoteAdminMode()){
+    try{
+      await sbUpsertNote(scope,key,txt);
+      rcStatus('备注已保存到数据库');
+      await sbLoadNotesFromDatabase(false);
+    }catch(e){
+      rcStatus('数据库保存失败');
+      alert(e.message||e);
+    }
+  }else{
+    rcStatus('备注已保存到本机');
+  }
+}
+async function rcDeleteNote(){
+  if(!RC_NOTE_TARGET) return;
+  const {scope,key}=RC_NOTE_TARGET;
+  RC_NOTES=rcNormalizeNotes(RC_NOTES);
+  if(RC_NOTES[scope]) delete RC_NOTES[scope][key];
+  rcSaveNotes();
+  rcCloseNote();
+  render();
+  if(isNoteAdminMode()){
+    try{
+      await sbDeleteNote(scope,key);
+      rcStatus('备注已从数据库删除');
+      await sbLoadNotesFromDatabase(false);
+    }catch(e){
+      rcStatus('数据库删除失败');
+      alert(e.message||e);
+    }
+  }
+}
+try{document.addEventListener('DOMContentLoaded',()=>{sbSetSession(sbGetSession()); sbLoadNotesFromDatabase(false);});}catch(e){}
+
+
+
+function rcShouldAutoSyncGithub(){ return false; }
+function rcPushNotesToGithub(manual=false){ if(manual) rcStatus('已改用 Supabase 数据库同步'); }
+function rcOpenGhSettings(){ rcStatus('已改用 Supabase 登录'); }
+function rcCloseGhSettings(){}
+function rcSaveGhConfigFromForm(){}
+function rcPullNotesFromGithub(){}
