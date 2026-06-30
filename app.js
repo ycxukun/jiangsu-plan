@@ -531,6 +531,10 @@ function bindVolunteerPanelControls(){
   $$('[data-major-preset]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault(); const key=btn.dataset.majorPreset; const rec=getGroupRecord(key); if(!rec)return; if(btn.dataset.preset==='top6')volunteerMajorKeys[key]=defaultMajorKeys(rec.g); if(btn.dataset.preset==='all')volunteerMajorKeys[key]=(rec.g.majors||[]).map(m=>m.key); if(btn.dataset.preset==='none')volunteerMajorKeys[key]=[]; saveVolunteerMajorKeys(); renderVolunteerPanel();}));
 }
 function xlsCell(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function localDateStamp(d=new Date()){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+}
 function excelCell(v,style){
   const isNum=typeof v==='number'&&Number.isFinite(v);
   const styleAttr=style?` ss:StyleID="${style}"`:'';
@@ -576,7 +580,7 @@ ${excelWorksheet('所选专业明细',detailHeaders,detailRows)}
 </Workbook>`;
   const blob=new Blob(['\ufeff',workbook],{type:'application/vnd.ms-excel;charset=utf-8'});
   const a=document.createElement('a');
-  const date=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const date=localDateStamp();
   a.href=URL.createObjectURL(blob);
   a.download=`江苏志愿表_40专业组及专业明细_${date}.xls`;
   document.body.appendChild(a);
