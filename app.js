@@ -829,7 +829,7 @@ function initOptions(){
   $('levelFilter').innerHTML='<option value="">全部层次</option>'+levels.map(x=>`<option>${esc(x)}</option>`).join('');
   renderProvincePanel(provinces);
   renderLevelPanel(levels);
-  simpleBindNotes(); rcBindNotes(); bindStaticMultiPanels();
+  simpleBindNotes(); applyNoteAdminMode(); rcBindNotes(); bindStaticMultiPanels();
 }
 function renderList(){
   const arr=filteredSchools(); $('listCount').textContent=`（${arr.length}）`;
@@ -857,7 +857,7 @@ function renderList(){
 function renderHome(){
   const st=DB.stats;
   $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="version-note"><b>当前版本：</b>V14.2 右键备注版｜工具条折叠｜隐藏版本角标<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  <div class="version-note"><b>当前版本：</b>V15 管理员在线保存版｜GitHub同步备注｜公开只读<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
@@ -1311,14 +1311,14 @@ function rcSaveNote(){
   RC_NOTES=rcNormalizeNotes(RC_NOTES);
   if(!RC_NOTES[scope])RC_NOTES[scope]={};
   if(txt)RC_NOTES[scope][key]={note:txt}; else delete RC_NOTES[scope][key];
-  rcSaveNotes();rcCloseNote();rcStatus('备注已保存');render();
+  rcSaveNotes();rcCloseNote();rcStatus('备注已保存');render();if(rcShouldAutoSyncGithub()) rcPushNotesToGithub(false);
 }
 function rcDeleteNote(){
   if(!RC_NOTE_TARGET)return;
   const {scope,key}=RC_NOTE_TARGET;
   RC_NOTES=rcNormalizeNotes(RC_NOTES);
   if(RC_NOTES[scope])delete RC_NOTES[scope][key];
-  rcSaveNotes();rcCloseNote();rcStatus('备注已删除');render();
+  rcSaveNotes();rcCloseNote();rcStatus('备注已删除');render();if(rcShouldAutoSyncGithub()) rcPushNotesToGithub(false);
 }
 function rcExportNotes(){
   const blob=new Blob([JSON.stringify(rcNormalizeNotes(RC_NOTES),null,2)],{type:'application/json;charset=utf-8'});
@@ -1348,6 +1348,20 @@ async function rcLoadRemoteNotes(){
   }catch(e){}
 }
 
+
+function isNoteAdminMode(){
+  try{
+    const p=new URLSearchParams(location.search);
+    return p.get('admin')==='1' || location.hash==='#admin';
+  }catch(e){return false;}
+}
+function applyNoteAdminMode(){
+  const on=isNoteAdminMode();
+  document.body.classList.toggle('note-admin-mode', on);
+  try{ rcSetToolbarCollapsed(true); }catch(e){}
+  return on;
+}
+
 function rcToggleToolbar(){
   const bar=$('rcNoteToolbar');
   const btn=$('rcToggleToolbarBtn');
@@ -1370,7 +1384,157 @@ function rcSetToolbarCollapsed(collapsed=true){
   }
 }
 
+
+/* === V15 GitHub 在线保存 annotations.json === */
+const RC_GH_SESSION_TOKEN_KEY='jiangsu_plan_github_token_session';
+const RC_GH_CONFIG_KEY='jiangsu_plan_github_sync_config_v1';
+function rcDefaultGhConfig(){
+  return {owner:'ycxukun',repo:'jiangsu-plan',branch:'main',autoSync:true};
+}
+function rcLoadGhConfig(){
+  let cfg=rcDefaultGhConfig();
+  try{cfg={...cfg,...JSON.parse(localStorage.getItem(RC_GH_CONFIG_KEY)||'{}')};}catch(e){}
+  cfg.token=sessionStorage.getItem(RC_GH_SESSION_TOKEN_KEY)||'';
+  return cfg;
+}
+function rcSaveGhConfigFromForm(){
+  const cfg={
+    owner:String($('rcGhOwner').value||'ycxukun').trim(),
+    repo:String($('rcGhRepo').value||'jiangsu-plan').trim(),
+    branch:String($('rcGhBranch').value||'main').trim(),
+    autoSync:!!$('rcGhAutoSync').checked
+  };
+  const token=String($('rcGhToken').value||'').trim();
+  localStorage.setItem(RC_GH_CONFIG_KEY,JSON.stringify(cfg));
+  if(token) sessionStorage.setItem(RC_GH_SESSION_TOKEN_KEY,token);
+  rcStatus('GitHub连接设置已保存');
+  rcCloseGhSettings();
+}
+function rcFillGhForm(){
+  const cfg=rcLoadGhConfig();
+  if($('rcGhOwner')) $('rcGhOwner').value=cfg.owner||'ycxukun';
+  if($('rcGhRepo')) $('rcGhRepo').value=cfg.repo||'jiangsu-plan';
+  if($('rcGhBranch')) $('rcGhBranch').value=cfg.branch||'main';
+  if($('rcGhToken')) $('rcGhToken').value=cfg.token||'';
+  if($('rcGhAutoSync')) $('rcGhAutoSync').checked=cfg.autoSync!==false;
+}
+function rcOpenGhSettings(){
+  if(!isNoteAdminMode()){alert('请用 ?admin=1 管理员模式打开。');return;}
+  rcFillGhForm();
+  $('rcGhModal').classList.add('open');
+}
+function rcCloseGhSettings(){
+  if($('rcGhModal')) $('rcGhModal').classList.remove('open');
+}
+function rcUtf8ToBase64(str){
+  const bytes=new TextEncoder().encode(str);
+  let bin='';
+  bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin);
+}
+function rcBase64ToUtf8(b64){
+  const bin=atob(String(b64||'').replace(/\s/g,''));
+  const bytes=new Uint8Array([...bin].map(ch=>ch.charCodeAt(0)));
+  return new TextDecoder().decode(bytes);
+}
+async function rcGithubFetch(path, options={}){
+  const cfg=rcLoadGhConfig();
+  if(!cfg.token) throw new Error('没有 GitHub Token。请先点“连接GitHub”。');
+  const url=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}${path}`;
+  const headers={
+    'Accept':'application/vnd.github+json',
+    'Authorization':'Bearer '+cfg.token,
+    'X-GitHub-Api-Version':'2022-11-28',
+    ...(options.headers||{})
+  };
+  const res=await fetch(url,{...options,headers});
+  if(!res.ok){
+    let msg='';
+    try{msg=(await res.json()).message||'';}catch(e){msg=await res.text();}
+    throw new Error(`GitHub请求失败 ${res.status}：${msg}`);
+  }
+  return res.json();
+}
+async function rcGetGithubAnnotationsFile(){
+  const cfg=rcLoadGhConfig();
+  try{
+    return await rcGithubFetch(`/contents/annotations.json?ref=${encodeURIComponent(cfg.branch)}`,{method:'GET'});
+  }catch(e){
+    if(String(e.message||'').includes('404')) return null;
+    throw e;
+  }
+}
+async function rcPushNotesToGithub(manual=false){
+  if(!isNoteAdminMode()) return;
+  const cfg=rcLoadGhConfig();
+  if(!cfg.token){
+    if(manual) alert('请先点“连接GitHub”，填入 GitHub Token。');
+    return;
+  }
+  rcStatus('正在同步到 GitHub...');
+  const normalized=rcNormalizeNotes(RC_NOTES);
+  const content=JSON.stringify(normalized,null,2);
+  let sha=null;
+  try{
+    const old=await rcGetGithubAnnotationsFile();
+    if(old && old.sha) sha=old.sha;
+  }catch(e){
+    rcStatus('读取线上备注失败');
+    if(manual) alert(e.message||e);
+    return;
+  }
+  try{
+    await rcGithubFetch('/contents/annotations.json',{
+      method:'PUT',
+      body:JSON.stringify({
+        message:'update annotations',
+        content:rcUtf8ToBase64(content),
+        branch:cfg.branch,
+        ...(sha?{sha}:{})
+      })
+    });
+    rcStatus('已同步到线上 annotations.json');
+  }catch(e){
+    rcStatus('同步失败');
+    if(manual) alert(e.message||e);
+  }
+}
+async function rcPullNotesFromGithub(){
+  if(!isNoteAdminMode()) return;
+  const cfg=rcLoadGhConfig();
+  if(!cfg.token){alert('请先点“连接GitHub”，填入 GitHub Token。');return;}
+  rcStatus('正在读取线上备注...');
+  try{
+    const f=await rcGetGithubAnnotationsFile();
+    if(!f || !f.content){rcStatus('线上暂无 annotations.json');return;}
+    const incoming=rcNormalizeNotes(JSON.parse(rcBase64ToUtf8(f.content)));
+    const local=rcNormalizeNotes(RC_NOTES);
+    RC_NOTES={
+      schools:{...incoming.schools,...local.schools},
+      groups:{...incoming.groups,...local.groups},
+      majors:{...incoming.majors,...local.majors}
+    };
+    rcSaveNotes();
+    rcStatus('已读取并合并线上备注');
+    render();
+  }catch(e){
+    rcStatus('读取失败');
+    alert(e.message||e);
+  }
+}
+function rcShouldAutoSyncGithub(){
+  const cfg=rcLoadGhConfig();
+  return isNoteAdminMode() && cfg.autoSync!==false && !!cfg.token;
+}
+
 function rcBindNotes(){
+  if($('rcGithubSettingsBtn')) $('rcGithubSettingsBtn').onclick=rcOpenGhSettings;
+  if($('rcPushGithubBtn')) $('rcPushGithubBtn').onclick=()=>rcPushNotesToGithub(true);
+  if($('rcGhCloseBtn')) $('rcGhCloseBtn').onclick=rcCloseGhSettings;
+  if($('rcGhSaveBtn')) $('rcGhSaveBtn').onclick=rcSaveGhConfigFromForm;
+  if($('rcPullGithubBtn')) $('rcPullGithubBtn').onclick=rcPullNotesFromGithub;
+  if($('rcGhModal')) $('rcGhModal').onclick=e=>{if(e.target.id==='rcGhModal') rcCloseGhSettings();};
+
   if($('rcToggleToolbarBtn')) $('rcToggleToolbarBtn').onclick=rcToggleToolbar;
   rcSetToolbarCollapsed(true);
   if($('rcExportNoteBtn'))$('rcExportNoteBtn').onclick=rcExportNotes;
@@ -1382,6 +1546,7 @@ function rcBindNotes(){
   if($('rcDeleteNoteBtn'))$('rcDeleteNoteBtn').onclick=rcDeleteNote;
   if($('rcNoteModal'))$('rcNoteModal').onclick=e=>{if(e.target.id==='rcNoteModal')rcCloseNote()};
   document.addEventListener('contextmenu',e=>{
+    if(!isNoteAdminMode()) return;
     if(e.target.closest('button,input,select,textarea,a'))return;
     const el=e.target.closest('[data-note-scope]');
     if(!el)return;
@@ -1509,6 +1674,18 @@ function avgCell(v, years, suffix=''){
   return `<span class="avg-cell">${fmt(v)}${suffix}</span>${years && years<3 ? `<span class="avg-note">${years}年均值</span>` : ''}`;
 }
 
+
+function avgPairCell(avg3){
+  const hasScore=avg3 && avg3.avgScore;
+  const hasRank=avg3 && avg3.avgRank;
+  if(!hasScore && !hasRank) return `<span class="avg-pair missing">—</span>`;
+  const score=hasScore ? fmt(avg3.avgScore) : '—';
+  const rank=hasRank ? fmt(avg3.avgRank) : '—';
+  const years=Math.min(avg3.scoreYears||0, avg3.rankYears||0) || (avg3.scoreYears||avg3.rankYears||0);
+  const note=(years && years<3) ? `<span class="avg-year-note">${years}年均值</span>` : '';
+  return `<span class="avg-pair">${score} / ${rank}</span>${note}`;
+}
+
 function renderGroup(g){
   const legacyClass=g.legacyOnly?'legacy':'';
   const assess=groupAssessment(g);
@@ -1531,11 +1708,10 @@ function renderGroup(g){
       <td>${esc(m.majorClass||'—')}</td>
       <td>${majorPlanCell(m)}</td>
       <td>${scoreRank}</td>
-      <td>${avgCell(avg3.avgScore,avg3.scoreYears,'')}</td>
-      <td>${avgCell(avg3.avgRank,avg3.rankYears,'')}</td>
+      <td>${avgPairCell(avg3)}</td>
     </tr>`;
   }).join('');
-  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}" ${rcAttr('groups',groupNoteKey,groupNoteTitle)}><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}${rcBadge('groups',groupNoteKey)}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>25计划/变化</th><th>25分/位次</th><th>三年平均分</th><th>三年平均位次</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
+  return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}" ${rcAttr('groups',groupNoteKey,groupNoteTitle)}><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}${rcBadge('groups',groupNoteKey)}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>25计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
 }
 function render(){renderList(); if(state.selected) renderSchool(); else renderHome();}
 function findGroup(id){for(const s of DB.schools) for(const g of s.groups) if(g.id===id) return g; return null;}
@@ -2042,3 +2218,12 @@ bindStaticMultiPanels(); bindAnnotationControlsSafe(); setAnnotationEditMode(fal
 
 
 try{document.addEventListener('DOMContentLoaded',bindAnnotationControlsSafe);}catch(e){}
+
+
+
+
+
+
+
+try{window.addEventListener('hashchange',applyNoteAdminMode);}catch(e){}
+try{document.addEventListener('DOMContentLoaded',applyNoteAdminMode);}catch(e){}
