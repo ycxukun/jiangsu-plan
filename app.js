@@ -5,7 +5,11 @@ function detailForMajor(m){
   return MAJOR_DETAILS_BY_CODE[majorDetailKey(m)] || null;
 }
 /* version: 专业细分移动折叠版；重构专业组干净度：财会/数理/带电工科/医学等按同一报考逻辑判断；新增筛选栏一键折叠 */
-const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',majorClass:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'all',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null};
+const state = {batch:'',subject:'',province:'',provinces:[],level:'',levels:[],risk:'',majorClass:'',groupType:'',coopFilter:'',creditFilter:'',specialPathFilter:'',newSchoolFilter:'all',q:'',score:'',scoreUp:50,scoreDown:50,onlyNew:false,onlyStop:false,onlyCross:false,onlyHigh:false,usePredict:true,selected:null,
+  majorClasses:[],
+  targetScore:550,
+  useScoreRange:false
+};
 const $ = id => document.getElementById(id);
 const fmt = v => (v===null || v===undefined || v==='') ? '—' : (typeof v==='number' ? v.toLocaleString('zh-CN') : v);
 const delta = v => v>0 ? `<span class="delta-pos">+${v}</span>` : (v<0 ? `<span class="delta-neg">${v}</span>` : '0');
@@ -716,6 +720,42 @@ function allMajorClasses(){
   return majorClassSorted(vals);
 }
 
+
+/* === V16.5 专业大类二级筛选 + 目标分滑杆 === */
+const MAJOR_FAMILY_ORDER=[
+{name:'工学',keys:['计算机类','电子信息类','电气类','自动化类','机械类','仪器类','材料类','能源动力类','航空航天类','兵器类','核工程类','交通运输类','海洋工程类','土木类','水利类','测绘类','化工与制药类','矿业类','纺织类','轻工类','农业工程类','林业工程类','环境科学与工程类','生物医学工程类','食品科学与工程类','建筑类','安全科学与工程类','公安技术类']},
+{name:'理学',keys:['数学类','物理学类','化学类','天文学类','地理科学类','大气科学类','海洋科学类','地球物理学类','地质学类','生物科学类','心理学类','统计学类']},
+{name:'农学',keys:['植物生产类','自然保护与环境生态类','动物生产类','动物医学类','林学类','水产类','草学类']},
+{name:'医学',keys:['基础医学类','临床医学类','口腔医学类','公共卫生与预防医学类','中医学类','中西医结合类','药学类','中药学类','法医学类','医学技术类','护理学类']},
+{name:'经济学',keys:['经济学类','财政学类','金融学类','经济与贸易类']},
+{name:'管理学',keys:['管理科学与工程类','工商管理类','农业经济管理类','公共管理类','图书情报与档案管理类','物流管理与工程类','工业工程类','电子商务类','旅游管理类']},
+{name:'法学',keys:['法学类','政治学类','社会学类','民族学类','马克思主义理论类','公安学类']},
+{name:'教育学',keys:['教育学类','体育学类']},
+{name:'文学/历史/哲学',keys:['中国语言文学类','外国语言文学类','新闻传播学类','历史学类','哲学类']},
+{name:'艺术学',keys:['艺术学理论类','音乐与舞蹈学类','戏剧与影视学类','美术学类','设计学类']},
+{name:'其他',keys:[]}
+];
+const HOT_MAJOR_CLASSES=new Set(['计算机类','电子信息类','电气类','自动化类','临床医学类','口腔医学类','金融学类','法学类','数学类','统计学类']);
+function groupMatchesMajorClasses(g){if(!state.majorClasses||!state.majorClasses.length)return true;return state.majorClasses.some(c=>groupHasMajorClass(g,c));}
+function allMajorClassesFromDB(){return allMajorClasses?allMajorClasses():[...new Set(DB.schools.flatMap(s=>(s.groups||[]).flatMap(g=>(g.majors||[]).map(m=>m.majorClass).filter(Boolean))))];}
+function majorClassCountMap(){const m={};DB.schools.forEach(s=>(s.groups||[]).forEach(g=>(g.majors||[]).forEach(x=>{const c=x.majorClass;if(c)m[c]=(m[c]||0)+1;})));return m;}
+function familyForMajorClass(c){for(const f of MAJOR_FAMILY_ORDER){if(f.keys.includes(c))return f.name;}return '其他';}
+function updateMajorClassTriggerText(){const b=$('majorClassBtn');if(b)b.textContent=(state.majorClasses&&state.majorClasses.length)?`专业大类(${state.majorClasses.length})`:'全部专业大类';}
+function buildMajorClassPanel(){const all=allMajorClassesFromDB();const counts=majorClassCountMap();const by={};MAJOR_FAMILY_ORDER.forEach(f=>by[f.name]=[]);all.forEach(c=>{(by[familyForMajorClass(c)]||by['其他']).push(c)});const selected=new Set(state.majorClasses||[]);const body=$('majorClassPanelBody');if(!body)return;body.innerHTML=MAJOR_FAMILY_ORDER.map(f=>{const arr=(by[f.name]||[]).sort((a,b)=>((HOT_MAJOR_CLASSES.has(b)?1:0)-(HOT_MAJOR_CLASSES.has(a)?1:0))||((counts[b]||0)-(counts[a]||0))||a.localeCompare(b,'zh-CN'));if(!arr.length)return'';return `<section class="major-family"><div class="major-family-head"><span class="major-family-name">${esc(f.name)}</span><span class="major-family-count">${arr.length} 类</span></div><div class="major-chip-grid">${arr.map(c=>`<label class="major-class-chip ${selected.has(c)?'checked':''} ${HOT_MAJOR_CLASSES.has(c)?'hot':''}"><input type="checkbox" data-major-class="${esc(c)}" ${selected.has(c)?'checked':''}><span>${esc(c)}</span><small>${fmt(counts[c]||0)}</small></label>`).join('')}</div></section>`}).join('');body.querySelectorAll('input[data-major-class]').forEach(i=>i.addEventListener('change',()=>{const set=new Set(state.majorClasses||[]);i.checked?set.add(i.dataset.majorClass):set.delete(i.dataset.majorClass);state.majorClasses=[...set];i.closest('.major-class-chip')?.classList.toggle('checked',i.checked);updateMajorClassTriggerText();state.selected=null;render();}));}
+function openMajorClassPanel(){closeAdvPanels();buildMajorClassPanel();$('majorClassPanel')?.classList.add('open');}
+function closeAdvPanels(){document.querySelectorAll('.adv-panel').forEach(p=>p.classList.remove('open'));}
+function clearMajorClassSelection(){state.majorClasses=[];if($('majorClassFilter'))$('majorClassFilter').value='';updateMajorClassTriggerText();buildMajorClassPanel();state.selected=null;render();}
+function selectAllMajorClasses(){state.majorClasses=allMajorClassesFromDB();updateMajorClassTriggerText();buildMajorClassPanel();state.selected=null;render();}
+function selectHotEngineeringMajors(){const all=new Set(allMajorClassesFromDB());state.majorClasses=['计算机类','电子信息类','电气类','自动化类','机械类','航空航天类','能源动力类','材料类','仪器类'].filter(x=>all.has(x));updateMajorClassTriggerText();buildMajorClassPanel();state.selected=null;render();}
+function scoreRangeText(){return scoreActive()?`${scoreLow()}—${scoreHigh()}`:'目标分区间';}
+function updateScoreRangeSummary(){const t=Number(state.score||550),d=Number(state.scoreDown||20),u=Number(state.scoreUp||30);const s=$('scoreRangeSummary');if(s)s.textContent=`目标分：${t}｜下浮 ${d}｜上浮 ${u}｜区间 ${t-d}—${t+u}`;const b=$('scoreRangeBtn');if(b)b.textContent=scoreActive()?`分数 ${t-d}—${t+u}`:'目标分区间';}
+function syncScoreInputs(id){[['targetScoreInput','targetScoreSlider','score'],['scoreDownInput','scoreDownSlider','scoreDown'],['scoreUpInput','scoreUpSlider','scoreUp']].forEach(([a,b,k])=>{const x=$(a),y=$(b);if(!x||!y)return;if(id===a)y.value=x.value;else if(id===b)x.value=y.value;state[k]=Number(x.value||y.value||0);});updateScoreRangeSummary();}
+function openScoreRangePanel(){closeAdvPanels();const t=Number(state.score||550),d=Number(state.scoreDown||20),u=Number(state.scoreUp||30);[['targetScoreInput',t],['targetScoreSlider',t],['scoreDownInput',d],['scoreDownSlider',d],['scoreUpInput',u],['scoreUpSlider',u]].forEach(([id,v])=>{const e=$(id);if(e)e.value=v});bindScoreRangeControls();updateScoreRangeSummary();$('scoreRangePanel')?.classList.add('open');}
+function bindScoreRangeControls(){['targetScoreInput','targetScoreSlider','scoreDownInput','scoreDownSlider','scoreUpInput','scoreUpSlider'].forEach(id=>{const el=$(id);if(el&&!el.dataset.boundScore){el.dataset.boundScore='1';el.addEventListener('input',()=>syncScoreInputs(id));el.addEventListener('change',()=>syncScoreInputs(id));}})}
+function applyScoreRangeFilter(){syncScoreInputs();if($('scoreInput'))$('scoreInput').value=state.score;state.selected=null;updateScoreRangeSummary();closeAdvPanels();render();}
+function clearScoreRangeFilter(){state.score='';if($('scoreInput'))$('scoreInput').value='';updateScoreRangeSummary();closeAdvPanels();state.selected=null;render();}
+try{document.addEventListener('DOMContentLoaded',()=>{bindScoreRangeControls();updateMajorClassTriggerText();updateScoreRangeSummary();document.addEventListener('click',e=>{if(!e.target.closest('.adv-panel')&&!e.target.closest('#majorClassBtn,#scoreRangeBtn'))closeAdvPanels();});});}catch(e){}
+
 function schoolMatches(s){
   if(state.batch && s.batch!==state.batch) return false;
   if(state.subject && s.subject!==state.subject) return false;
@@ -727,7 +767,7 @@ function schoolMatches(s){
   if(state.newSchoolFilter==='trueNewGroup' && !schoolHasTrueNewGroup(s)) return false;
   if(state.newSchoolFilter==='reorgGroup' && !schoolHasReorgGroup(s)) return false;
   if(state.newSchoolFilter==='hide' && isNewSchool(s)) return false;
-  if((scoreActive() || state.majorClass || state.groupType || state.specialPathFilter || state.risk || state.onlyNew || state.onlyStop || state.onlyCross || state.onlyHigh || state.q) && groups.length===0) return false;
+  if((scoreActive() || state.majorClass || (state.majorClasses&&state.majorClasses.length) || state.groupType || state.specialPathFilter || state.risk || state.onlyNew || state.onlyStop || state.onlyCross || state.onlyHigh || state.q) && groups.length===0) return false;
   if(state.risk && !groups.some(g=>groupAssessment(g).kind===state.risk)) return false;
   if(state.onlyNew && !groups.some(g=>g.newCount>0)) return false;
   if(state.onlyStop && !groups.some(g=>g.stopCount>0 || g.legacyOnly)) return false;
@@ -755,6 +795,7 @@ function groupMatchesBase(g){
   if(state.newSchoolFilter==='reorgGroup' && !isReorgGroup(g)) return false;
   if(state.groupType && !(g.typeTags||[]).includes(state.groupType)) return false;
   if(state.majorClass && !groupHasMajorClass(g,state.majorClass)) return false;
+  if(!groupMatchesMajorClasses(g)) return false;
   if(!groupMatchesSpecialPath(g)) return false;
   if(state.onlyNew && g.newCount<=0) return false;
   if(state.onlyStop && !(g.stopCount>0 || g.legacyOnly)) return false;
@@ -768,13 +809,23 @@ function groupMatchesBase(g){
   return true;
 }
 function visibleGroupsForSort(s){
-  const groups=s.groups.filter(groupMatchesBase);
+  const groups=s.groups.filter(groupMatchesBase).sort(compareGroupsForDisplay);
   return groups.length ? groups : s.groups;
 }
 function groupWeightForSchoolSort(g){
   const w = Number(g.plan26);
   return Number.isFinite(w) && w>0 ? w : 1;
 }
+
+/* === V16.5 院校排序：分数优先，同分/新增单专业按软科顺位 === */
+const RUANKE_PRIORITY_NAMES = ['清华大学','北京大学','浙江大学','上海交通大学','复旦大学','南京大学','中国科学技术大学','华中科技大学','武汉大学','西安交通大学','中山大学','北京航空航天大学','东南大学','北京理工大学','四川大学','哈尔滨工业大学','同济大学','中国人民大学','北京师范大学','南开大学','天津大学','山东大学','厦门大学','中南大学','吉林大学','西北工业大学','华南理工大学','电子科技大学','大连理工大学','华东师范大学','中国农业大学','湖南大学','重庆大学','东北大学','兰州大学','中国海洋大学','中央民族大学','西北农林科技大学','北京科技大学','南京航空航天大学','南京理工大学','西安电子科技大学','北京交通大学','华东理工大学','苏州大学','南京师范大学','河海大学','江南大学','中国矿业大学','南京农业大学','中国药科大学','南京邮电大学','南京信息工程大学','南京医科大学','南京中医药大学','南京工业大学','扬州大学','江苏大学','南京林业大学','南京审计大学','南京财经大学'];
+const RUANKE_PRIORITY = new Map(RUANKE_PRIORITY_NAMES.map((n,i)=>[n,i+1]));
+function ruankeRankForSort(s){const name=String(s?.name||'').trim();if(RUANKE_PRIORITY.has(name))return RUANKE_PRIORITY.get(name);const tier=schoolTierRank(s);if(tier<=10)return 80;if(tier<=20)return 180;if(tier<=30)return 320;if(tier<=40)return 520;if(tier>=70)return 2200;return 900;}
+function groupIsNewOrSingle(g){return isTrueNewGroup(g)||isNewGroupStrict(g)||Number(g.plan25||0)<=0||(g.majors||[]).length<=1;}
+function schoolSpecialOnlyForSort(s){const gs=visibleGroupsForSort(s);return gs.length>0 && gs.every(groupIsNewOrSingle);}
+function compareSchoolsForDisplay(a,b){if(state.q){const q=state.q.toLowerCase();const ax=a.name.toLowerCase()===q?2:(a.name.toLowerCase().includes(q)?1:0);const bx=b.name.toLowerCase()===q?2:(b.name.toLowerCase().includes(q)?1:0);if(ax!==bx)return bx-ax;}const as=schoolSpecialOnlyForSort(a),bs=schoolSpecialOnlyForSort(b);if(as!==bs)return as?1:-1;const av=schoolSortScore(a),bv=schoolSortScore(b);if(Number.isFinite(av)&&Number.isFinite(bv)){const diff=bv-av;if(Math.abs(diff)>1)return diff;}else if(Number.isFinite(av)!==Number.isFinite(bv)){return Number.isFinite(bv)?1:-1;}const rd=ruankeRankForSort(a)-ruankeRankForSort(b);if(rd!==0)return rd;const sd=schoolTierRank(a)-schoolTierRank(b);if(sd!==0)return sd;return a.name.localeCompare(b.name,'zh-CN');}
+function compareGroupsForDisplay(a,b){const as=groupIsNewOrSingle(a),bs=groupIsNewOrSingle(b);if(as!==bs)return as?1:-1;const av=scoreForFilter(a),bv=scoreForFilter(b);if(Number.isFinite(av)&&Number.isFinite(bv)&&Math.abs(bv-av)>1)return bv-av;return String(a.groupCode||'').localeCompare(String(b.groupCode||''),'zh-CN');}
+
 function schoolSortScore(s){
   const groups=visibleGroupsForSort(s);
   let totalScore=0, totalWeight=0;
@@ -793,29 +844,7 @@ function schoolScoreLabel(s){
   return Number.isFinite(v) ? fmt(Math.round(v*10)/10) : '—';
 }
 function filteredSchools(){
-  return DB.schools.filter(schoolMatches).sort((a,b)=>{
-    if(state.q){
-      const q=state.q.toLowerCase();
-      const aExact=a.name.toLowerCase()===q ? 2 : (a.name.toLowerCase().includes(q) ? 1 : 0);
-      const bExact=b.name.toLowerCase()===q ? 2 : (b.name.toLowerCase().includes(q) ? 1 : 0);
-      if(aExact!==bExact) return bExact-aExact;
-    }
-    if(state.newSchoolFilter==='normal'){
-      const an=isNewSchool(a), bn=isNewSchool(b);
-      if(an!==bn) return an ? 1 : -1;
-    }
-    if(state.newSchoolFilter!=='only' && state.newSchoolFilter!=='all'){
-      const tierDiff=schoolTierRank(a)-schoolTierRank(b);
-      if(tierDiff!==0) return tierDiff;
-    }
-    if(state.newSchoolFilter==='normal'){
-      const tierDiff=schoolTierRank(a)-schoolTierRank(b);
-      if(tierDiff!==0) return tierDiff;
-    }
-    const scoreDiff=schoolSortScore(b)-schoolSortScore(a);
-    if(Number.isFinite(scoreDiff) && Math.abs(scoreDiff)>1e-9) return scoreDiff;
-    return a.name.localeCompare(b.name,'zh-CN');
-  });
+  return DB.schools.filter(schoolMatches).sort(compareSchoolsForDisplay);
 }
 
 function bindStaticMultiPanels(){
@@ -850,7 +879,7 @@ function initOptions(){
   $('levelFilter').innerHTML='<option value="">全部层次</option>'+levels.map(x=>`<option>${esc(x)}</option>`).join('');
   renderProvincePanel(provinces);
   renderLevelPanel(levels);
-  simpleBindNotes(); applyNoteAdminMode(); rcBindNotes(); bindStaticMultiPanels();
+  simpleBindNotes(); applyNoteAdminMode(); rcBindNotes(); bindStaticMultiPanels(); updateMajorClassTriggerText(); updateScoreRangeSummary(); bindScoreRangeControls();
 }
 function renderList(){
   const arr=filteredSchools(); $('listCount').textContent=`（${arr.length}）`;
@@ -877,8 +906,8 @@ function renderList(){
 }
 function renderHome(){
   const st=DB.stats;
-  $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；新增“教育部专业大类”筛选，可按计算机类、电子信息类、临床医学类等直接定位包含该大类的专业组；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="version-note"><b>当前版本：</b>V16.4 Supabase备注版｜新增教育部专业大类筛选｜公开只读<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；新增“教育部专业大类二级多选”与“目标分上下浮动滑杆”；可按计算机类、电子信息类、临床医学类等定位包含该大类的专业组；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
+  <div class="version-note"><b>当前版本：</b>V16.5 高级筛选排序版｜专业大类多选｜目标分滑杆｜软科顺位<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
