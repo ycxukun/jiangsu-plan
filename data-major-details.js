@@ -1,2 +1,1 @@
-const MAJOR_DETAILS_BY_CODE = JSON.parse(window.__DETAIL_JSON_PARTS.join(''));
-window.__DETAIL_JSON_PARTS = null;
+window.MAJOR_DETAILS=Object.assign({},...(window.MAJOR_DETAIL_PARTS||[]));
