@@ -2,6 +2,8 @@
 
 - 新增学校、专业组、专业三级 giscus 批注入口。
 - 点击“查看批注 / 新增批注”后，右侧打开对象批注抽屉。
+- 新增专业组红/黄/绿边框提醒：含风险专业或大杂混合组为红色，整组冷门/风险为黄色，结构清爽为绿色。
+- 专业组标题后追加命名结果；优先使用 `data-group-names.js` 中的专业组命名表，未匹配的 2026 新组按当前组内专业类别自动生成名称。
 - 每个批注对象使用稳定 term 绑定到独立 GitHub Discussion：
   - `js-plan-annotation::schools::<school-key>`
   - `js-plan-annotation::groups::<group-key>`
@@ -70,6 +72,7 @@
 - `app.js`：页面交互、筛选、排序、专业详情弹窗、Supabase 备注逻辑。
 - `data-db-part-xx.js`：招生数据库分片。
 - `data-db.js`：合并招生数据库分片。
+- `data-group-names.js`：专业组命名映射，用于标题展示与组级别颜色判断。
 - `data-major-details-part-xx.js`：专业详情分片。
 - `data-major-details.js`：合并专业详情分片。
 - `.nojekyll`：保证 GitHub Pages 原样发布。

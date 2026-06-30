@@ -82,6 +82,24 @@ body.compact-mode .filters{grid-template-columns:repeat(9,minmax(88px,1fr))}
   body.compact-mode .filters input{grid-column:span 2}
 }
 
+/* Group quality borders */
+.group-card.group-quality-red,.group-section.group-quality-red{border-color:#ef4444}
+.group-card.group-quality-yellow,.group-section.group-quality-yellow{border-color:#f59e0b}
+.group-card.group-quality-green,.group-section.group-quality-green{border-color:#22c55e}
+.group-card.group-quality-red{box-shadow:0 0 0 1px rgba(239,68,68,.14),0 8px 26px rgba(11,42,26,.05)}
+.group-card.group-quality-yellow{box-shadow:0 0 0 1px rgba(245,158,11,.16),0 8px 26px rgba(11,42,26,.05)}
+.group-card.group-quality-green{box-shadow:0 0 0 1px rgba(34,197,94,.12),0 8px 26px rgba(11,42,26,.05)}
+.group-section.group-quality-red{box-shadow:inset 4px 0 0 #ef4444,0 8px 26px rgba(11,42,26,.05)}
+.group-section.group-quality-yellow{box-shadow:inset 4px 0 0 #f59e0b,0 8px 26px rgba(11,42,26,.05)}
+.group-section.group-quality-green{box-shadow:inset 4px 0 0 #22c55e,0 8px 26px rgba(11,42,26,.05)}
+.group-name-label{display:inline-block;margin-left:6px;color:var(--muted);font-size:.9em;font-weight:800}
+.group-quality-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;border:1px solid transparent}
+.group-quality-badge.red{background:#fff0ee;color:#b42318;border-color:#ffd1cc}
+.group-quality-badge.yellow{background:#fffbeb;color:#92400e;border-color:#fcd34d}
+.group-quality-badge.green{background:#f0fbf4;color:#0a7c42;border-color:#b7dfc6}
+body.compact-mode .group-name-label{display:block;margin-left:0;margin-top:2px}
+body.compact-mode .group-quality-badge{padding:3px 7px;font-size:10px}
+
 
 /* V1.1.7 giscus annotation drawer */
 .anno-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -128,6 +146,7 @@ html,body{overflow-x:hidden}
 <script src="data-db-part-12.js"></script>
 <script src="data-db-part-13.js"></script>
 <script src="data-db.js"></script>
+<script src="data-group-names.js"></script>
 <script src="data-major-details-part-01.js"></script>
 <script src="data-major-details-part-02.js"></script>
 <script src="data-major-details-part-03.js"></script>
