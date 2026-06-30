@@ -58,12 +58,8 @@ function createLayout(){
     <div id="classPanel" class="panel"><div class="panel-head"><h3>专业大类二级多选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
     <div id="annotationDrawer" class="annotation-drawer">
-      <div class="annotation-head"><div><h3>对象批注</h3><p id="annotationObject">未选择批注对象</p></div><button id="closeAnnotationBtn" class="close-btn" type="button">×</button></div>
-      <div class="annotation-body">
-        <div class="annotation-actions"><button id="copyAnnotationTemplateBtn" type="button">复制批注模板</button><button id="reloadGiscusBtn" type="button">重新加载</button></div>
-        <pre id="annotationTemplate" class="annotation-template"></pre>
-        <div id="giscusMount" class="giscus-mount"></div>
-      </div>
+      <div class="annotation-head"><div><h3>批注</h3><p id="annotationObject">未选择批注对象</p></div><button id="closeAnnotationBtn" class="close-btn" type="button">×</button></div>
+      <div class="annotation-body"><div id="giscusMount" class="giscus-mount"></div></div>
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
@@ -96,8 +92,6 @@ function bindEvents(){
   $('#toggleHeaderBtn').addEventListener('click',toggleHeader);
   $('#backTopBtn').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
   $('#closeAnnotationBtn').addEventListener('click',closeAnnotationDrawer);
-  $('#copyAnnotationTemplateBtn').addEventListener('click',copyCurrentAnnotationTemplate);
-  $('#reloadGiscusBtn').addEventListener('click',()=>{if(window.__currentAnnotation)openAnnotation(window.__currentAnnotation);});
   $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closePanel(b.dataset.close)));
   bindScoreInputs();
   $('#modalMask').addEventListener('click',e=>{if(e.target.id==='modalMask')closeModal();});
@@ -283,72 +277,16 @@ function closeModal(){$('#modalMask').classList.remove('open');}
 function stableTerm(scope,key){
   return `js-plan-annotation::${scope}::${key}`;
 }
-function annotationTemplate(scope,title){
-  if(scope==='schools'){
-    return `【批注对象】${title}
-
-【院校整体判断】
-- 院校排序/分数位置：
-- 2026计划变化：
-- 主要强势专业组：
-- 主要风险专业组：
-- 适合人群：
-- 冲稳保建议：
-
-【待核对】
-- 招生章程特殊限制：
-- 转专业/分流规则：
-- 中外合作/校区/语种限制：`;
-  }
-  if(scope==='groups'){
-    return `【批注对象】${title}
-
-【专业组判断】
-- 专业组命名：
-- 专业组是否变干净：
-- 2026计划变化：
-- 新增专业：
-- 减少专业：
-- 是否有从其他组拆入的专业：
-- 是否有原专业被拆出：
-- 调剂风险：
-- 中外合作/冷门/校区/语种风险：
-- 冲稳保定位：
-
-【结论】
-- 推荐等级：
-- 适合分数/位次段：
-- 使用注意：`;
-  }
-  return `【批注对象】${title}
-
-【专业判断】
-- 专业方向：
-- 所属专业类：
-- 三年均分/位次：
-- 2026计划变化：
-- 就业/深造属性：
-- 是否为组内风险专业：
-- 是否适合学生画像：
-- 备注结论：`;
-}
 function openAnnotation(payload){
   window.__currentAnnotation=payload;
   const {scope,key,title}=payload;
   const term=stableTerm(scope,key);
-  const template=annotationTemplate(scope,title);
   $('#annotationObject').textContent=title;
-  $('#annotationTemplate').textContent=template;
   $('#annotationDrawer').classList.add('open');
   loadGiscus(term,title);
 }
 function closeAnnotationDrawer(){
   $('#annotationDrawer').classList.remove('open');
-}
-async function copyCurrentAnnotationTemplate(){
-  const text=$('#annotationTemplate').textContent||'';
-  try{await navigator.clipboard.writeText(text); alert('批注模板已复制');}
-  catch(e){alert('当前浏览器不允许自动复制，请手动复制模板。');}
 }
 function giscusConfigured(){
   return !!(GISCUS_CONFIG.repo&&GISCUS_CONFIG.repoId&&GISCUS_CONFIG.category&&GISCUS_CONFIG.categoryId);

@@ -6,7 +6,7 @@
   - `js-plan-annotation::schools::<school-key>`
   - `js-plan-annotation::groups::<group-key>`
   - `js-plan-annotation::majors::<major-key>`
-- 批注抽屉内提供结构化批注模板，可一键复制后粘贴到 giscus 评论框。
+- 批注抽屉保持极简，只展示当前批注对象和对应的 giscus 评论内容。
 - giscus 已配置到 GitHub Pages 仓库：
   - `repo`: `ycxukun/jiangsu-plan`
   - `repoId`: `R_kgDOTIG-gg`
