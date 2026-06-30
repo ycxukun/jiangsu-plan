@@ -2,6 +2,7 @@
 
 .nojekyll
 README.md
+admin.html
 app.js
 data-db-part-01.js
 data-db-part-02.js
