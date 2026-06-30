@@ -857,7 +857,7 @@ function renderList(){
 function renderHome(){
   const st=DB.stats;
   $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="version-note"><b>当前版本：</b>V14.1 右键备注版｜固定备注面板｜详情带备注<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  <div class="version-note"><b>当前版本：</b>V14.2 右键备注版｜工具条折叠｜隐藏版本角标<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
@@ -1347,7 +1347,32 @@ async function rcLoadRemoteNotes(){
     }
   }catch(e){}
 }
+
+function rcToggleToolbar(){
+  const bar=$('rcNoteToolbar');
+  const btn=$('rcToggleToolbarBtn');
+  if(!bar) return;
+  const collapsed=!bar.classList.contains('collapsed');
+  bar.classList.toggle('collapsed', collapsed);
+  if(btn){
+    btn.textContent=collapsed?'✎':'×';
+    btn.title=collapsed?'展开备注工具':'收起备注工具';
+  }
+}
+function rcSetToolbarCollapsed(collapsed=true){
+  const bar=$('rcNoteToolbar');
+  const btn=$('rcToggleToolbarBtn');
+  if(!bar) return;
+  bar.classList.toggle('collapsed', !!collapsed);
+  if(btn){
+    btn.textContent=collapsed?'✎':'×';
+    btn.title=collapsed?'展开备注工具':'收起备注工具';
+  }
+}
+
 function rcBindNotes(){
+  if($('rcToggleToolbarBtn')) $('rcToggleToolbarBtn').onclick=rcToggleToolbar;
+  rcSetToolbarCollapsed(true);
   if($('rcExportNoteBtn'))$('rcExportNoteBtn').onclick=rcExportNotes;
   if($('rcImportNoteBtn'))$('rcImportNoteBtn').onclick=()=>$('rcNoteFile').click();
   if($('rcNoteFile'))$('rcNoteFile').onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)rcImportNotes(f);e.target.value=''};
