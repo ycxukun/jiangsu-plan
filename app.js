@@ -546,11 +546,15 @@ function schoolTierRank(s){
   return 50;
 }
 function schoolTierLabel(s){
-  // V16.2：不再显示“顶尖/强校/双一流”等主观层级标签；保留少量事实/业务标签。
   if(isNewSchool(s)) return '新增/更名';
+  const level=String(s.level||'');
   const r=schoolTierRank(s);
   if(r>=70) return '民办/独立';
-  return '';
+  if(r<=10) return '985/顶尖';
+  if(r<=20) return '211/双一流';
+  if(r<=30) return '保研/强校';
+  if(r<=40) return '普通公办';
+  return level || '其他';
 }
 function selectedProvinceText(){
   const arr=state.provinces||[];
@@ -832,7 +836,7 @@ function renderList(){
   function item(s){
     const ns=isNewSchool(s);
     const ng=schoolHasNewGroup(s);
-    return `<button class="school-item ${ns?'new-school':''} ${state.selected===s.id?'active':''}" onclick="selectSchool('${esc(s.id)}')"><div class="school-name">${esc(s.name)}</div><div class="school-meta"><span>${esc(s.province)}</span><span>${esc(s.level)}</span><span>${esc(s.subject)}</span><span>${esc(s.batch.replace('本科',''))}</span><span class="badge-mini">组${s.summary.groups}</span>${ng?'<span class="badge-mini">含新增专业组</span>':''}${schoolTierLabel(s)?`<span class="badge-mini">${esc(schoolTierLabel(s))}</span>`:''}<span class="badge-mini">学校加权${schoolScoreLabel(s)}</span></div></button>`;
+    return `<button class="school-item ${ns?'new-school':''} ${state.selected===s.id?'active':''}" onclick="selectSchool('${esc(s.id)}')"><div class="school-name">${esc(s.name)}</div><div class="school-meta"><span>${esc(s.province)}</span><span>${esc(s.subject)}</span><span>${esc(s.batch.replace('本科',''))}</span><span class="badge-mini">组${s.summary.groups}</span>${ng?'<span class="badge-mini">含新增专业组</span>':''}</div></button>`;
   }
   if(!arr.length){
     $('schoolList').innerHTML='<div class="empty">没有匹配院校</div>';
@@ -853,7 +857,7 @@ function renderList(){
 function renderHome(){
   const st=DB.stats;
   $('main').innerHTML = `<section class="home"><div class="h1">知识库说明</div><p class="note">当前版本为“专业详情弹窗版”：专业组总览页只展示必要的计划变化、分数、位次与专业列表；新增院校采用严格学校名称名单识别，避免把浙江大学、天津大学等旧院校误判为新增；省份支持按大区多选，院校层次支持多选；中外合作、学分互认、联合培养等统一归入“中外合作/学分互认”筛选入口，具体属性进入专业详情查看。</p>
-  <div class="version-note"><b>当前版本：</b>V16.2 Supabase备注版｜去除主观层级标签｜公开只读<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
+  <div class="version-note"><b>当前版本：</b>V16.3 Supabase备注版｜清除学校展示标签｜公开只读<br><b>功能回归检查：</b><div class="feature-check"><span>省份多选</span><span>层次多选</span><span>严格中外合作筛选</span><span>专业组短标签</span><span>只标刺客专业</span><span>新增/重组专业组筛选</span><span>专业详情弹窗</span><span>25→26计划变化</span><span>缓存版本参数</span><span>三年均分均位</span><span>人工备注系统</span></div></div><div class="kpis"><div class="kpi"><b>${fmt(st.schoolsUnique)}</b><span>覆盖学校</span></div><div class="kpi"><b>${fmt(st.groups)}</b><span>2026在招专业组</span></div><div class="kpi"><b>${fmt(st.majors26)}</b><span>2026专业记录</span></div><div class="kpi"><b>${fmt(st.highRiskGroups)}</b><span>高风险组</span></div><div class="kpi"><b>总览极简</b><span>只看计划/分数</span></div><div class="kpi"><b>点击专业</b><span>查看312明细</span></div></div>
   <div class="path"><b>建议使用路径：</b>选批次 → 选科类 → 输入目标分与上下浮动 → 默认先看正常院校 → 新增院校在左侧沉底或通过“只看新增院校”单独查看 → 先看专业组卡片中的“25均分、位次、计划25→26” → 再点击具体专业查看该专业的培养属性、学科实力与历史录取数据。</div>
   <div class="path"><b>页面展示原则：</b>专业组筛选与学校页不再堆叠“班型/属性不一致”等长提醒；如果需要看中外合作、拔尖/卓越/院士班、实验/试验班、硕博点、第四轮评估、第五轮A、一流/101、软科专业排名等信息，点击专业行右侧“详情”。空字段不展示。</div>
   <div class="path"><b>颜色说明：</b><div class="legend-line"><span class="plan-pill plan-up-big">大幅扩招</span><span class="plan-pill plan-up">扩招</span><span class="plan-pill plan-down">缩招</span><span class="plan-pill plan-down-big">大幅缩招</span><span class="pill blue">分数/位次</span><span class="major-risk-tag warn">橙色：相对冷门/需核对</span><span class="major-risk-tag danger">红色：组内刺客/高风险错配</span></div></div>
@@ -1628,7 +1632,7 @@ function renderSchool(){
   const simpleSchoolNote='';
   const schoolNoteKey=annotationSchoolKey(s);
   const schoolNoteTitle=s.name+'｜'+s.subject+'｜'+s.batch;
-  $('main').innerHTML = `<section class="school-view"><div class="school-header" ${rcAttr('schools',schoolNoteKey,schoolNoteTitle)}><div><div class="school-title">${esc(s.name)}｜${esc(s.subject)}｜${esc(s.batch)}${rcBadge('schools',schoolNoteKey)}</div><div class="summary-line"><span class="pill">${esc(s.province)}${s.city?' · '+esc(s.city):''}</span><span class="pill">${esc(s.level)}</span>${schoolTierLabel(s)?`<span class="pill ${isNewSchool(s)?'new-school':''}">${esc(schoolTierLabel(s))}</span>`:''}<span class="pill">当前显示 ${groups.length} 组</span>${scoreNote}${newGroupNote}</div>${newNote}${schoolAnno}</div><div class="actions"><button class="btn" onclick="exportCSV()">导出CSV</button><button class="btn" onclick="window.print()">打印</button><button class="btn primary" onclick="renderHome()">首页</button></div></div><div class="group-nav">${groupNav}</div>${cards}</section>`;
+  $('main').innerHTML = `<section class="school-view"><div class="school-header" ${rcAttr('schools',schoolNoteKey,schoolNoteTitle)}><div><div class="school-title">${esc(s.name)}｜${esc(s.subject)}｜${esc(s.batch)}${rcBadge('schools',schoolNoteKey)}</div><div class="summary-line"><span class="pill">${esc(s.province)}${s.city?' · '+esc(s.city):''}</span><span class="pill">${esc(s.subject)}</span><span class="pill">${esc(s.batch)}</span><span class="pill">当前显示 ${groups.length} 组</span>${scoreNote}${newGroupNote}</div>${newNote}${schoolAnno}</div><div class="actions"><button class="btn" onclick="exportCSV()">导出CSV</button><button class="btn" onclick="window.print()">打印</button><button class="btn primary" onclick="renderHome()">首页</button></div></div><div class="group-nav">${groupNav}</div>${cards}</section>`;
 }
 function cssId(id){return id.replace(/[^a-zA-Z0-9一-龥_-]/g,'_')}
 
@@ -1749,15 +1753,6 @@ function renderGroup(g){
   }).join('');
   return `<article class="group-card ${g.bucket} ${assess.cls} ${legacyClass} ${isNewGroupStrict(g)?'new-group-card':''}" id="grp-${cssId(g.id)}" ${rcAttr('groups',groupNoteKey,groupNoteTitle)}><div class="group-head compact-head"><div class="group-head-main"><div><div class="group-title">${esc(g.groupCode)}组｜${esc(groupDisplayTitle(g))}${rcBadge('groups',groupNoteKey)}</div>${groupAttrTagHtml(g)}</div><div class="actions"><button class="btn" onclick="openEvo('${esc(g.id)}')">前世今生</button></div></div><div class="compact-line">${compactMeta}</div></div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>25计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="empty">2026 当前批次未见在招专业。请查看前世今生核对。</td></tr>'}</tbody></table></div></article>`;
 }
-
-function removeSubjectiveSchoolLevelBadgesFromDOM(){
-  const bad=new Set(['985/顶尖','211/双一流','保研/强校','双一流','一流','顶尖','强校']);
-  document.querySelectorAll('.pill,.tag,.chip,.badge,.badge-mini,.school-meta span,.summary-line span').forEach(el=>{
-    const t=(el.textContent||'').trim();
-    if(bad.has(t)) el.remove();
-  });
-}
-
 function render(){renderList(); if(state.selected) renderSchool(); else renderHome();}
 function findGroup(id){for(const s of DB.schools) for(const g of s.groups) if(g.id===id) return g; return null;}
 function findSchoolByGroup(group){return DB.schools.find(s=>s.groups.some(g=>g.id===group.id));}
@@ -2351,11 +2346,11 @@ try{document.addEventListener('DOMContentLoaded',()=>{applyNoteAdminMode(); sbSe
 
 
 
-try{
-  const __origRenderForTierClean = render;
-  render = function(){
-    const r = __origRenderForTierClean.apply(this, arguments);
-    setTimeout(removeSubjectiveSchoolLevelBadgesFromDOM,0);
-    return r;
-  };
-}catch(e){}
+const HIDDEN_SCHOOL_BADGE_TEXT = new Set(['985','211','双一流','一流','顶尖','强校','保研','保研/强校','民办/独立','普通公办','公办','独立学院','民办','985/顶尖','211/双一流']);
+function cleanSchoolDisplayBadges(){
+  document.querySelectorAll('#schoolList .badge-mini,#schoolList span,.school-header .pill,.school-header span').forEach(el=>{
+    const t=(el.textContent||'').trim();
+    if(HIDDEN_SCHOOL_BADGE_TEXT.has(t) || /^学校加权/.test(t) || /^院校加权/.test(t)) el.remove();
+  });
+}
+try{document.addEventListener('DOMContentLoaded',()=>{cleanSchoolDisplayBadges(); const obs=new MutationObserver(()=>cleanSchoolDisplayBadges()); obs.observe(document.body,{childList:true,subtree:true});});}catch(e){}
