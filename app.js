@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.26 反向移出志愿表版';
+const VERSION='2026在招专业组版｜V1.1.28 专业池一键展开收回修正版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -382,7 +382,7 @@ function createLayout(){
     <div id="classPanel" class="panel"><div class="panel-head"><h3>专业大类二级多选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
     <div id="changePanel" class="panel change-panel"><div class="panel-head"><div><h3>专业组变迁</h3><p id="changePanelTitle" class="panel-subtitle"></p></div><button class="close-btn" data-close="changePanel">×</button></div><div id="changePanelBody" class="panel-body"></div></div>
-    <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键收起编辑</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
+    <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
     <div id="annotationDrawer" class="annotation-drawer">
       <div class="annotation-head"><div><h3>批注</h3><p id="annotationObject">未选择批注对象</p></div><button id="closeAnnotationBtn" class="close-btn" type="button">×</button></div>
       <div class="annotation-body"><div id="giscusMount" class="giscus-mount"></div></div>
@@ -421,7 +421,15 @@ function bindEvents(){
   $('#volunteerSearchInput')?.addEventListener('input',e=>{volunteerSearchQuery=e.target.value;renderVolunteerPanel();});
   $('#volunteerFilterSelect')?.addEventListener('change',e=>{volunteerFilterMode=e.target.value;renderVolunteerPanel();});
   $('#resetVolunteerFilterBtn')?.addEventListener('click',()=>{volunteerSearchQuery='';volunteerFilterMode='';const q=$('#volunteerSearchInput');if(q)q.value='';const f=$('#volunteerFilterSelect');if(f)f.value='';renderVolunteerPanel();});
-  $('#expandVolunteerBtn')?.addEventListener('click',()=>{volunteerAllExpanded=!volunteerAllExpanded;if(!volunteerAllExpanded){volunteerExpandedKeys.clear();}else{volunteerVisibleEntries().forEach(x=>volunteerExpandedKeys.add(x.key));}renderVolunteerPanel();});
+  $('#expandVolunteerBtn')?.addEventListener('click',()=>{
+    volunteerAllExpanded=!volunteerAllExpanded;
+    if(volunteerAllExpanded){
+      volunteerVisibleEntries().forEach(x=>volunteerExpandedKeys.add(x.key));
+    }else{
+      volunteerExpandedKeys.clear();
+    }
+    renderVolunteerPanel({skipCapture:true});
+  });
   $('#compactBtn').addEventListener('click',toggleCompact);
   $('#toggleHeaderBtn').addEventListener('click',toggleHeader);
   $('#backTopBtn').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
@@ -909,15 +917,15 @@ function captureVolunteerExpandedState(){
 function keepVolunteerDrawerOpen(key){
   if(key)volunteerExpandedKeys.add(key);
 }
-function renderVolunteerPanel(){
+function renderVolunteerPanel(options={}){
   const list=$('#volunteerList');
   if(!list)return;
-  captureVolunteerExpandedState();
+  if(!options.skipCapture)captureVolunteerExpandedState();
   const visible=volunteerVisibleEntries();
   const countEl=$('#volunteerPanelCount');
   if(countEl)countEl.textContent=`已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 个专业组｜当前显示 ${visible.length} 个`;
   const expandBtn=$('#expandVolunteerBtn');
-  if(expandBtn)expandBtn.textContent=volunteerAllExpanded?'一键收起编辑':'一键展开编辑';
+  if(expandBtn)expandBtn.textContent=volunteerAllExpanded?'一键收回':'一键展开';
   if(!volunteerKeys.length){
     list.innerHTML='<div class="change-empty">还没有加入专业组。先按院校、地区、专业大类、分数段筛选，再点“当前筛选补满”，或在专业组卡片上点“加入志愿表”。</div>';
     updateVolunteerUI();
@@ -1132,7 +1140,7 @@ function exportVolunteerXlsx(){
     const merge=span>1?span-1:0;
     const selectedCount=selectedMajorOrder(key).length;
     const totalMajors=(g.majors||[]).length;
-    const groupTitle=`${groupShortTitle(s,g)}（${selectedCount}-${totalMajors}）`;
+    const groupTitle=`${groupShortTitle(s,g)}（${selectedCount}/${totalMajors}）`;
     const groupInfo=groupExportInfo(s,g);
     items.forEach((item,idx)=>{
       const m=item.m;
