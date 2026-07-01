@@ -248,3 +248,10 @@ on conflict (user_id) do update set role = excluded.role;
 - `node --check app.js`：通过。
 - 数据分片控制在约 1MB 以内。
 - zip 可直接解压上传 GitHub Pages。
+
+
+## V1.1.30 历史分数全量补挂审计
+- 直接按 2026 专业表补挂：0 条。
+- 跨 2025 独立专业表补挂：457 条。
+- 专业组层面补挂：0 组。
+- 未自动补挂但有候选需人工核对：292 条。
