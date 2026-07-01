@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.43 专业梯队校正刺客版';
+const VERSION='2026在招专业组版｜V1.1.44 专业详情点击增强版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -1031,11 +1031,12 @@ function majorRowHTML(s,g,m){
   const checked=order>=0;
   const riskMeta=majorRiskMeta(s,g,m);
   const riskToneClass=riskMeta.tone?`risk-tone-${riskMeta.tone}`:'';
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${checked?'major-selected-row':''} clickable-row" title="${riskMeta.risk?esc(riskMeta.reason):''}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}" data-detail-row="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}"><td class="major-select-cell"><label class="major-select-box" title="勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}</label></td><td>${esc(m.code)}</td><td class="major-name">${esc(m.name)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${checked?'major-selected-row':''} clickable-row" title="${riskMeta.risk?esc(riskMeta.reason):''}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}" data-detail-row="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}"><td class="major-select-cell"><label class="major-select-box" title="勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><button type="button" class="major-name-link" data-major-detail="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看专业详情">${esc(m.name)}</button>${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button type="button" class="anno-mini major-detail-mini" data-major-detail="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看专业详情">详情</button><button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
   $$('[data-detail-row]').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('button,a,input,label,textarea'))return; showDetail(tr.dataset.detailRow,tr.dataset.schoolKey,tr.dataset.groupKey);}));
+  bindMajorDetailButtons();
   bindVolunteerButtons();
   bindClearMajorGroupButtons();
   bindMainMajorChecks();
@@ -1045,6 +1046,13 @@ function bindDynamic(){
   bindNoteHoverAndContext();
 }
 function noteBadge(scope,key){return notes[scope]&&notes[scope][key]?` <span class="note-badge">备注</span>`:'';}
+function bindMajorDetailButtons(){
+  $$('[data-major-detail]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    showDetail(btn.dataset.majorDetail,btn.dataset.schoolKey,btn.dataset.groupKey);
+  }));
+}
 function bindNoteHoverAndContext(){
   $$('[data-note-scope]').forEach(el=>{
     el.onmouseenter=()=>{const n=notes[el.dataset.noteScope]?.[el.dataset.noteKey]; if(n)showNotePanel(n);};
@@ -1086,6 +1094,32 @@ function majorBasePairs(d={}){return [
 function admissionInfoPairs(d={}){return [
   ['2026计划',d.plan26],['26预估位次',d.predictedRank26],['2025计划',d.plan25],['2025录取人数',d.admit25],['2025最高分',d.max25],['2025最高位次',d.maxRank25],['2025最低分',d.score25],['2025最低位次',d.rank25],['2025旧批次',d.oldBatch25],['2024计划',d.plan24],['2024录取人数',d.admit24],['2024最高分',d.max24],['2024最高位次',d.maxRank24],['2024最低分',d.score24],['2024最低位次',d.rank24],['2024旧批次',d.oldBatch24],['2023计划',d.plan23],['2023录取人数',d.admit23],['2023最高分',d.max23],['2023最高位次',d.maxRank23],['2023最低分',d.score23],['2023最低位次',d.rank23],['2023旧批次',d.oldBatch23],['三年平均分',d.avgScore3],['三年平均位次',d.avgRank3],['均值年份数',d.avgYears]
 ];}
+function findMajorContext(majorKey,groupKey){
+  const rec=groupKey?getGroupRecord(groupKey):null;
+  if(rec){
+    const m=(rec.g.majors||[]).find(x=>x.key===majorKey);
+    if(m)return {s:rec.s,g:rec.g,m};
+  }
+  for(const s of DB){
+    for(const g of (s.groups||[])){
+      const m=(g.majors||[]).find(x=>x.key===majorKey);
+      if(m)return {s,g,m};
+    }
+  }
+  return null;
+}
+function majorRiskDetailPairs(s,g,m){
+  const meta=majorRiskMeta(s,g,m);
+  const tier=lectureTierMeta(m);
+  const quality=groupQuality(s,g);
+  return [
+    ['专业热度梯队',tier.label],
+    ['梯队分类',tier.bucket],
+    ['刺客/异类提示',meta.risk?`${meta.label||'风险专业'}｜${meta.tone||''}`:'未标注为刺客专业'],
+    ['风险原因',meta.reason],
+    ['专业组结构风险',quality?`${quality.label}｜${quality.title}`:''],
+  ];
+}
 function bindSchoolInfoButtons(){
   $$('[data-school-info]').forEach(btn=>btn.addEventListener('click',e=>{
     e.preventDefault(); e.stopPropagation();
@@ -1101,11 +1135,13 @@ function showSchoolInfo(s){
 }
 function showDetail(key,schoolKey,groupKey){
   const d=DETAILS[key]||{};
+  const ctx=findMajorContext(key,groupKey);
   const schoolNote=notes.schools[schoolKey]||'';
   const groupNote=notes.groups[groupKey]||'';
   const majorNote=notes.majors[key]||'';
-  const heading=d.name||'专业详情';
-  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+  const heading=d.name||ctx?.m?.name||'专业详情';
+  const riskSection=ctx?infoSectionHTML('专业风险与梯队提示',majorRiskDetailPairs(ctx.s,ctx.g,ctx.m),'major-risk-info-section'):'';
+  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">点击专业行 / 专业池“详情”可查看该专业的硕博点、学科评估、软科评级、招生录取数据与风险提示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
   openModal();
 }
 function noteBlock(title,text){return text?`<section class="metric" style="margin-top:12px"><b style="font-size:14px">${esc(title)}</b><span style="white-space:pre-wrap;color:#33443a">${esc(text)}</span></section>`:'';}
@@ -1430,8 +1466,8 @@ function volunteerRowHTML(key,index){
   const detailsOpen=(volunteerAllExpanded||volunteerExpandedKeys.has(key))?' open':'';
   const groupAlias=groupDisplayName(s,g)||'未命名';
   const poolFilter=volunteerMajorPoolFilter[key]||'all';
-  const selectedList=selectedMajors.length?`<ol class="volunteer-major-strip">${selectedMajors.map((m,i)=>`<li class="volunteer-major-strip-item"><span class="major-order-badge">${i+1}</span><div class="volunteer-major-name"><b>${esc(m.name)}${majorRiskLabelHTML(majorRiskMeta(s,g,m))}</b><small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></div><div class="volunteer-major-mini-actions"><button title="专业上移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="-1" ${i===0?'disabled':''}>↑</button><button title="专业下移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="1" ${i===selectedMajors.length-1?'disabled':''}>↓</button><button title="取消该专业" data-major-unselect="${esc(key)}" data-major-key="${esc(m.key)}">×</button></div></li>`).join('')}</ol>`:`<div class="volunteer-selected-empty-compact">尚未选择具体专业。展开专业池后勾选，系统会按勾选顺序生成第 1—6 专业。</div>`;
-  const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><select data-major-pool-filter="${esc(key)}"><option value="all" ${poolFilter==='all'?'selected':''}>全部专业</option><option value="selected" ${poolFilter==='selected'?'selected':''}>只看已选</option><option value="unselected" ${poolFilter==='unselected'?'selected':''}>只看未选</option></select><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);const isSelected=order>=0;const hidden=(poolFilter==='selected'&&!isSelected)||(poolFilter==='unselected'&&isSelected);const riskMeta=majorRiskMeta(s,g,m);return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${isSelected?'selected':'unselected'}" title="${riskMeta.risk?esc(riskMeta.reason):''}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''}>${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}<b>${esc(m.name)}</b>${majorRiskLabelHTML(riskMeta)}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分｜位次 ${fmtNum(m.rank25)}</small></label>`;}).join('')}</div></details>`;
+  const selectedList=selectedMajors.length?`<ol class="volunteer-major-strip">${selectedMajors.map((m,i)=>`<li class="volunteer-major-strip-item"><span class="major-order-badge">${i+1}</span><div class="volunteer-major-name"><b>${esc(m.name)}${majorRiskLabelHTML(majorRiskMeta(s,g,m))}</b><small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></div><div class="volunteer-major-mini-actions"><button type="button" title="查看专业详情" data-major-detail="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(key)}">详情</button><button title="专业上移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="-1" ${i===0?'disabled':''}>↑</button><button title="专业下移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="1" ${i===selectedMajors.length-1?'disabled':''}>↓</button><button title="取消该专业" data-major-unselect="${esc(key)}" data-major-key="${esc(m.key)}">×</button></div></li>`).join('')}</ol>`:`<div class="volunteer-selected-empty-compact">尚未选择具体专业。展开专业池后勾选，系统会按勾选顺序生成第 1—6 专业。</div>`;
+  const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><select data-major-pool-filter="${esc(key)}"><option value="all" ${poolFilter==='all'?'selected':''}>全部专业</option><option value="selected" ${poolFilter==='selected'?'selected':''}>只看已选</option><option value="unselected" ${poolFilter==='unselected'?'selected':''}>只看未选</option></select><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);const isSelected=order>=0;const hidden=(poolFilter==='selected'&&!isSelected)||(poolFilter==='unselected'&&isSelected);const riskMeta=majorRiskMeta(s,g,m);return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${isSelected?'selected':'unselected'}" title="${riskMeta.risk?esc(riskMeta.reason):''}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''}>${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}<b>${esc(m.name)}</b>${majorRiskLabelHTML(riskMeta)}<button type="button" class="major-check-detail" data-major-detail="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(key)}" title="查看专业详情">详情</button><small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分｜位次 ${fmtNum(m.rank25)}</small></label>`;}).join('')}</div></details>`;
   return `<article class="volunteer-item volunteer-table-row" data-volunteer-item="${esc(key)}">
     <div class="volunteer-order-col"><input class="volunteer-position-input" data-volunteer-position="${esc(key)}" value="${index+1}" title="输入目标序号，例如 10 或 第10" inputmode="numeric" aria-label="志愿序号"><span class="volunteer-drag-handle" data-volunteer-drag-handle="${esc(key)}" draggable="true" title="按住拖动调整专业组顺序">↕</span></div>
     <div class="volunteer-group-col"><div class="volunteer-group-title"><b>${esc(groupShortTitle(s,g))}</b></div><p>再选 ${esc(g.requirement||'—')}</p><p class="volunteer-group-alias">${esc(groupAlias)}</p></div>
@@ -1489,6 +1525,7 @@ function bindVolunteerPanelControls(){
     renderVolunteerPanel();
     render();
   }));
+  bindMajorDetailButtons();
 }
 function clearVolunteerDragMarks(){
   $$('[data-volunteer-item]').forEach(item=>item.classList.remove('dragging','drag-over','drop-after','drop-before'));
