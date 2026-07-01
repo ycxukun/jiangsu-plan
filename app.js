@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.22 导出核验修正版';
+const VERSION='2026在招专业组版｜V1.1.23 导出与悬浮修正版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -34,6 +34,7 @@ let volunteerSearchQuery='';
 let volunteerFilterMode='';
 let volunteerAllExpanded=false;
 let volunteerExpandedKeys=new Set();
+let volunteerMajorPoolFilter={};
 let groupIndex=new Map();
 let majorRefs=[];
 let majorRefsBySchool=new Map();
@@ -903,11 +904,12 @@ function volunteerRowHTML(key,index){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const detailsOpen=(volunteerAllExpanded||volunteerExpandedKeys.has(key))?' open':'';
   const groupAlias=groupDisplayName(s,g)||'未命名';
+  const poolFilter=volunteerMajorPoolFilter[key]||'all';
   const selectedList=selectedMajors.length?`<ol class="volunteer-major-strip">${selectedMajors.map((m,i)=>`<li class="volunteer-major-strip-item"><span class="major-order-badge">${i+1}</span><div class="volunteer-major-name"><b>${esc(m.name)}</b><small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></div><div class="volunteer-major-mini-actions"><button title="专业上移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="-1" ${i===0?'disabled':''}>↑</button><button title="专业下移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="1" ${i===selectedMajors.length-1?'disabled':''}>↓</button><button title="取消该专业" data-major-unselect="${esc(key)}" data-major-key="${esc(m.key)}">×</button></div></li>`).join('')}</ol>`:`<div class="volunteer-selected-empty-compact">尚未选择具体专业。展开专业池后勾选，系统会按勾选顺序生成第 1—6 专业。</div>`;
-  const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);return `<label class="major-check ${m.risk?'risk':''} ${order>=0?'selected':''}"><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${order>=0?'checked':''}>${order>=0?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}<b>${esc(m.name)}</b>${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分｜位次 ${fmtNum(m.rank25)}</small></label>`;}).join('')}</div></details>`;
+  const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><select data-major-pool-filter="${esc(key)}"><option value="all" ${poolFilter==='all'?'selected':''}>全部专业</option><option value="selected" ${poolFilter==='selected'?'selected':''}>只看已选</option><option value="unselected" ${poolFilter==='unselected'?'selected':''}>只看未选</option></select><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);const isSelected=order>=0;const hidden=(poolFilter==='selected'&&!isSelected)||(poolFilter==='unselected'&&isSelected);return `<label class="major-check ${m.risk?'risk':''} ${isSelected?'selected':'unselected'}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''}>${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}<b>${esc(m.name)}</b>${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分｜位次 ${fmtNum(m.rank25)}</small></label>`;}).join('')}</div></details>`;
   return `<article class="volunteer-item volunteer-table-row" data-volunteer-item="${esc(key)}">
     <div class="volunteer-order-col"><input class="volunteer-position-input" data-volunteer-position="${esc(key)}" value="${index+1}" title="输入目标序号，例如 10 或 第10" inputmode="numeric" aria-label="志愿序号"><span class="volunteer-drag-handle" data-volunteer-drag-handle="${esc(key)}" draggable="true" title="按住拖动调整专业组顺序">↕</span></div>
-    <div class="volunteer-group-col"><div class="volunteer-group-title"><b>${esc(s.name)} ${esc(g.groupName)}</b></div><p>${esc(s.province)}｜${esc(s.subject)}｜${esc(s.batch)}｜再选 ${esc(g.requirement||'—')}</p><p class="volunteer-group-alias">${esc(groupAlias)}</p></div>
+    <div class="volunteer-group-col"><div class="volunteer-group-title"><b>${esc(s.name)} ${esc(g.groupName)}</b></div><p>再选 ${esc(g.requirement||'—')}</p><p class="volunteer-group-alias">${esc(groupAlias)}</p></div>
     <div class="volunteer-major-col"><div class="volunteer-selected-summary"><div class="volunteer-col-caption">已选专业 <span>${selectedOrder.length}/${MAX_MAJOR_PER_GROUP}</span></div>${selectedList}</div>${majorPicker}</div>
     <div class="volunteer-data-col"><div class="volunteer-data-line emphasis">${groupScoreLineHTML(s,g)}</div><div class="volunteer-data-line">26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</div><div class="volunteer-mini-controls single"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label></div><div class="volunteer-obey-fixed">默认服从专业组内调剂</div><input class="volunteer-note-compact" data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注"></div>
     <div class="volunteer-actions volunteer-action-col"><button class="icon-btn" title="上移" aria-label="上移" data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>↑</button><button class="icon-btn" title="下移" aria-label="下移" data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>↓</button><button class="icon-btn danger" title="删除" aria-label="删除" data-volunteer-remove="${esc(key)}">×</button></div>
@@ -930,6 +932,7 @@ function bindVolunteerPanelControls(){
   });
   bindVolunteerDragControls();
   $$('[data-volunteer-meta]').forEach(el=>el.addEventListener('input',()=>{const key=el.dataset.volunteerMeta; volunteerMeta[key]={...(volunteerMeta[key]||{}),[el.dataset.field]:el.value}; saveVolunteerMeta();}));
+  $$('[data-major-pool-filter]').forEach(sel=>sel.addEventListener('change',()=>{const key=sel.dataset.majorPoolFilter; volunteerMajorPoolFilter[key]=sel.value||'all'; keepVolunteerDrawerOpen(key); renderVolunteerPanel();}));
   $$('[data-major-check]').forEach(cb=>cb.addEventListener('change',()=>{
     keepVolunteerDrawerOpen(cb.dataset.majorCheck);
     const ok=setMajorSelection(cb.dataset.majorCheck,cb.value,cb.checked);
@@ -1031,10 +1034,50 @@ function excelWorksheet(name,headers,rows,widths){
 function excelMetric(v){
   return v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
 }
+function groupShortTitle(s,g){
+  const school=String(s?.name||'').trim();
+  const group=String(g?.groupName||'').trim();
+  if(!group)return school;
+  return group.includes(school)?group:`${school} ${group}`;
+}
+function groupExportInfo(s,g){
+  const parts=[];
+  const alias=groupDisplayName(s,g)||'';
+  if(alias)parts.push(alias);
+  if(g.requirement)parts.push(`再选 ${g.requirement}`);
+  parts.push(`26计划 ${fmt(g.plan26)}`);
+  parts.push(`25分 ${fmtNum(g.score25)}`);
+  parts.push(`25位次 ${fmtNum(g.rank25)}`);
+  return parts.filter(Boolean).join('｜');
+}
+function majorsForVolunteerExport(key,g){
+  const selectedKeys=selectedMajorOrder(key);
+  const selectedSet=new Set(selectedKeys);
+  const byKey=new Map((g.majors||[]).map(m=>[m.key,m]));
+  const selected=selectedKeys.map(k=>byKey.get(k)).filter(Boolean).map((m,i)=>({m,order:i+1,selected:true}));
+  const unselected=sortedMajors(g).filter(m=>!selectedSet.has(m.key)).map(m=>({m,order:'',selected:false}));
+  return selected.concat(unselected);
+}
 function exportVolunteerXlsx(){
+  const invalid=[];
+  for(let i=0;i<volunteerKeys.length;i++){
+    const key=volunteerKeys[i];
+    const rec=getGroupRecord(key);
+    if(!rec)continue;
+    const total=(rec.g.majors||[]).length;
+    const required=Math.min(MAX_MAJOR_PER_GROUP,total);
+    const selectedCount=selectedMajorOrder(key).length;
+    if(required>0&&selectedCount!==required){
+      invalid.push(`${i+1}. ${groupShortTitle(rec.s,rec.g)}：已选 ${selectedCount}/${required}`);
+    }
+  }
+  if(invalid.length){
+    alert(`导出前需要把每个专业组的专业填满：\n${invalid.slice(0,10).join('\n')}${invalid.length>10?'\n……':''}`);
+    return;
+  }
   const date=localDateStamp();
-  const headers=['志愿序号','院校代码','专业组名称','专业志愿序号','专业代码','专业名称','25年分数','25年位次','3年平均分','3年平均位次','招生人数','选择状态','定位','服从调剂','备注'];
-  const widths=[58,82,300,72,76,260,76,92,86,110,76,112,70,78,220];
+  const headers=['志愿序号','院校代码','专业组','专业组信息','专业志愿序号','专业代码','专业名称','2026计划','25计划','25最低分','25最低位次','3年平均分','3年平均位次','定位','服从调剂','备注','选择状态'];
+  const widths=[58,82,170,320,72,76,280,76,72,76,92,86,110,70,78,220,92];
   const valueOrBlank=v=>v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
   const rows=[];
   for(let i=0;i<volunteerKeys.length;i++){
@@ -1043,35 +1086,42 @@ function exportVolunteerXlsx(){
     if(!rec)continue;
     const {s,g}=rec;
     const meta=volunteerMeta[key]||{};
-    const selected=selectedMajorsForKey(key);
-    const majors=selected.length?selected:[null];
-    const span=majors.length;
+    const majorItems=majorsForVolunteerExport(key,g);
+    const items=majorItems.length?majorItems:[{m:null,order:'',selected:false}];
+    const span=items.length;
     const merge=span>1?span-1:0;
-    const groupTitle=[s.name,g.groupName,groupDisplayName(s,g)||''].filter(Boolean).join(' ');
-    majors.forEach((m,idx)=>{
+    const groupTitle=groupShortTitle(s,g);
+    const groupInfo=groupExportInfo(s,g);
+    items.forEach((item,idx)=>{
+      const m=item.m;
+      const selected=item.selected;
+      const status=selected?`已选第${item.order}专业`:'未选';
       const majorCells=[
-        {value:m?idx+1:'',style:'seq',index:4},
+        {value:m?item.order:'',style:'seq',index:5},
         {value:m?(m.code||''):'',style:'body'},
-        {value:m?(m.name||'未选择具体专业'):'未选择具体专业',style:m&&m.risk?'risk':'body'},
+        {value:m?(m.name||'未选择具体专业'):'未选择具体专业',style:'body'},
+        {value:m?valueOrBlank(m.plan26):'',style:'num'},
+        {value:m?valueOrBlank(m.plan25):'',style:'num'},
         {value:m?valueOrBlank(m.score25):'',style:'num'},
         {value:m?valueOrBlank(m.rank25):'',style:'num'},
         {value:m?valueOrBlank(m.avgScore3):'',style:'num'},
-        {value:m?valueOrBlank(m.avgRank3):'',style:'num'},
-        {value:m?valueOrBlank(m.plan26):'',style:'num'},
-        {value:m?`已选第${idx+1}专业`:'未选专业',style:m?'body':'risk'}
+        {value:m?valueOrBlank(m.avgRank3):'',style:'num'}
       ];
+      const statusCell={value:status,style:'body'};
       if(idx===0){
         rows.push([
           {value:i+1,style:'seq',mergeDown:merge},
           {value:g.groupCode||'',style:'body',mergeDown:merge},
           {value:groupTitle,style:'group',mergeDown:merge},
+          {value:groupInfo,style:'groupInfo',mergeDown:merge},
           ...majorCells.map((c,n)=>n===0?{...c,index:undefined}:c),
           {value:meta.strategy||'待定',style:'seq',mergeDown:merge},
           {value:'是',style:'seq',mergeDown:merge},
-          {value:meta.note||'',style:'note',mergeDown:merge}
+          {value:meta.note||'',style:'note',mergeDown:merge},
+          statusCell
         ]);
       }else{
-        rows.push(majorCells);
+        rows.push([...majorCells,{...statusCell,index:17}]);
       }
     });
   }
@@ -1081,12 +1131,14 @@ function exportVolunteerXlsx(){
   }
   const thinBorder='<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/></Borders>';
   const columns=excelColumns(headers,widths);
-  const title=`江苏志愿基础表｜已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 专业组｜导出日期 ${date}`;
+  const title=`江苏本科志愿表｜已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 专业组｜导出日期 ${date}`;
   const topRows=[
     excelRow([{value:title,style:'title',mergeAcross:headers.length-1}],null,{height:32}),
     excelRow(headers.map(h=>({value:h,style:'subheader'})),null,{height:30})
   ].join('');
   const body=rows.map(r=>excelRow(r,'body')).join('');
+  const lastRow=rows.length+2;
+  const lastCol=headers.length;
   const workbook=`<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -1096,13 +1148,13 @@ function exportVolunteerXlsx(){
 <Style ss:ID="title"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="15" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A7C42" ss:Pattern="Solid"/>${thinBorder}</Style>
 <Style ss:ID="subheader"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#E8F1EC" ss:Pattern="Solid"/>${thinBorder}</Style>
 <Style ss:ID="group"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1" ss:Color="#173526"/><Interior ss:Color="#F3FBF6" ss:Pattern="Solid"/>${thinBorder}</Style>
+<Style ss:ID="groupInfo"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Color="#173526"/><Interior ss:Color="#F3FBF6" ss:Pattern="Solid"/>${thinBorder}</Style>
 <Style ss:ID="body"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10"/>${thinBorder}</Style>
-<Style ss:ID="risk"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Color="#B91C1C" ss:Bold="1"/><Interior ss:Color="#FFF1F1" ss:Pattern="Solid"/>${thinBorder}</Style>
 <Style ss:ID="seq"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1"/>${thinBorder}</Style>
 <Style ss:ID="num"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10"/>${thinBorder}</Style>
 <Style ss:ID="note"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Color="#374151"/><Interior ss:Color="#FAFAFA" ss:Pattern="Solid"/>${thinBorder}</Style>
 </Styles>
-<Worksheet ss:Name="志愿基础表"><Table>${columns}${topRows}${body}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>
+<Worksheet ss:Name="志愿基础表"><Table>${columns}${topRows}${body}</Table><AutoFilter x:Range="R2C1:R${lastRow}C${lastCol}" xmlns="urn:schemas-microsoft-com:office:excel"/><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>
 </Workbook>`;
   const blob=new Blob(['\ufeff',workbook],{type:'application/vnd.ms-excel;charset=utf-8'});
   const a=document.createElement('a');
