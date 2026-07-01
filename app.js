@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.24 未选专业标红导出版';
+const VERSION='2026在招专业组版｜V1.1.26 反向移出志愿表版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -345,8 +345,14 @@ function volunteerButtonHTML(s,g){
   const selected=volunteerKeys.includes(key);
   const disabled=!selected&&volunteerKeys.length>=VOLUNTEER_LIMIT;
   const label=selected?'已加入志愿表':disabled?'志愿表已满':'加入志愿表';
+  const title=selected?'再次点击：从志愿表移出该专业组，并清空本组已选专业':'点击：加入志愿表';
   const cls=`volunteer-add-btn ${selected?'selected':''}`.trim();
-  return `<button class="${cls}" type="button" data-volunteer-key="${esc(key)}" ${disabled?'disabled':''}>${label}</button>`;
+  return `<button class="${cls}" type="button" data-volunteer-key="${esc(key)}" title="${esc(title)}" ${disabled?'disabled':''}>${label}</button>`;
+}
+function clearMajorButtonHTML(s,g){
+  const key=keyGroup(s,g);
+  const count=selectedMajorOrder(key).length;
+  return `<button class="anno-btn danger clear-major-btn" type="button" data-clear-major-group="${esc(key)}" ${count?'':'disabled'} title="只清空本专业组已选专业，不删除专业组">清空已选${count?` ${count}`:''}</button>`;
 }
 function percent(v){return typeof v==='number'?`${Math.round(v*1000)/10}%`:fmt(v);}
 function diffText(a,b){return typeof a==='number'&&typeof b==='number'?formatSigned(a-b):'—';}
@@ -571,13 +577,13 @@ function groupCardHTML(s,g){
   const topTags=[...(g.tags||[]).slice(0,3),...(g.majorClasses||[]).slice(0,3)];
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
+  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?`<br><span class="muted">${m.avgYears}年均值</span>`:'';
@@ -590,6 +596,7 @@ function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
   $$('[data-detail-row]').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('button,a,input,label,textarea'))return; showDetail(tr.dataset.detailRow,tr.dataset.schoolKey,tr.dataset.groupKey);}));
   bindVolunteerButtons();
+  bindClearMajorGroupButtons();
   bindMainMajorChecks();
   bindGroupChangeButtons();
   bindAnnotationButtons();
@@ -693,6 +700,17 @@ function setMajorSelectionBulk(key,majorKeys){
   updateVolunteerUI();
   return true;
 }
+function clearMajorSelectionForGroup(key){
+  const rec=getGroupRecord(key);
+  if(!rec)return false;
+  volunteerMajorKeys[key]=[];
+  if(volunteerKeys.includes(key))ensureVolunteerSelection(key);
+  saveVolunteerKeys();
+  saveVolunteerMajorKeys();
+  saveVolunteerMeta();
+  updateVolunteerUI();
+  return true;
+}
 function moveMajorSelection(key,majorKey,delta){
   const arr=selectedMajorOrder(key);
   const i=arr.indexOf(majorKey);
@@ -713,6 +731,7 @@ function updateVolunteerUI(){
     const selected=volunteerKeys.includes(btn.dataset.volunteerKey);
     const disabled=!selected&&volunteerKeys.length>=VOLUNTEER_LIMIT;
     btn.textContent=selected?'已加入志愿表':disabled?'志愿表已满':'加入志愿表';
+    btn.title=selected?'再次点击：从志愿表移出该专业组，并清空本组已选专业':'点击：加入志愿表';
     btn.classList.toggle('selected',selected);
     btn.disabled=disabled;
   });
@@ -738,6 +757,14 @@ function removeVolunteerKey(key){
   saveVolunteerMeta();
   renderVolunteerPanel();
   updateVolunteerUI();
+}
+function toggleVolunteerKey(key){
+  if(volunteerKeys.includes(key)){
+    removeVolunteerKey(key);
+    render();
+    return;
+  }
+  addVolunteerKey(key);
 }
 function moveVolunteerKey(key,delta){
   const i=volunteerKeys.indexOf(key);
@@ -784,9 +811,22 @@ function bindVolunteerButtons(){
   $$('[data-volunteer-key]').forEach(btn=>{
     btn.onclick=e=>{
       e.stopPropagation();
-      addVolunteerKey(btn.dataset.volunteerKey);
+      toggleVolunteerKey(btn.dataset.volunteerKey);
     };
   });
+}
+function bindClearMajorGroupButtons(){
+  $$('[data-clear-major-group]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    const key=btn.dataset.clearMajorGroup;
+    const count=selectedMajorOrder(key).length;
+    if(!count)return;
+    if(!confirm(`确认清空本专业组已选的 ${count} 个专业？\n不会删除专业组，只会把专业志愿清空。`))return;
+    clearMajorSelectionForGroup(key);
+    render();
+    if($('#volunteerPanel')?.classList.contains('open'))renderVolunteerPanel();
+  }));
 }
 function bindMainMajorChecks(){
   $$('[data-main-major-check]').forEach(cb=>{
