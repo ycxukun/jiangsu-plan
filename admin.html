@@ -340,6 +340,24 @@ body.compact-mode .volunteer-table-row,body.compact-mode .volunteer-table-head{g
 /* V1.1.31 override: 志愿矩阵页工具栏与表头不再悬浮，避免滚动时与内容层打架 */
 .volunteer-workbench-toolbar,.volunteer-table-head{position:relative!important;top:auto!important;z-index:auto!important;backdrop-filter:none!important}
 
+/* V1.1.33 院校/专业基础信息二级菜单 */
+.school-title-main{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.school-title-main h2{line-height:1.12}
+.school-info-link{border:0;background:transparent;color:var(--green);padding:0 0 2px;border-bottom:2px solid rgba(10,124,66,.35);font-size:12px;font-weight:900;line-height:1.35}
+.school-info-link:hover{border-bottom-color:var(--green);color:#075f33}
+.info-subtitle{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.6}
+.info-section{border:1px solid var(--line);border-radius:18px;background:#fff;margin:0 0 12px;overflow:hidden}
+.info-section h4{margin:0;padding:10px 14px;background:#f7faf8;border-bottom:1px solid var(--line);font-size:14px;color:#203328}
+.info-kv{margin:0;padding:12px 14px;grid-template-columns:132px minmax(0,1fr)}
+.info-kv dt{font-size:12px;font-weight:800;color:#66756d}
+.info-kv dd{font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.school-info-section{border-color:#cfe6d8}.school-info-section h4{background:#f0faf4;color:var(--green)}
+.major-info-section{border-color:#dbe7ff}.major-info-section h4{background:#f3f7ff;color:#1d4ed8}
+.group-info-section{border-color:#e7e2f5}.group-info-section h4{background:#f8f5ff;color:#5b21b6}
+.admission-info-section{border-color:#f3dfbf}.admission-info-section h4{background:#fff8ec;color:#92400e}
+body.compact-mode .info-kv{grid-template-columns:112px minmax(0,1fr);gap:6px 10px}
+@media(max-width:640px){.info-kv{grid-template-columns:1fr}.info-kv dt{margin-top:6px}.school-title-main{width:100%}}
+
 </style>
 </head>
 <body data-admin="1">
