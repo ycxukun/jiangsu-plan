@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.36 专业优先标红｜悬浮球｜组内加权排序版';
+const VERSION='2026在招专业组版｜V1.1.37 保研双非层次修正版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -25,8 +25,8 @@ const provinceRegionGroups=[
 ];
 const levelFacetGroups=[
   {title:'国家层次',items:['985','211','双一流']},
-  {title:'保研',items:['保研资格','保研率≥10%','保研率≥15%','保研率≥20%','保研率≥25%','保研率≥30%']},
-  {title:'常规层次',items:['双非','民办']},
+  {title:'保研层次',items:['保研双非']},
+  {title:'常规层次',items:['普通公办','民办']},
   {title:'办学性质',items:['公办','中外合作办学机构']},
   {title:'院校类型',items:['综合类','理工类','师范类','医药类','财经类','政法类','农林类','军事类']},
   {title:'行业标签',items:['电力','邮电','交通','水利','航空航天','兵器','石油']},
@@ -496,9 +496,19 @@ function schoolFacetValues(s){
   const add=v=>{const t=String(v??'').trim(); if(isValidFacetValue(t))values.add(t);};
   add(s.level);
   const text=`${s.level||''} ${d.schoolTags||''} ${d.firstClass||''} ${d.schoolLevel||''} ${d.schoolType||''} ${d.publicPrivate||''} ${d.administration||''}`;
-  ['985','211','双一流','双非'].forEach(v=>{if(text.includes(v))add(v);});
-  if(/民办/.test(text))add('民办');
-  if(/公办/.test(text))add('公办');
+  const is985=/985/.test(text);
+  const is211=/211/.test(text);
+  const isDoubleFirst=/双一流/.test(text);
+  const hasBaoyan=/保研资格|推免资格|推荐免试|免试研究生|保研/.test(text)||Number(d.baoyanRate)>0;
+  const isPublic=/公办/.test(text);
+  const isPrivate=/民办/.test(text);
+  if(is985)add('985');
+  if(is211)add('211');
+  if(isDoubleFirst)add('双一流');
+  if(hasBaoyan&&!is985&&!is211&&!isDoubleFirst)add('保研双非');
+  if(isPublic)add('公办');
+  if(isPrivate)add('民办');
+  if(isPublic&&!is985&&!is211&&!isDoubleFirst&&!hasBaoyan)add('普通公办');
   if(/中外合作办学机构|中外合作大学|港中深|昆山杜克|西交利物浦|宁波诺丁汉|上海纽约/.test(text))add('中外合作办学机构');
   const priorityInfo=admissionPriorityInfo(s);
   if(priorityInfo){add('专业优先'); if(priorityInfo.severity==='partial')add('部分专业优先');}
@@ -506,12 +516,6 @@ function schoolFacetValues(s){
   if(st){add(st.endsWith('类')?st:`${st}类`);}
   ['综合类','理工类','师范类','医药类','财经类','政法类','农林类','军事类'].forEach(v=>{if(text.includes(v.replace('类',''))||text.includes(v))add(v);});
   ['电力','邮电','交通','水利','航空航天','兵器','石油'].forEach(v=>{if(text.includes(v))add(v);});
-  const rate=Number(d.baoyanRate);
-  if(/保研资格/.test(text)||rate>0)add('保研资格');
-  if(Number.isFinite(rate)&&rate>0){
-    const pct=rate>1?rate/100:rate;
-    [[0.10,'保研率≥10%'],[0.15,'保研率≥15%'],[0.20,'保研率≥20%'],[0.25,'保研率≥25%'],[0.30,'保研率≥30%']].forEach(([min,label])=>{if(pct>=min)add(label);});
-  }
   schoolFacetCache.set(cacheKey,values);
   return values;
 }
@@ -662,7 +666,7 @@ function buildLevelPanel(){
     return (counts.get(b)-counts.get(a))||String(a).localeCompare(String(b),'zh-Hans-CN');
   });
   const groups=groupsFromOrderedItems(items,counts,levelFacetGroups,'其他层次');
-  renderFacetPanel({panelId:'levelPanel',bodyId:'levelPanelBody',title:'院校层次筛选',searchPlaceholder:'搜索层次，如 985 / 211 / 保研资格 / 保研率≥20%',groups,counts,setRef:state.selectedLevels,buttonUpdater:updateLevelButton,clearLabel:'清空院校层次'});
+  renderFacetPanel({panelId:'levelPanel',bodyId:'levelPanelBody',title:'院校层次筛选',searchPlaceholder:'搜索层次，如 985 / 211 / 双一流 / 保研双非 / 普通公办',groups,counts,setRef:state.selectedLevels,buttonUpdater:updateLevelButton,clearLabel:'清空院校层次'});
 }
 function buildRequirementPanel(){
   const counts=groupCountBy('requirement');
