@@ -1,5 +1,7 @@
-Version: V1.1.32
-Source: 江苏高考专家版数据-已更新26最新招生计划（本科阶段汇总）-6.24更新.xlsx
-Rule: row-authoritative all mapped fields; identity=院校专业组代码+专业代码
-DB parts: 4
-Major detail parts: 28
+V1.1.35 专业组变迁与保研筛选版
+
+上传到 GitHub Pages 时保留本目录全部文件。
+核心入口：index.html
+管理入口：admin.html
+新增变迁数据：data-group-changes.js
+新增审计文件：group_change_mapping_summary.csv、group_change_mapping_audit.csv

@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.34 筛选交互优化版';
+const VERSION='2026在招专业组版｜V1.1.35 专业组变迁与保研筛选版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -25,9 +25,10 @@ const provinceRegionGroups=[
 ];
 const levelFacetGroups=[
   {title:'国家层次',items:['985','211','双一流']},
+  {title:'保研',items:['保研资格','保研率≥10%','保研率≥15%','保研率≥20%','保研率≥25%','保研率≥30%']},
   {title:'常规层次',items:['双非','民办']},
   {title:'办学性质',items:['公办','中外合作办学机构']},
-  {title:'院校类型',items:['综合类','理工类','师范类','医药类','财经类','政法类','农林类']},
+  {title:'院校类型',items:['综合类','理工类','师范类','医药类','财经类','政法类','农林类','军事类']},
   {title:'行业标签',items:['电力','邮电','交通','水利','航空航天','兵器','石油']}
 ];
 let DB=Array.isArray(window.DB)?window.DB:[];
@@ -57,6 +58,7 @@ let majorRefsBySchool=new Map();
 let majorRefsByBucket=new Map();
 let rankRefsBySubjectBatch=new Map();
 let predictionCache=new Map();
+let schoolFacetCache=new Map();
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));
 const fmt=v=>v===null||v===undefined||v===''?'—':String(v);
@@ -421,6 +423,33 @@ function initFilters(){
   fillSelect('#roleFilter',roles);
 }
 function schoolCountBy(field){const m=new Map(); DB.forEach(s=>{const key=String(s[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);}); return m;}
+function schoolFacetValues(s){
+  const cacheKey=keySchool(s);
+  if(schoolFacetCache.has(cacheKey))return schoolFacetCache.get(cacheKey);
+  const d=representativeDetailForSchool(s);
+  const values=new Set();
+  const add=v=>{const t=String(v??'').trim(); if(isValidFacetValue(t))values.add(t);};
+  add(s.level);
+  const text=`${s.level||''} ${d.schoolTags||''} ${d.firstClass||''} ${d.schoolLevel||''} ${d.schoolType||''} ${d.publicPrivate||''} ${d.administration||''}`;
+  ['985','211','双一流','双非'].forEach(v=>{if(text.includes(v))add(v);});
+  if(/民办/.test(text))add('民办');
+  if(/公办/.test(text))add('公办');
+  if(/中外合作办学机构|中外合作大学|港中深|昆山杜克|西交利物浦|宁波诺丁汉|上海纽约/.test(text))add('中外合作办学机构');
+  const st=String(d.schoolType||'').trim();
+  if(st){add(st.endsWith('类')?st:`${st}类`);}
+  ['综合类','理工类','师范类','医药类','财经类','政法类','农林类','军事类'].forEach(v=>{if(text.includes(v.replace('类',''))||text.includes(v))add(v);});
+  ['电力','邮电','交通','水利','航空航天','兵器','石油'].forEach(v=>{if(text.includes(v))add(v);});
+  const rate=Number(d.baoyanRate);
+  if(/保研资格/.test(text)||rate>0)add('保研资格');
+  if(Number.isFinite(rate)&&rate>0){
+    const pct=rate>1?rate/100:rate;
+    [[0.10,'保研率≥10%'],[0.15,'保研率≥15%'],[0.20,'保研率≥20%'],[0.25,'保研率≥25%'],[0.30,'保研率≥30%']].forEach(([min,label])=>{if(pct>=min)add(label);});
+  }
+  schoolFacetCache.set(cacheKey,values);
+  return values;
+}
+function schoolFacetCounts(){const m=new Map(); DB.forEach(s=>schoolFacetValues(s).forEach(v=>m.set(v,(m.get(v)||0)+1))); return m;}
+function schoolMatchesLevelFacet(s){if(!state.selectedLevels.size)return true; const vals=schoolFacetValues(s); return [...state.selectedLevels].some(v=>vals.has(v));}
 function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g=>{const key=String(g[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);})); return m;}
 function bindEvents(){
   ['batchFilter','subjectFilter','roleFilter','modeFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; if(id==='modeFilter')state.mode=e.target.value; applyFilters();}));
@@ -557,10 +586,16 @@ function buildProvincePanel(){
   renderFacetPanel({panelId:'provincePanel',bodyId:'provincePanelBody',title:'地区筛选',searchPlaceholder:'搜索省份，如 江苏 / 浙江 / 黑龙江',groups,counts,setRef:state.selectedProvinces,buttonUpdater:updateProvinceButton,clearLabel:'清空地区筛选'});
 }
 function buildLevelPanel(){
-  const counts=schoolCountBy('level');
-  const items=Array.from(counts.keys()).sort((a,b)=>String(a).localeCompare(String(b),'zh-Hans-CN'));
+  const counts=schoolFacetCounts();
+  const items=Array.from(counts.keys()).sort((a,b)=>{
+    const order=levelFacetGroups.flatMap(g=>g.items);
+    const ai=order.indexOf(a), bi=order.indexOf(b);
+    if(ai>=0&&bi>=0)return ai-bi;
+    if(ai>=0)return -1; if(bi>=0)return 1;
+    return (counts.get(b)-counts.get(a))||String(a).localeCompare(String(b),'zh-Hans-CN');
+  });
   const groups=groupsFromOrderedItems(items,counts,levelFacetGroups,'其他层次');
-  renderFacetPanel({panelId:'levelPanel',bodyId:'levelPanelBody',title:'院校层次筛选',searchPlaceholder:'搜索层次，如 985 / 211 / 双一流 / 民办',groups,counts,setRef:state.selectedLevels,buttonUpdater:updateLevelButton,clearLabel:'清空院校层次'});
+  renderFacetPanel({panelId:'levelPanel',bodyId:'levelPanelBody',title:'院校层次筛选',searchPlaceholder:'搜索层次，如 985 / 211 / 保研资格 / 保研率≥20%',groups,counts,setRef:state.selectedLevels,buttonUpdater:updateLevelButton,clearLabel:'清空院校层次'});
 }
 function buildRequirementPanel(){
   const counts=groupCountBy('requirement');
@@ -606,7 +641,7 @@ function applyFilters(){
     if(state.batch&&s.batch!==state.batch)return;
     if(state.subject&&s.subject!==state.subject)return;
     if(state.selectedProvinces.size&&!state.selectedProvinces.has(s.province))return;
-    if(state.selectedLevels.size&&!state.selectedLevels.has(String(s.level)))return;
+    if(!schoolMatchesLevelFacet(s))return;
     const groups=s.groups.filter(g=>{if(state.role&&!(g.tags||[]).includes(state.role))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
     if(groups.length){result.push({...s,visibleGroups:groups});}
   });
@@ -1376,6 +1411,7 @@ function groupChangeHTML(d){
   const majorDiff=diffText(d.majorCount26,d.majorCount25);
   const adviceClass=d.advice==='重点核对'?'warn':'';
   return `<div class="change-status-row"><span class="change-pill">${esc(d.status||'未标注状态')}</span><span class="change-pill ${adviceClass}">${esc(d.advice||'常规核对')}</span><span class="change-pill">置信度：${esc(fmt(d.confidence))}</span></div>
+  <section class="change-section"><h4>数据口径</h4><p class="muted">${esc(d.sourceNote||'变迁层只解释专业组结构变化，不覆盖行级权威表中的分数、计划和专业基础信息。')}</p></section>
   <div class="change-compare"><div class="change-side"><span>2026 当前组</span><b>${esc(d.group26||'—')}</b><p>再选：${esc(fmt(d.require26))}｜专业 ${esc(fmt(d.majorCount26))}｜计划 ${esc(fmt(d.plan26))}</p></div><div class="change-side"><span>2025 对应组</span><b>${esc(d.group25||'—')}</b><p>再选：${esc(fmt(d.require25))}｜专业 ${esc(fmt(d.majorCount25))}｜计划 ${esc(fmt(d.plan25))}</p></div></div>
   <div class="change-metrics">${metricTile('计划变化',planDiff)}${metricTile('专业数变化',majorDiff)}${metricTile('综合相似度',percent(d.similarity))}${metricTile('26/25覆盖率',`${percent(d.cover26)} / ${percent(d.cover25)}`)}${metricTile('新增专业',d.addCount)}${metricTile('减少专业',d.removeCount)}${metricTile('拆入专业',d.inCount)}${metricTile('拆出专业',d.outCount)}</div>
   <section class="change-section"><h4>变化摘要</h4><p class="change-summary-text">${esc(d.summary||'无明显变化')}</p></section>
