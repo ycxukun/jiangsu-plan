@@ -1,39 +1,5 @@
-UPLOAD_MANIFEST.txt
-index.html
-admin.html
-app.js
-data-db.js
-data-db-part-01.js
-data-db-part-02.js
-data-db-part-03.js
-data-db-part-04.js
-data-db-part-05.js
-data-db-part-06.js
-data-db-part-07.js
-data-db-part-08.js
-data-db-part-09.js
-data-db-part-10.js
-data-db-part-11.js
-data-db-part-12.js
-data-db-part-13.js
-data-group-names.js
-data-group-changes.js
-data-major-details.js
-data-major-details-part-01.js
-data-major-details-part-02.js
-data-major-details-part-03.js
-data-major-details-part-04.js
-data-major-details-part-05.js
-data-major-details-part-06.js
-data-major-details-part-07.js
-data-major-details-part-08.js
-data-major-details-part-09.js
-data-major-details-part-10.js
-data-major-details-part-11.js
-data-major-details-part-12.js
-data-major-details-part-13.js
-data-major-details-part-14.js
-data-major-details-part-15.js
-data-major-details-part-16.js
-README.md
-.nojekyll
+Version: V1.1.32
+Source: 江苏高考专家版数据-已更新26最新招生计划（本科阶段汇总）-6.24更新.xlsx
+Rule: row-authoritative all mapped fields; identity=院校专业组代码+专业代码
+DB parts: 4
+Major detail parts: 28

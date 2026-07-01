@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.31 行级权威数据重构版';
+const VERSION='2026在招专业组版｜V1.1.32 全字段行级权威重构版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
