@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.38 纯圆形回顶悬浮球版';
+const VERSION='2026在招专业组版｜V1.1.39 预估分重算修正版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -272,16 +272,46 @@ function predictionAdjustment(m,g){
 }
 function estimateRankForScore(subject,batch,score,fallbackRank){
   const fallback=num(fallbackRank);
+  const target=num(score);
   const arr=rankRefsBySubjectBatch.get(`${subject}|${batch}`)||[];
-  if(!arr.length)return fallback;
+  if(target===null||!arr.length)return fallback;
   let best=null;
   arr.forEach(x=>{
-    const dist=Math.abs(x.score-score);
-    if(!best||dist<best.dist)best={...x,dist};
+    const sx=num(x.score), rx=num(x.rank);
+    if(sx===null||rx===null)return;
+    const dist=Math.abs(sx-target);
+    if(!best||dist<best.dist)best={score:sx,rank:rx,dist};
   });
   return best?Math.round(best.rank):fallback;
 }
+function estimateScoreForRank(subject,batch,rank,fallbackScore){
+  const fallback=num(fallbackScore);
+  const target=num(rank);
+  const arr=rankRefsBySubjectBatch.get(`${subject}|${batch}`)||[];
+  if(target===null||!arr.length)return fallback;
+  let best=null;
+  arr.forEach(x=>{
+    const sx=num(x.score), rx=num(x.rank);
+    if(sx===null||rx===null)return;
+    const dist=Math.abs(rx-target);
+    if(!best||dist<best.dist)best={score:sx,rank:rx,dist};
+  });
+  return best?Math.round(best.score):fallback;
+}
+function groupPredictedRankAnchor(g){
+  const gr=num(g.rank26Eq);
+  if(gr!==null)return gr;
+  const ranks=(g.majors||[]).map(m=>num(m.predictedRank26)).filter(x=>x!==null);
+  return ranks.length?Math.max(...ranks):null;
+}
 function predictMajorScore(s,g,m){
+  const predictedRank=num(m.predictedRank26);
+  if(predictedRank!==null){
+    const scoreByRank=estimateScoreForRank(s.subject,s.batch,predictedRank,null);
+    if(scoreByRank!==null){
+      return {score:scoreByRank,rank:predictedRank,confidence:'中',source:`当前行26预估位次 ${fmtNum(predictedRank)} 折算`,adjustment:'按位次折算，不再用同校最低组兜底'};
+    }
+  }
   const avg=num(m.avgScore3);
   if(avg!==null&&(m.avgYears||0)>=2){
     const adj=predictionAdjustment(m,g);
@@ -333,10 +363,17 @@ function predictGroupScore(s,g){
     const score=Math.round(num(g.score26Eq));
     result={score,rank:num(g.rank26Eq),confidence:'中',reason:`使用现有 26 等效分参考 ${fmtNum(score)}`};
   }else{
-    const peerScores=(s.groups||[]).filter(x=>x!==g&&num(x.score25)!==null).map(x=>num(x.score25)).sort((a,b)=>a-b);
-    if(peerScores.length){
-      const score=Math.round(peerScores[0]);
-      result={score,rank:estimateRankForScore(s.subject,s.batch,score,null),confidence:'低',reason:`同校同批已有专业组最低分参考 ${fmtNum(score)}，缺少直接专业锚点`};
+    const rankAnchor=groupPredictedRankAnchor(g);
+    const rankScore=estimateScoreForRank(s.subject,s.batch,rankAnchor,null);
+    if(rankAnchor!==null&&rankScore!==null){
+      result={score:rankScore,rank:rankAnchor,confidence:'中',reason:`使用当前行26预估位次 ${fmtNum(rankAnchor)} 折算分数；不再采用同校最低专业组兜底`};
+    }else{
+      const peerScores=(s.groups||[]).filter(x=>x!==g&&num(x.score25)!==null&&!/(中外合作|高收费)/.test(`${(x.tags||[]).join(' ')} ${x.majorSummary||''} ${x.remark||''}`)).map(x=>num(x.score25)).sort((a,b)=>a-b);
+      if(peerScores.length){
+        const idx=Math.max(0,Math.floor(peerScores.length*0.25));
+        const score=Math.round(peerScores[idx]);
+        result={score,rank:estimateRankForScore(s.subject,s.batch,score,null),confidence:'低',reason:`缺少直接专业锚点，使用同校普通专业组低位分参考 ${fmtNum(score)}；已排除中外合作/高收费组`};
+      }
     }
   }
   predictionCache.set(cacheKey,result);
