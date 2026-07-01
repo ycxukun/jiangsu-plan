@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.50 体检受限联动版';
+const VERSION='2026在招专业组版｜V1.1.51 色觉限制严格版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -39,8 +39,8 @@ const MEDICAL_CODE_META={
   '14':'重症或难治性癫痫、严重精神病等：学校可以不予录取',
   '15':'慢性肝炎且肝功能不正常：学校可以不予录取',
   '16':'结核病相关限制：学校可以不予录取',
-  '21':'色弱：化学、化工、药学、生物、医学、食品、农林、水产、心理、材料化学等不能录取',
-  '22':'色盲：含色弱全部限制，另含美术、设计、摄影、动画、地理、材料物理、交通运输等不能录取',
+  '21':'色弱：化学、化工、药学、生物、医学、食品、农林、水产、心理、材料类等不能录取；页面按严格口径将材料类整体限报',
+  '22':'色盲：含色弱全部限制，另含美术、设计、摄影、动画、地理、交通运输等不能录取；材料类已按色弱严格口径整体限报',
   '23':'单色识别异常：含色弱/色盲限制，另含经管、公共管理、图书档案，以及显示器颜色识别异常下的计算机等',
   '24':'裸眼视力任一眼低于5.0：飞行技术、航海技术、消防工程、刑事科学技术、侦察等不能录取',
   '25':'裸眼视力任一眼低于4.8：轮机工程、运动训练、民族传统体育等不能录取',
@@ -418,7 +418,7 @@ function medicalRuleMatched(code,m){
   const d=detailOf(m)||{};
   const discipline=String(m?.discipline||d.discipline||'');
   if(/^1[1-6]$/.test(code))return true;
-  if(code==='21')return /(化学|化工|制药|药学|生物科学|生物工程|生物医学工程|医学|公安技术|地质|动物医学|动物科学|野生动物|心理学|应用心理|生态学|侦察|侦查|特种能源|烟火|考古|海洋科学|海洋技术|轮机工程|食品科学|轻化工程|林产化工|农学|园艺|植物保护|茶学|林学|园林|蚕学|农业资源|水产养殖|海洋渔业|材料化学|环境工程|高分子材料|过程装备|学前教育|特殊教育|体育教育|运动训练|运动人体科学|民族传统体育)/.test(t);
+  if(code==='21')return /(化学|应用化学|化学生物学|分子科学|能源化学|化工|制药|药学|临床药学|中药学|生物科学|生物技术|生物信息|生物工程|生物制药|合成生物|生物医学工程|生物医学科学|医学|临床医学|口腔医学|基础医学|预防医学|法医学|医学技术|护理学|公安技术|地质|动物医学|动物科学|野生动物|心理学|应用心理|生态学|侦察|侦查|特种能源|烟火|考古|海洋科学|海洋技术|轮机工程|食品科学|食品质量|食品安全|轻化工程|林产化工|农学|园艺|植物保护|茶学|林学|园林|蚕学|农业资源|水产养殖|海洋渔业|材料|材料科学|材料工程|材料化学|材料物理|高分子|复合材料|功能材料|新能源材料|储能材料|金属材料|无机非金属|冶金|矿物加工|环境工程|环境科学|过程装备|学前教育|特殊教育|体育教育|运动训练|运动人体科学|民族传统体育)/.test(t);
   if(code==='22')return medicalRuleMatched('21',m)||/(美术|绘画|艺术设计|视觉传达|环境设计|产品设计|服装与服饰设计|摄影|动画|博物馆|应用物理|天文学|地理科学|应用气象|材料物理|矿物加工|资源勘查|资源勘探|冶金|无机非金属材料|交通运输|油气储运)/.test(t);
   if(code==='23')return medicalRuleMatched('22',m)||/(经济学|财政|税收|金融|经贸|管理科学|信息管理|工程管理|工商管理|会计|财务管理|公共管理|行政管理|农业经济管理|图书|档案|计算机科学与技术|计算机类|软件工程|网络工程|信息安全|数据科学|人工智能|智能科学)/.test(t);
   if(code==='24')return /(飞行技术|航海技术|消防工程|刑事科学技术|侦察|侦查|海洋船舶驾驶|空中交通管制)/.test(t);
@@ -771,7 +771,7 @@ function createLayout(){
     <div id="requirementPanel" class="panel facet-panel"><div class="panel-head"><h3>选科要求筛选</h3><button class="close-btn" data-close="requirementPanel">×</button></div><div class="panel-body"><div id="requirementPanelBody"></div></div></div>
     <div id="classPanel" class="panel facet-panel"><div class="panel-head"><h3>专业大类筛选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
-    <div id="medicalPanel" class="panel medical-panel"><div class="panel-head"><h3>体检受限</h3><button class="close-btn" data-close="medicalPanel">×</button></div><div class="panel-body"><p class="medical-help">输入体检结论代码，例如：21、22、23、34、35。系统会在主表和志愿表中提示，并禁止受限专业被勾选。</p><input id="medicalCodeInput" class="medical-code-input" placeholder="输入体检代码，如：21 35 或 23,34"><div class="medical-quick-codes">${Object.keys(MEDICAL_CODE_META).map(c=>`<button type="button" data-medical-code="${c}">${c}</button>`).join('')}</div><div id="medicalCodeSummary" class="medical-code-summary"></div><div class="modal-actions"><button id="clearMedicalBtn">清空体检代码</button><button id="applyMedicalBtn" class="save">应用体检限制</button></div></div></div>
+    <div id="medicalPanel" class="panel medical-panel"><div class="panel-head"><h3>体检受限</h3><button class="close-btn" data-close="medicalPanel">×</button></div><div class="panel-body"><p class="medical-help">输入体检结论代码，例如：21、22、23、34、35。系统会在主表和志愿表中提示，并禁止受限专业被勾选。色弱/色盲按严格口径处理：化学、生物、医学、药学、食品、农林、水产、环境、材料类等整体限报。</p><input id="medicalCodeInput" class="medical-code-input" placeholder="输入体检代码，如：21 35 或 23,34"><div class="medical-quick-codes">${Object.keys(MEDICAL_CODE_META).map(c=>`<button type="button" data-medical-code="${c}">${c}</button>`).join('')}</div><div id="medicalCodeSummary" class="medical-code-summary"></div><div class="modal-actions"><button id="clearMedicalBtn">清空体检代码</button><button id="applyMedicalBtn" class="save">应用体检限制</button></div></div></div>
     <div id="changePanel" class="panel change-panel"><div class="panel-head"><div><h3>专业组变迁</h3><p id="changePanelTitle" class="panel-subtitle"></p></div><button class="close-btn" data-close="changePanel">×</button></div><div id="changePanelBody" class="panel-body"></div></div>
     <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="medicalVolunteerNotice" class="medical-active-notice" style="display:none"></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
     <div id="annotationDrawer" class="annotation-drawer">
