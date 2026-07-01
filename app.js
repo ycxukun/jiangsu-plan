@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.42 刺客专业严格标注版';
+const VERSION='2026在招专业组版｜V1.1.43 专业梯队校正刺客版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -172,6 +172,42 @@ function majorText(m){
   const d=DETAILS?.[m?.key]||{};
   return `${m?.baseName||''} ${m?.name||''} ${m?.majorClass||''} ${m?.discipline||''} ${d.name||''} ${d.undergraduateName||''} ${d.subjectMajor||''} ${d.majorClass||''} ${d.discipline||''}`;
 }
+
+function lectureTierMeta(m){
+  const t=majorText(m);
+  // 讲座口径：先区分“出口宽度/热度梯队”，再决定在信息类/新工科组里是否构成刺客风险。
+  // 机械、光电、医工、航空航天、统计等属于二梯队宽口径，不能按土木/测绘/地质/食品等同级标红。
+  if(/光电|光信息|光电子/.test(t))return {rank:2,label:'二梯队宽口径',bucket:'光电'};
+  if(/生物医学工程|智能医学工程|医学信息工程|医工|医疗器械/.test(t))return {rank:2,label:'二梯队宽口径',bucket:'医工交叉'};
+  if(/计算机|软件|网络空间|数据科学|人工智能|智能科学|信息安全|物联网|大数据/.test(t))return {rank:1,label:'一梯队宽口径',bucket:'计算机/AI'};
+  if(/电子信息|通信|微电子|集成电路|电子科学|电气|自动化|机器人工程|智能制造|仪器|测控|智能感知/.test(t))return {rank:1,label:'一梯队宽口径',bucket:'电子电气自动化'};
+  if(/机械|车辆|航空航天|飞行器|航天|航空/.test(t))return {rank:2,label:'二梯队宽口径',bucket:/机械|车辆/.test(t)?'机械':'航空航天'};
+  if(/数学|信息与计算科学|物理|应用物理|统计/.test(t))return {rank:2,label:'二梯队理学基础',bucket:/统计/.test(t)?'统计':'数学/物理'};
+  if(/临床医学|口腔医学|基础医学|医学影像|麻醉学|儿科学|眼视光医学|精神医学|放射医学/.test(t))return {rank:2,label:'二梯队医学',bucket:'医学'};
+  if(/能源动力|能源与动力|新能源|储能|核工程|动力工程|船舶|海洋工程|兵器|武器|弹药|力学|工程力学|材料|冶金|高分子|无机非金属|管理科学与工程|信息管理与信息系统|石油|油气|交通运输|车辆工程|大气科学|化工|制药/.test(t))return {rank:3,label:'三梯队行业/窄口径',bucket:'三梯队行业方向'};
+  if(/环境|生态|安全工程|消防|海洋科学|药学|测绘|遥感|地理信息|地理空间|地质|资源勘查|地球物理|食品|化学|应用化学|生物科学|生物技术|生物工程|土木|建筑|城乡规划|风景园林|矿业|采矿|农业|农学|林学|水产|动物|植物|轻工|纺织/.test(t))return {rank:4,label:'低热度/强行业限制',bucket:'低热度远缘方向'};
+  if(/法学|汉语言|中国语言文学/.test(t))return {rank:1,label:'考公一梯队',bucket:'法汉'};
+  if(/会计|财务管理|新闻传播|财政|税收|工商管理|经济|金融/.test(t))return {rank:2,label:'考公二梯队',bucket:'经管考公'};
+  return {rank:0,label:'未归类',bucket:'其他'};
+}
+function isLectureTier1Major(m){return lectureTierMeta(m).rank===1&&/计算机|电子|电气|自动化|通信|集成电路|人工智能|软件|仪器|测控|智能/.test(majorText(m));}
+function hasTier1InfoEngineeringCore(g){
+  const majors=g?.majors||[];
+  let corePlan=0,totalPlan=0,coreCount=0;
+  majors.forEach(m=>{
+    const w=num(m.plan26)||num(m.plan25)||1;
+    totalPlan+=w;
+    if(isLectureTier1Major(m)){corePlan+=w;coreCount+=1;}
+  });
+  const gt=groupText(g);
+  return coreCount>=2||corePlan>=Math.max(8,totalPlan*0.28)||(/计算机|电子信息|电气|自动化|人工智能|机器人|通信|集成电路|新工科|智能|仪器|测控/.test(gt)&&coreCount>=1);
+}
+function lectureTierSoftensSourceRisk(m){
+  const tier=lectureTierMeta(m);
+  if(tier.rank!==2)return false;
+  // 明确保留用户口径：机械/光电/医工/航空航天/统计/医学是二梯队宽口径或高难度专业，不能和土木、测绘、地质、食品等同级处理。
+  return /机械|光电|医工|航空航天|统计|医学/.test(tier.bucket);
+}
 function groupText(g){
   return `${g?.groupName||''} ${g?.majorSummary||''} ${(g?.majorClasses||[]).join(' ')} ${(g?.tags||[]).join(' ')} ${(g?.majors||[]).map(m=>`${m.name||''} ${m.majorClass||''}`).join(' ')}`;
 }
@@ -192,22 +228,31 @@ function hasInfoNewEngineeringCore(g){
 }
 function strictRiskCategory(m){
   const t=majorText(m);
-  if(/材料|冶金|高分子|无机非金属|金属材料/.test(t))return {cat:'材料类',tone:'orange'};
-  if(/能源动力|能源与动力|新能源|储能|核工程|动力工程|建筑环境与能源应用/.test(t))return {cat:'能源动力类',tone:'orange'};
-  if(/数学|统计|物理|应用物理|化学|应用化学|生物科学|地理科学|地理信息|地球物理|大气科学|海洋科学|心理学|力学/.test(t))return {cat:'理学/基础类',tone:'orange'};
-  if(/测绘|遥感|地理空间|土木|建筑|城乡规划|地质|资源勘查|地球信息|矿业|采矿|安全工程|水利|水文|环境|生态|生物工程|食品|轻工|纺织|农业|林学|植物|动物|水产|化工|制药/.test(t))return {cat:'远缘低接受度方向',tone:'red'};
+  const tier=lectureTierMeta(m);
+  if(tier.rank===1)return null;
+  // 二梯队内部要分开：机械/光电/医工/航空航天/统计不按刺客标红；数学/物理等理学基础放在信息类工科组里需要提示。
+  if(tier.rank===2){
+    if(/数学|物理/.test(tier.bucket))return {cat:'理学基础类',tone:'orange',label:'理学调剂'};
+    return null;
+  }
+  if(/材料|冶金|高分子|无机非金属|金属材料/.test(t))return {cat:'材料类',tone:'orange',label:'异类刺客'};
+  if(/能源动力|能源与动力|新能源|储能|核工程|动力工程|建筑环境与能源应用/.test(t))return {cat:'能源动力类',tone:'orange',label:'异类刺客'};
+  if(/化学|应用化学|生物科学|地理科学|地理信息|地球物理|大气科学|海洋科学|心理学|力学/.test(t))return {cat:'理学/基础类',tone:'orange',label:'理学调剂'};
+  if(tier.rank===3)return {cat:tier.bucket||'三梯队行业方向',tone:'orange',label:'异类刺客'};
+  if(/测绘|遥感|地理空间|土木|建筑|城乡规划|地质|资源勘查|地球信息|矿业|采矿|安全工程|水利|水文|环境|生态|生物工程|食品|轻工|纺织|农业|林学|植物|动物|水产|化工|制药/.test(t))return {cat:'远缘低接受度方向',tone:'red',label:'刺客'};
+  if(tier.rank===4)return {cat:tier.bucket||'低热度远缘方向',tone:'red',label:'刺客'};
   return null;
 }
 function strictContextRiskMeta(s,g,m){
   if(!g||!m)return null;
   if((g.majors||[]).length<=1)return null;
-  if(!hasInfoNewEngineeringCore(g))return null;
+  if(!hasTier1InfoEngineeringCore(g))return null;
   const t=majorText(m);
   if(isInfoNewEngineeringMajorText(t))return null;
   const cat=strictRiskCategory(m);
   if(!cat)return null;
   const detailHint='点击专业行可查看该专业的硕博点、学科评估、软科评级等基础信息；但在志愿风控上，应先按组内最不想去专业兜底。';
-  return {risk:true,label:cat.tone==='red'?'刺客':'异类刺客',type:'strict-assassin',tone:cat.tone,reason:`信息类/新工科主体专业组中夹入${cat.cat}，专业亲缘和就业预期不一致，需单独标注。${detailHint}`};
+  return {risk:true,label:cat.label||(cat.tone==='red'?'刺客':'异类刺客'),type:'strict-assassin',tone:cat.tone,reason:`一梯队信息类/新工科主体专业组中夹入${cat.cat}。按讲座梯队口径，该方向与计算机、电子信息、电气、自动化等一梯队出口不一致，需要单独标注；机械、光电、医工、航空航天、统计等二梯队宽口径不按土木类同级处理。${detailHint}`};
 }
 function isColdMajor(m){
   const text=`${m.baseName||m.name||''} ${m.majorClass||''} ${m.discipline||''}`;
@@ -246,6 +291,10 @@ function majorRiskMeta(s,g,m){
     const mixedHotCold=p.hasHotCore&&p.hotCount>0&&p.coldCount>0&&p.coldCount<total;
     if(mixedHotCold)base={risk:true,label:'刺客',type:'assassin',tone:'red',reason:'热门/强工科专业组内夹入相对冷门或接受度较低方向，填报时需按最差专业兜底'};
   }
+  if(base&&base.risk&&s&&g&&hasTier1InfoEngineeringCore(g)&&lectureTierSoftensSourceRisk(m)){
+    const tier=lectureTierMeta(m);
+    base={risk:false,label:'',type:'lecture-tier-calibrated',tone:'green',reason:`讲座梯队校正：${tier.bucket}属于${tier.label}，不能与土木、测绘、地质、食品等低热度远缘方向同级标红。仍可点击专业查看硕博点、学科评估、软科评级等具体信息。`};
+  }
   const strict=strictContextRiskMeta(s,g,m);
   const merged=strongerRisk(base||{risk:false,label:'',type:'',tone:'green',reason:''},strict);
   return merged||{risk:false,label:'',type:'',tone:'green',reason:''};
@@ -263,9 +312,13 @@ function groupQuality(s,g){
   const strictCount=riskMetas.filter(x=>x.type==='strict-assassin').length;
   const strictRed=riskMetas.filter(x=>x.type==='strict-assassin'&&x.tone==='red').length;
   if(mapped){
-    const title=[mapped.level,mapped.reason,mapped.core?`主体：${mapped.core}`:'',mapped.weak?`高危/中危：${mapped.weak}`:'',mapped.edge?`边缘：${mapped.edge}`:'',mapped.breakdown?`待拆解：${mapped.breakdown}`:'',mapped.classes?`构成：${mapped.classes}`:'',strictCount?`严格补充标注：信息类/新工科主体中另有 ${strictCount} 个材料、能动、理学或远缘方向需要核对`:'' ].filter(Boolean).join('；');
+    const title=[mapped.level,mapped.reason,mapped.core?`主体：${mapped.core}`:'',mapped.weak?`高危/中危：${mapped.weak}`:'',mapped.edge?`边缘：${mapped.edge}`:'',mapped.breakdown?`待拆解：${mapped.breakdown}`:'',mapped.classes?`构成：${mapped.classes}`:'',strictCount?`严格补充标注：按讲座梯队口径，信息类/新工科主体中另有 ${strictCount} 个材料、能动、理学或远缘方向需要核对`:'' ].filter(Boolean).join('；');
     if(strictRed&&riskToneRank(mapped.tone)<5)return {tone:'red',label:`含刺客专业 ${strictRed} 个`,title};
     if(strictCount&&riskToneRank(mapped.tone)<4)return {tone:'orange',label:`含异类刺客 ${strictCount} 个`,title};
+    if(riskToneRank(mapped.tone)>0&&riskMetas.length===0){
+      const tier2=(majors||[]).map(lectureTierMeta).filter(x=>x.rank===2).map(x=>x.bucket).filter(Boolean);
+      return {tone:'green',label:'梯队校正',title:`刺客表原有提示已按讲座梯队校正：${Array.from(new Set(tier2)).join('、')||'二梯队宽口径'}不与土木、测绘、地质、食品等低热度远缘方向同级标红。专业硕博点、学科评估等仍可点击专业查看。`};
+    }
     return {tone:mapped.tone||'green',label:mapped.label||mapped.level||'专业组结构',title:title||'来自刺客专业识别表 v0.2'};
   }
   const riskCount=riskMetas.length;
@@ -275,7 +328,7 @@ function groupQuality(s,g){
   const total=majors.length||0;
   const allCold=total>0&&(coldCount===total||(coldCount/total>=0.75&&assassinCount===0));
   if(allCold)return {tone:'yellow',label:'整体冷门',title:`整组以冷门/风险专业为主：${coldCount}/${total} 个冷门，${sourceRiskCount}/${total} 个原始风险`};
-  if(assassinCount>0)return {tone:strictRed?'red':'orange',label:`含刺客专业 ${assassinCount} 个`,title:`组内有信息类/新工科或热门方向，也夹有材料、能动、理学或远缘低接受度专业：${assassinCount}/${total} 个。必须按最差专业兜底。`};
+  if(assassinCount>0)return {tone:strictRed?'red':'orange',label:`含刺客专业 ${assassinCount} 个`,title:`组内有一梯队信息类/新工科方向，也夹有材料、能动、理学或远缘低接受度专业：${assassinCount}/${total} 个。必须按最差专业兜底。`};
   if(riskCount>0)return {tone:'red',label:`含风险专业 ${riskCount} 个`,title:`组内夹有相对风险专业：${riskCount}/${total} 个`};
   return {tone:'green',label:ASSASSIN_RISK_AUTHORITATIVE?'未标风险':'干净组',title:ASSASSIN_RISK_AUTHORITATIVE?'刺客专业识别表与严格补充规则均未标记为风险组':'组内未发现风险或刺客专业，结构相对清爽'};
 }
