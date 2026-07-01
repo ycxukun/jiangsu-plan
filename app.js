@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.12 专业志愿排序修正版';
+const VERSION='2026在招专业组版｜V1.1.14 志愿排序增强版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -29,6 +29,7 @@ const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
 let volunteerKeys=loadVolunteerKeys();
 let volunteerMajorKeys=loadVolunteerMajorKeys();
 let volunteerMeta=loadVolunteerMeta();
+let volunteerDragKey='';
 let groupIndex=new Map();
 let majorRefs=[];
 let majorRefsBySchool=new Map();
@@ -740,6 +741,36 @@ function moveVolunteerKey(key,delta){
   renderVolunteerPanel();
   updateVolunteerUI();
 }
+function moveVolunteerKeyToPosition(key,rawPosition){
+  const match=String(rawPosition||'').match(/\d+/);
+  if(!match){alert('请输入目标序号，例如 10 或 第10。');return false;}
+  const pos=Number(match[0]);
+  if(!Number.isFinite(pos)||pos<1||pos>volunteerKeys.length){alert(`请输入 1-${volunteerKeys.length} 之间的序号。`);return false;}
+  const i=volunteerKeys.indexOf(key);
+  if(i<0)return false;
+  const arr=[...volunteerKeys];
+  const [item]=arr.splice(i,1);
+  arr.splice(pos-1,0,item);
+  volunteerKeys=arr;
+  saveVolunteerKeys();
+  renderVolunteerPanel();
+  updateVolunteerUI();
+  return true;
+}
+function moveVolunteerKeyByDrop(dragKey,targetKey,afterTarget){
+  if(!dragKey||!targetKey||dragKey===targetKey)return false;
+  if(!volunteerKeys.includes(dragKey)||!volunteerKeys.includes(targetKey))return false;
+  const arr=volunteerKeys.filter(k=>k!==dragKey);
+  const targetIndex=arr.indexOf(targetKey);
+  if(targetIndex<0)return false;
+  const insertIndex=targetIndex+(afterTarget?1:0);
+  arr.splice(insertIndex,0,dragKey);
+  volunteerKeys=arr;
+  saveVolunteerKeys();
+  renderVolunteerPanel();
+  updateVolunteerUI();
+  return true;
+}
 function bindVolunteerButtons(){
   $$('[data-volunteer-key]').forEach(btn=>{
     btn.onclick=e=>{
@@ -809,18 +840,24 @@ function volunteerRowHTML(key,index){
   const meta=volunteerMeta[key]||{};
   const majors=sortedMajors(g);
   const selectedOrder=selectedMajorOrder(key);
-  const selectedSet=new Set(selectedOrder);
   const selectedMajors=selectedMajorsForKey(key);
   const quality=groupQuality(s,g);
   const change=groupChangeData(s,g);
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const selectedList=selectedMajors.length?`<div class="selected-major-list">${selectedMajors.map((m,i)=>`<div class="selected-major-item"><span class="major-order-badge">${i+1}</span><b>${esc(m.name)}</b><small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small><button data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="-1" ${i===0?'disabled':''}>上移</button><button data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="1" ${i===selectedMajors.length-1?'disabled':''}>下移</button><button data-major-unselect="${esc(key)}" data-major-key="${esc(m.key)}">取消</button></div>`).join('')}</div>`:`<div class="selected-major-empty">当前专业组还没有选择具体专业。请在下方勾选，系统会按勾选先后生成 1-6 的专业顺序。</div>`;
-  return `<article class="volunteer-item" data-volunteer-item="${esc(key)}"><div class="volunteer-item-head"><div><b>${index+1}. ${esc(s.name)} ${esc(g.groupName)}</b><p>${esc(s.province)}｜${esc(s.subject)}｜${esc(s.batch)}｜再选 ${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</p></div><div class="volunteer-actions"><button data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>上移</button><button data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>下移</button><button data-volunteer-remove="${esc(key)}">删除</button></div></div><div class="volunteer-meta-row"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label><label>服从调剂<select data-volunteer-meta="${esc(key)}" data-field="obey"><option value="是" ${meta.obey!=='否'?'selected':''}>是</option><option value="否" ${meta.obey==='否'?'selected':''}>否</option></select></label><input data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注，例如校区/学费/调剂风险"></div><div class="tag-row"><span class="group-quality-badge ${quality.tone}">${esc(quality.label)}</span>${predictionBadgeHTML(s,g)}<span class="badge">${esc(groupDisplayName(s,g)||'未命名')}</span>${change?`<span class="badge ${change.advice==='重点核对'?'red':'green'}">${esc(change.status||'变迁')}</span>`:''}</div><details class="major-picker" open><summary>已选专业 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary>${selectedList}<div class="major-picker-actions"><button data-major-preset="${esc(key)}" data-preset="top6">选前6</button><button data-major-preset="${esc(key)}" data-preset="all">全选/最多6</button><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);return `<label class="major-check ${m.risk?'risk':''} ${order>=0?'selected':''}"><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${order>=0?'checked':''}>${order>=0?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}${esc(m.name)}${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></label>`;}).join('')}</div></details></article>`;
+  const titleLine=`<div class="volunteer-title-wrap"><input class="volunteer-position-input" data-volunteer-position="${esc(key)}" value="${index+1}" title="输入目标序号，例如 10 或 第10" inputmode="numeric" aria-label="志愿序号"><span class="volunteer-drag-handle" data-volunteer-drag-handle="${esc(key)}" draggable="true" title="按住拖动调整专业组顺序">↕</span><b>${esc(s.name)} ${esc(g.groupName)}</b></div>`;
+  return `<article class="volunteer-item" data-volunteer-item="${esc(key)}"><div class="volunteer-item-head"><div>${titleLine}<p>${esc(s.province)}｜${esc(s.subject)}｜${esc(s.batch)}｜再选 ${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</p></div><div class="volunteer-actions"><button data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>上移</button><button data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>下移</button><button data-volunteer-remove="${esc(key)}">删除</button></div></div><div class="volunteer-meta-row"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label><label>服从调剂<select data-volunteer-meta="${esc(key)}" data-field="obey"><option value="是" ${meta.obey!=='否'?'selected':''}>是</option><option value="否" ${meta.obey==='否'?'selected':''}>否</option></select></label><input data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注，例如校区/学费/调剂风险"></div><div class="tag-row"><span class="group-quality-badge ${quality.tone}">${esc(quality.label)}</span>${predictionBadgeHTML(s,g)}<span class="badge">${esc(groupDisplayName(s,g)||'未命名')}</span>${change?`<span class="badge ${change.advice==='重点核对'?'red':'green'}">${esc(change.status||'变迁')}</span>`:''}</div><details class="major-picker" open><summary>已选专业 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary>${selectedList}<div class="major-picker-actions"><button data-major-preset="${esc(key)}" data-preset="top6">选前6</button><button data-major-preset="${esc(key)}" data-preset="all">全选/最多6</button><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);return `<label class="major-check ${m.risk?'risk':''} ${order>=0?'selected':''}"><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${order>=0?'checked':''}>${order>=0?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}${esc(m.name)}${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></label>`;}).join('')}</div></details></article>`;
 }
 
 function bindVolunteerPanelControls(){
   $$('[data-volunteer-remove]').forEach(btn=>btn.addEventListener('click',()=>removeVolunteerKey(btn.dataset.volunteerRemove)));
   $$('[data-volunteer-move]').forEach(btn=>btn.addEventListener('click',()=>moveVolunteerKey(btn.dataset.volunteerMove,Number(btn.dataset.delta)||0)));
+  $$('[data-volunteer-position]').forEach(input=>{
+    input.addEventListener('focus',()=>input.select());
+    input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();input.blur();}});
+    input.addEventListener('change',()=>{if(!moveVolunteerKeyToPosition(input.dataset.volunteerPosition,input.value))renderVolunteerPanel();});
+  });
+  bindVolunteerDragControls();
   $$('[data-volunteer-meta]').forEach(el=>el.addEventListener('input',()=>{const key=el.dataset.volunteerMeta; volunteerMeta[key]={...(volunteerMeta[key]||{}),[el.dataset.field]:el.value}; saveVolunteerMeta();}));
   $$('[data-major-check]').forEach(cb=>cb.addEventListener('change',()=>{
     const ok=setMajorSelection(cb.dataset.majorCheck,cb.value,cb.checked);
@@ -851,6 +888,46 @@ function bindVolunteerPanelControls(){
     renderVolunteerPanel();
     render();
   }));
+}
+function clearVolunteerDragMarks(){
+  $$('[data-volunteer-item]').forEach(item=>item.classList.remove('dragging','drag-over','drop-after','drop-before'));
+}
+function bindVolunteerDragControls(){
+  $$('[data-volunteer-drag-handle]').forEach(handle=>{
+    handle.addEventListener('dragstart',e=>{
+      volunteerDragKey=handle.dataset.volunteerDragHandle||'';
+      if(e.dataTransfer){
+        e.dataTransfer.effectAllowed='move';
+        e.dataTransfer.setData('text/plain',volunteerDragKey);
+      }
+      const item=handle.closest('[data-volunteer-item]');
+      if(item)item.classList.add('dragging');
+    });
+    handle.addEventListener('dragend',()=>{volunteerDragKey='';clearVolunteerDragMarks();});
+  });
+  $$('[data-volunteer-item]').forEach(item=>{
+    item.addEventListener('dragover',e=>{
+      const targetKey=item.dataset.volunteerItem;
+      if(!volunteerDragKey||!targetKey||volunteerDragKey===targetKey)return;
+      e.preventDefault();
+      const rect=item.getBoundingClientRect();
+      const after=e.clientY>rect.top+rect.height/2;
+      item.classList.add('drag-over');
+      item.classList.toggle('drop-after',after);
+      item.classList.toggle('drop-before',!after);
+    });
+    item.addEventListener('dragleave',()=>item.classList.remove('drag-over','drop-after','drop-before'));
+    item.addEventListener('drop',e=>{
+      const targetKey=item.dataset.volunteerItem;
+      if(!volunteerDragKey||!targetKey||volunteerDragKey===targetKey)return;
+      e.preventDefault();
+      const after=item.classList.contains('drop-after');
+      const dragKey=volunteerDragKey;
+      volunteerDragKey='';
+      clearVolunteerDragMarks();
+      moveVolunteerKeyByDrop(dragKey,targetKey,after);
+    });
+  });
 }
 
 function xlsCell(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}

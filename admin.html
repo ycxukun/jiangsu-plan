@@ -111,6 +111,16 @@ body.compact-mode .group-quality-badge{padding:3px 7px;font-size:10px}
 .volunteer-toolbar .save{background:var(--green);border-color:var(--green);color:#fff}
 .volunteer-list{display:grid;gap:10px}
 .volunteer-item{border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px}
+
+.volunteer-title-wrap{display:flex;align-items:center;gap:8px;min-width:0}
+.volunteer-position-input{width:44px;height:28px;border:1px solid #b7dfc6;border-radius:999px;background:#f0faf4;color:var(--green);font-size:13px;font-weight:900;text-align:center;outline:none}
+.volunteer-position-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(10,124,66,.12);background:#fff}
+.volunteer-drag-handle{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-weight:900;cursor:grab;user-select:none}
+.volunteer-drag-handle:active{cursor:grabbing}
+.volunteer-item.dragging{opacity:.55}
+.volunteer-item.drag-over{border-color:#86d19f;background:#f7fffa}
+.volunteer-item.drop-before{box-shadow:0 -3px 0 var(--green)}
+.volunteer-item.drop-after{box-shadow:0 3px 0 var(--green)}
 .volunteer-item-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .volunteer-item-head b{font-size:15px}
 .volunteer-item-head p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
@@ -146,7 +156,7 @@ body.compact-mode .group-quality-badge{padding:3px 7px;font-size:10px}
 @media(max-width:640px){.selected-major-item{grid-template-columns:28px 1fr;align-items:start}.selected-major-item small{grid-column:2}.selected-major-item button{grid-column:auto}}
 body.compact-mode .volunteer-add-btn{padding:4px 8px;font-size:10px}
 body.compact-mode .volunteer-panel{width:min(840px,96vw)}
-@media(max-width:640px){.volunteer-panel,body.compact-mode .volunteer-panel{width:100vw}.volunteer-item-head{display:block}.volunteer-actions{justify-content:flex-start;margin-top:8px}.volunteer-meta-row{grid-template-columns:1fr}.major-picker-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.volunteer-panel,body.compact-mode .volunteer-panel{width:100vw}.volunteer-item-head{display:block}.volunteer-actions{justify-content:flex-start;margin-top:8px}.volunteer-meta-row{grid-template-columns:1fr}.major-picker-grid{grid-template-columns:1fr}.volunteer-title-wrap{flex-wrap:wrap}.volunteer-position-input{width:48px}}
 
 
 /* V1.1.7 group change drawer */
@@ -227,8 +237,6 @@ html,body{overflow-x:hidden}
 <script src="data-db-part-09.js"></script>
 <script src="data-db-part-10.js"></script>
 <script src="data-db-part-11.js"></script>
-<script src="data-db-part-12.js"></script>
-<script src="data-db-part-13.js"></script>
 <script src="data-db.js"></script>
 <script src="data-group-names.js"></script>
 <script src="data-group-changes.js"></script>
