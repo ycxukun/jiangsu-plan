@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.9 志愿基础表版';
+const VERSION='2026在招专业组版｜V1.1.11 新组预测分版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -29,10 +29,16 @@ let volunteerKeys=loadVolunteerKeys();
 let volunteerMajorKeys=loadVolunteerMajorKeys();
 let volunteerMeta=loadVolunteerMeta();
 let groupIndex=new Map();
+let majorRefs=[];
+let majorRefsBySchool=new Map();
+let majorRefsByBucket=new Map();
+let rankRefsBySubjectBatch=new Map();
+let predictionCache=new Map();
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));
 const fmt=v=>v===null||v===undefined||v===''?'—':String(v);
 const fmtNum=v=>v===null||v===undefined||v===''?'—':(typeof v==='number'?Number(v.toFixed? v.toFixed(1):v):v);
+const num=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const keySchool=s=>`${s.subject}|${s.batch}|${s.name}`;
 const keyGroup=(s,g)=>`${s.subject}|${s.batch}|${s.name}|${g.groupName}`;
@@ -124,6 +130,203 @@ function groupQuality(s,g){
 function groupQualityBadge(status){return `<span class="group-quality-badge ${status.tone}" title="${esc(status.title)}">${esc(status.label)}</span>`;}
 function groupChangeKey(s,g){return keyGroup(s,g);}
 function groupChangeData(s,g){return GROUP_CHANGES[groupChangeKey(s,g)]||null;}
+function pushMapList(map,key,value){
+  if(!map.has(key))map.set(key,[]);
+  map.get(key).push(value);
+}
+function detailOf(m){return DETAILS[m.key]||{};}
+function cleanMajorText(v){
+  return normalize(String(v||'')
+    .replace(/（[^）]*）|\([^)]*\)|\[[^\]]*\]|【[^】]*】/g,'')
+    .replace(/专业|大类|类$/g,''));
+}
+function majorInfo(m){
+  const d=detailOf(m);
+  const majorClass=m.majorClass||d.majorClass||'';
+  return {
+    name:m.name||d.name||'',
+    majorClass,
+    discipline:m.discipline||d.discipline||'',
+    undergraduateName:d.undergraduateName||'',
+    subjectMajor:d.subjectMajor||'',
+    bucket:classBucket(majorClass||m.name||d.undergraduateName),
+    base:cleanMajorText(d.undergraduateName||m.name||d.name)
+  };
+}
+function buildPredictionIndexes(){
+  majorRefs=[];
+  majorRefsBySchool=new Map();
+  majorRefsByBucket=new Map();
+  rankRefsBySubjectBatch=new Map();
+  predictionCache=new Map();
+  DB.forEach(s=>(s.groups||[]).forEach(g=>(g.majors||[]).forEach(m=>{
+    const score=num(m.score25);
+    if(score===null)return;
+    const rank=num(m.rank25);
+    const info=majorInfo(m);
+    const ref={s,g,m,score,rank,school:s.name,subject:s.subject,batch:s.batch,level:String(s.level||''),groupName:g.groupName,...info};
+    majorRefs.push(ref);
+    pushMapList(majorRefsBySchool,`${s.subject}|${s.batch}|${s.name}`,ref);
+    pushMapList(majorRefsByBucket,`${s.subject}|${s.batch}|${String(s.level||'')}|${info.bucket}`,ref);
+    pushMapList(majorRefsByBucket,`${s.subject}|${s.batch}|*|${info.bucket}`,ref);
+    if(rank!==null)pushMapList(rankRefsBySubjectBatch,`${s.subject}|${s.batch}`,{score,rank});
+  })));
+}
+function splitGroupNames(v){
+  return String(v||'').split(/[；;、,，/]+/).map(x=>x.trim()).filter(Boolean);
+}
+function changeSourceGroups(s,g){
+  const d=groupChangeData(s,g);
+  const names=new Set();
+  if(!d)return names;
+  splitGroupNames(d.group25).forEach(x=>names.add(x));
+  ['add','in','remove','out'].forEach(k=>(d.details?.[k]||[]).forEach(item=>{
+    splitGroupNames(item.from).forEach(x=>names.add(x));
+    splitGroupNames(item.to).forEach(x=>names.add(x));
+  }));
+  return names;
+}
+function majorSimilarity(m,ref,sourceGroups){
+  const info=majorInfo(m);
+  let score=0;
+  if(sourceGroups.has(ref.groupName))score+=70;
+  if(info.base&&ref.base){
+    if(info.base===ref.base)score+=90;
+    else if(info.base.includes(ref.base)||ref.base.includes(info.base))score+=55;
+  }
+  const text=normalize(info.name);
+  if(ref.base&&text.includes(ref.base))score+=30;
+  if(info.majorClass&&info.majorClass===ref.majorClass)score+=25;
+  if(info.bucket&&info.bucket===ref.bucket)score+=18;
+  if(info.discipline&&info.discipline===ref.discipline)score+=8;
+  const sm=normalize(info.subjectMajor), rm=normalize(ref.subjectMajor);
+  if(sm&&rm&&(sm.includes(rm)||rm.includes(sm)))score+=15;
+  return score;
+}
+function bestMajorReference(s,g,m){
+  const sourceGroups=changeSourceGroups(s,g);
+  const schoolRefs=majorRefsBySchool.get(`${s.subject}|${s.batch}|${s.name}`)||[];
+  const info=majorInfo(m);
+  const bucketRefs=majorRefsByBucket.get(`${s.subject}|${s.batch}|${String(s.level||'')}|${info.bucket}`)
+    ||majorRefsByBucket.get(`${s.subject}|${s.batch}|*|${info.bucket}`)||[];
+  const pick=(refs,minScore)=>{
+    let best=null;
+    refs.forEach(ref=>{
+      const match=majorSimilarity(m,ref,sourceGroups);
+      if(!best||match>best.match)best={ref,match};
+    });
+    return best&&best.match>=minScore?best:null;
+  };
+  const sourceRefs=schoolRefs.filter(ref=>sourceGroups.has(ref.groupName));
+  return pick(sourceRefs,50)||pick(schoolRefs,72)||pick(bucketRefs,98);
+}
+function predictionAdjustment(m,g){
+  const text=`${m.name||''} ${m.majorClass||''} ${(g.tags||[]).join(' ')} ${g.remark||''}`;
+  const size=(g.majors||[]).length;
+  let adj=0;
+  const reasons=[];
+  if(hotMajorPattern.test(text)&&!isColdMajor(m)){adj+=3; reasons.push('热门方向 +3');}
+  if(/人工智能|计算机科学与技术|软件工程|集成电路|微电子|口腔医学|临床医学|法学/.test(text)){adj+=2; reasons.push('强需求专业 +2');}
+  if(/至诚|拔尖|卓越|实验|试验|本博|八年|双学士|未来技术|创新班|书院/.test(text)){adj+=3; reasons.push('培养模式 +3');}
+  if(size===1){adj+=2; reasons.push('专业单列 +2');}
+  else if(size===2){adj+=1; reasons.push('小组单列 +1');}
+  const plan=num(m.plan26)||num(g.plan26);
+  if(plan!==null&&plan<=2){adj+=2; reasons.push('计划少 +2');}
+  else if(plan!==null&&plan<=5){adj+=1; reasons.push('计划偏少 +1');}
+  else if(plan!==null&&plan>=80){adj-=2; reasons.push('计划多 -2');}
+  else if(plan!==null&&plan>=30){adj-=1; reasons.push('计划偏多 -1');}
+  if(/中外合作|合作办学|学分互认|中澳|中美|中英|国际|境外|出国/.test(text)){adj-=8; reasons.push('合作/出国成本 -8');}
+  if(isColdMajor(m)){adj-=4; reasons.push('冷门或风险方向 -4');}
+  if(m.risk){adj-=2; reasons.push('已标风险 -2');}
+  return {adj:Math.max(-15,Math.min(12,adj)),reasons};
+}
+function estimateRankForScore(subject,batch,score,fallbackRank){
+  const fallback=num(fallbackRank);
+  const arr=rankRefsBySubjectBatch.get(`${subject}|${batch}`)||[];
+  if(!arr.length)return fallback;
+  let best=null;
+  arr.forEach(x=>{
+    const dist=Math.abs(x.score-score);
+    if(!best||dist<best.dist)best={...x,dist};
+  });
+  return best?Math.round(best.rank):fallback;
+}
+function predictMajorScore(s,g,m){
+  const avg=num(m.avgScore3);
+  if(avg!==null&&(m.avgYears||0)>=2){
+    const adj=predictionAdjustment(m,g);
+    const score=Math.round(avg+adj.adj);
+    return {score,rank:estimateRankForScore(s.subject,s.batch,score,m.avgRank3),confidence:'中',source:`本专业三年均分 ${fmtNum(avg)}`,adjustment:adj.reasons.join('；')};
+  }
+  const best=bestMajorReference(s,g,m);
+  if(!best)return null;
+  const adj=predictionAdjustment(m,g);
+  const score=Math.round(best.ref.score+adj.adj);
+  const confidence=best.match>=145?'高':best.match>=95?'中':'低';
+  return {
+    score,
+    rank:estimateRankForScore(s.subject,s.batch,score,best.ref.rank),
+    confidence,
+    source:`参考 ${best.ref.groupName}｜${best.ref.name} ${fmtNum(best.ref.score)}分`,
+    adjustment:adj.reasons.join('；')
+  };
+}
+function predictGroupScore(s,g){
+  if(num(g.score25)!==null)return null;
+  const cacheKey=keyGroup(s,g);
+  if(predictionCache.has(cacheKey))return predictionCache.get(cacheKey);
+  const scores=[];
+  (g.majors||[]).forEach(m=>{
+    const actual=num(m.score25);
+    if(actual!==null){
+      scores.push({score:actual,rank:num(m.rank25),confidence:'高',source:`${m.name} 25年真实分`,adjustment:''});
+      return;
+    }
+    const pred=predictMajorScore(s,g,m);
+    if(pred)scores.push(pred);
+  });
+  let result=null;
+  if(scores.length){
+    scores.sort((a,b)=>a.score-b.score);
+    const floor=scores[0];
+    const eq=num(g.score26Eq);
+    let score=floor.score;
+    if(eq!==null){
+      score=Math.round((eq*0.7)+(floor.score*0.3));
+      if(Math.abs(eq-floor.score)>18)score=Math.max(eq-12,Math.min(eq+8,score));
+    }
+    const rank=estimateRankForScore(s.subject,s.batch,score,floor.rank||g.rank26Eq);
+    const confidence=scores.some(x=>x.confidence==='高')?'中高':scores.some(x=>x.confidence==='中')?'中':'低';
+    const eqNote=eq!==null?`；26等效分参考 ${fmtNum(eq)}`:'';
+    result={score,rank,confidence,reason:`按组内最低参考专业估算：${floor.source}${floor.adjustment?`；修正：${floor.adjustment}`:''}${eqNote}`};
+  }else if(num(g.score26Eq)!==null){
+    const score=Math.round(num(g.score26Eq));
+    result={score,rank:num(g.rank26Eq),confidence:'中',reason:`使用现有 26 等效分参考 ${fmtNum(score)}`};
+  }else{
+    const peerScores=(s.groups||[]).filter(x=>x!==g&&num(x.score25)!==null).map(x=>num(x.score25)).sort((a,b)=>a-b);
+    if(peerScores.length){
+      const score=Math.round(peerScores[0]);
+      result={score,rank:estimateRankForScore(s.subject,s.batch,score,null),confidence:'低',reason:`同校同批已有专业组最低分参考 ${fmtNum(score)}，缺少直接专业锚点`};
+    }
+  }
+  predictionCache.set(cacheKey,result);
+  return result;
+}
+function groupScoreEstimate(s,g){return num(g.score25)===null?predictGroupScore(s,g):null;}
+function predictionBadgeHTML(s,g){
+  const p=groupScoreEstimate(s,g);
+  return p?`<span class="badge green" title="${esc(p.reason)}">预测分 ${esc(fmtNum(p.score))}｜${esc(p.confidence)}</span>`:'';
+}
+function groupScoreMiniHTML(s,g){
+  const p=groupScoreEstimate(s,g);
+  if(p)return `<div class="mini" title="${esc(p.reason)}"><b>${esc(fmtNum(p.score))}</b><span>预测分</span></div><div class="mini" title="${esc(p.reason)}"><b>${esc(fmtNum(p.rank))}</b><span>预测位次</span></div>`;
+  return `<div class="mini"><b>${fmtNum(g.score25)}</b><span>25分</span></div><div class="mini"><b>${fmtNum(g.rank25)}</b><span>25位次</span></div>`;
+}
+function groupScoreLineHTML(s,g){
+  const p=groupScoreEstimate(s,g);
+  if(p)return `预测分 ${esc(fmtNum(p.score))}｜预测位次 ${esc(fmtNum(p.rank))} <span class="note-badge" title="${esc(p.reason)}">估</span>`;
+  return `25分 ${fmtNum(g.score25)}｜25位次 ${fmtNum(g.rank25)}`;
+}
 function groupChangeButtonHTML(s,g,variant){
   const data=groupChangeData(s,g);
   const cls=`change-btn ${variant||''} ${data?'':'muted'}`.trim();
@@ -221,7 +424,7 @@ function bindScoreInputs(){
   $('#applyScoreBtn').addEventListener('click',()=>{const target=+$('#targetScoreInput').value, down=+$('#downInput').value, up=+$('#upInput').value;state.scoreRange={target,down,up,min:target-down,max:target+up};$('#scoreBtn').textContent=`分数 ${target-down}—${target+up}`;closePanel('scorePanel');applyFilters();});
   $('#clearScoreBtn').addEventListener('click',()=>{state.scoreRange=null;$('#scoreBtn').textContent='目标分区间';closePanel('scorePanel');applyFilters();});
 }
-function updateRangeSummary(){const t=+$('#targetScoreInput').value||0,d=+$('#downInput').value||0,u=+$('#upInput').value||0;$('#rangeSummary').textContent=`目标分：${t}｜下浮${d}｜上浮${u}｜区间${t-d}—${t+u}`;}
+function updateRangeSummary(){const t=+$('#targetScoreInput').value||0,d=+$('#downInput').value||0,u=+$('#upInput').value||0;$('#rangeSummary').textContent=`目标分：${t}｜下浮${d}｜上浮${u}｜区间${t-d}—${t+u}｜含新增组预测分`;}
 function openPanel(id){$('#'+id).classList.add('open');}
 function closePanel(id){$('#'+id).classList.remove('open');}
 function toggleHeader(){
@@ -287,7 +490,15 @@ function updateLevelButton(){const n=state.selectedLevels.size; $('#levelBtn').t
 function updateRequirementButton(){const n=state.selectedRequirements.size; $('#requirementBtn').textContent=n===0?'选科要求':n===1?[...state.selectedRequirements][0]:`已选 ${n} 个选科要求`;}
 function updateClassButton(){const n=state.selectedClasses.size; $('#classBtn').textContent=n===0?'全部专业大类':n===1?[...state.selectedClasses][0]:`已选 ${n} 个专业大类`;}
 function groupMatchesSearch(s,g,q){if(!q)return true; const nq=normalize(q); if(normalize(s.name+s.province+s.city+s.subject+s.batch).includes(nq))return true; if(normalize(g.groupName+groupDisplayName(s,g)+g.requirement+(g.tags||[]).join('')+(g.majorClasses||[]).join('')+g.majorSummary).includes(nq))return true; return g.majors.some(m=>normalize(m.name+m.majorClass+m.discipline+m.code).includes(nq));}
-function groupMatchesScore(g){if(!state.scoreRange)return true; const scores=[]; if(g.score25)scores.push(g.score25); g.majors.forEach(m=>{if(m.score25)scores.push(m.score25)}); return scores.some(sc=>sc>=state.scoreRange.min&&sc<=state.scoreRange.max);}
+function groupMatchesScore(s,g){
+  if(!state.scoreRange)return true;
+  const scores=[];
+  if(num(g.score25)!==null)scores.push(num(g.score25));
+  g.majors.forEach(m=>{if(num(m.score25)!==null)scores.push(num(m.score25));});
+  const p=groupScoreEstimate(s,g);
+  if(p&&num(p.score)!==null)scores.push(num(p.score));
+  return scores.some(sc=>sc>=state.scoreRange.min&&sc<=state.scoreRange.max);
+}
 function groupMatchesClass(g){if(!state.selectedClasses.size)return true; return (g.majorClasses||[]).some(c=>state.selectedClasses.has(c));}
 function groupMatchesRequirement(g){if(!state.selectedRequirements.size)return true; return state.selectedRequirements.has(String(g.requirement||'').trim());}
 function applyFilters(){
@@ -297,7 +508,7 @@ function applyFilters(){
     if(state.subject&&s.subject!==state.subject)return;
     if(state.selectedProvinces.size&&!state.selectedProvinces.has(s.province))return;
     if(state.selectedLevels.size&&!state.selectedLevels.has(String(s.level)))return;
-    const groups=s.groups.filter(g=>{if(state.role&&!(g.tags||[]).includes(state.role))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
+    const groups=s.groups.filter(g=>{if(state.role&&!(g.tags||[]).includes(state.role))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
     if(groups.length){result.push({...s,visibleGroups:groups});}
   });
   result.sort(schoolSort);
@@ -335,7 +546,7 @@ function renderSchoolMode(){const s=getActiveSchool(); if(!s){$('#main').innerHT
 function renderGroupMode(){
   const groups=[]; state.filtered.forEach(s=>s.visibleGroups.forEach(g=>groups.push([s,g])));
   const limit=120; const shown=groups.slice(0,limit);
-  $('#main').innerHTML=`<div class="school-header"><div class="school-title"><h2>专业组视图</h2><span class="badge green">当前显示 ${shown.length} / ${groups.length} 组</span></div><div class="badges"><span class="badge">按院校加权均分排序</span><span class="badge">每所院校下按专业组 25 分排序</span></div></div>`+shown.map(([s,g])=>groupSectionHTML(s,g)).join('')+(groups.length>limit?`<div class="empty">为保证浏览器性能，当前展示前 ${limit} 个专业组；可以继续缩小筛选条件。</div>`:'');
+  $('#main').innerHTML=`<div class="school-header"><div class="school-title"><h2>专业组视图</h2><span class="badge green">当前显示 ${shown.length} / ${groups.length} 组</span></div><div class="badges"><span class="badge">按院校加权均分排序</span><span class="badge">分数筛选含新增组预测分</span></div></div>`+shown.map(([s,g])=>groupSectionHTML(s,g)).join('')+(groups.length>limit?`<div class="empty">为保证浏览器性能，当前展示前 ${limit} 个专业组；可以继续缩小筛选条件。</div>`:'');
   bindDynamic();
 }
 function schoolHTML(s,groups,withCards){
@@ -349,13 +560,13 @@ function groupCardHTML(s,g){
   const topTags=[...(g.tags||[]).slice(0,3),...(g.majorClasses||[]).slice(0,3)];
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid"><div class="mini"><b>${fmtNum(g.score25)}</b><span>25分</span></div><div class="mini"><b>${fmtNum(g.rank25)}</b><span>25位次</span></div><div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
+  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜25分 ${fmtNum(g.score25)}｜25位次 ${fmtNum(g.rank25)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?`<br><span class="muted">${m.avgYears}年均值</span>`:'';
@@ -397,6 +608,7 @@ function closeModal(){$('#modalMask').classList.remove('open');}
 function buildGroupIndex(){
   groupIndex=new Map();
   DB.forEach(s=>(s.groups||[]).forEach(g=>groupIndex.set(keyGroup(s,g),{s,g})));
+  buildPredictionIndexes();
   volunteerKeys=[...new Set(volunteerKeys)].filter(k=>groupIndex.has(k)).slice(0,VOLUNTEER_LIMIT);
   volunteerKeys.forEach(ensureVolunteerSelection);
   saveVolunteerKeys();
@@ -521,7 +733,7 @@ function volunteerRowHTML(key,index){
   const quality=groupQuality(s,g);
   const change=groupChangeData(s,g);
   const planDiff=(g.plan26||0)-(g.plan25||0);
-  return `<article class="volunteer-item" data-volunteer-item="${esc(key)}"><div class="volunteer-item-head"><div><b>${index+1}. ${esc(s.name)} ${esc(g.groupName)}</b><p>${esc(s.province)}｜${esc(s.subject)}｜${esc(s.batch)}｜再选 ${esc(g.requirement||'—')}｜25分 ${fmtNum(g.score25)}｜26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</p></div><div class="volunteer-actions"><button data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>上移</button><button data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>下移</button><button data-volunteer-remove="${esc(key)}">删除</button></div></div><div class="volunteer-meta-row"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label><label>服从调剂<select data-volunteer-meta="${esc(key)}" data-field="obey"><option value="是" ${meta.obey!=='否'?'selected':''}>是</option><option value="否" ${meta.obey==='否'?'selected':''}>否</option></select></label><input data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注，例如校区/学费/调剂风险"></div><div class="tag-row"><span class="group-quality-badge ${quality.tone}">${esc(quality.label)}</span><span class="badge">${esc(groupDisplayName(s,g)||'未命名')}</span>${change?`<span class="badge ${change.advice==='重点核对'?'red':'green'}">${esc(change.status||'变迁')}</span>`:''}</div><details class="major-picker" open><summary>已选专业 ${selected.size} / ${majors.length}</summary><div class="major-picker-actions"><button data-major-preset="${esc(key)}" data-preset="top6">默认前6</button><button data-major-preset="${esc(key)}" data-preset="all">全选</button><button data-major-preset="${esc(key)}" data-preset="none">清空</button></div><div class="major-picker-grid">${majors.map(m=>`<label class="major-check ${m.risk?'risk':''}"><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${selected.has(m.key)?'checked':''}>${esc(m.name)}${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></label>`).join('')}</div></details></article>`;
+  return `<article class="volunteer-item" data-volunteer-item="${esc(key)}"><div class="volunteer-item-head"><div><b>${index+1}. ${esc(s.name)} ${esc(g.groupName)}</b><p>${esc(s.province)}｜${esc(s.subject)}｜${esc(s.batch)}｜再选 ${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</p></div><div class="volunteer-actions"><button data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>上移</button><button data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>下移</button><button data-volunteer-remove="${esc(key)}">删除</button></div></div><div class="volunteer-meta-row"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label><label>服从调剂<select data-volunteer-meta="${esc(key)}" data-field="obey"><option value="是" ${meta.obey!=='否'?'selected':''}>是</option><option value="否" ${meta.obey==='否'?'selected':''}>否</option></select></label><input data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注，例如校区/学费/调剂风险"></div><div class="tag-row"><span class="group-quality-badge ${quality.tone}">${esc(quality.label)}</span>${predictionBadgeHTML(s,g)}<span class="badge">${esc(groupDisplayName(s,g)||'未命名')}</span>${change?`<span class="badge ${change.advice==='重点核对'?'red':'green'}">${esc(change.status||'变迁')}</span>`:''}</div><details class="major-picker" open><summary>已选专业 ${selected.size} / ${majors.length}</summary><div class="major-picker-actions"><button data-major-preset="${esc(key)}" data-preset="top6">默认前6</button><button data-major-preset="${esc(key)}" data-preset="all">全选</button><button data-major-preset="${esc(key)}" data-preset="none">清空</button></div><div class="major-picker-grid">${majors.map(m=>`<label class="major-check ${m.risk?'risk':''}"><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${selected.has(m.key)?'checked':''}>${esc(m.name)}${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></label>`).join('')}</div></details></article>`;
 }
 function bindVolunteerPanelControls(){
   $$('[data-volunteer-remove]').forEach(btn=>btn.addEventListener('click',()=>removeVolunteerKey(btn.dataset.volunteerRemove)));
@@ -554,13 +766,12 @@ function excelColumns(headers,widths=[]){return headers.map((h,i)=>`<Column ss:I
 function excelWorksheet(name,headers,rows,widths){
   return `<Worksheet ss:Name="${xlsCell(name)}"><Table>${excelColumns(headers,widths)}${excelRow(headers,'header')}${rows.map(r=>Array.isArray(r)?excelRow(r):excelRow(r.values,r.style)).join('')}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>`;
 }
-function scoreHistoryText(m){
-  const item=(year,score,rank)=>score||rank?`${year} ${fmtNum(score)}分/${fmtNum(rank)}位`:'';
-  return [item('25年',m.score25,m.rank25),item('24年',m.score24,m.rank24),item('23年',m.score23,m.rank23)].filter(Boolean).join('；')||'—';
+function excelMetric(v){
+  return v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
 }
 function exportVolunteerXlsx(){
-  const headers=['志愿序号','院校代码','专业组名称','专业序号','专业代码','专业名称','往年收分','招生人数','是否已选'];
-  const widths=[58,80,190,58,70,280,230,70,70];
+  const headers=['志愿序号','院校代码','专业组名称','专业序号','专业代码','专业名称','25年分数','25年位次','3年平均分','3年平均位次','招生人数','是否已选'];
+  const widths=[58,80,190,58,70,260,78,88,86,100,70,70];
   const rows=[];
   for(let i=0;i<volunteerKeys.length;i++){
     const key=volunteerKeys[i];
@@ -581,29 +792,36 @@ function exportVolunteerXlsx(){
         j+1,
         m.code||'',
         m.name||'',
-        scoreHistoryText(m),
-        m.plan26||'',
+        excelMetric(m.score25),
+        excelMetric(m.rank25),
+        excelMetric(m.avgScore3),
+        excelMetric(m.avgRank3),
+        excelMetric(m.plan26),
         isSelected?'已选':'未选'
       ]:[
         {index:4,value:j+1},
         m.code||'',
         m.name||'',
-        scoreHistoryText(m),
-        m.plan26||'',
+        excelMetric(m.score25),
+        excelMetric(m.rank25),
+        excelMetric(m.avgScore3),
+        excelMetric(m.avgRank3),
+        excelMetric(m.plan26),
         isSelected?'已选':'未选'
       ];
       rows.push({style,values:row});
     });
   }
+  const thinBorder='<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/></Borders>';
   const workbook=`<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
-<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11"/></Style>
-<Style ss:ID="header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A7C42" ss:Pattern="Solid"/></Style>
-<Style ss:ID="groupMerge"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#E8F1EC" ss:Pattern="Solid"/></Style>
-<Style ss:ID="selected"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1" ss:Color="#0A7C42"/><Interior ss:Color="#F0FFF5" ss:Pattern="Solid"/></Style>
-<Style ss:ID="risk"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Color="#B91C1C"/><Interior ss:Color="#FFF1F1" ss:Pattern="Solid"/></Style>
+<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11"/>${thinBorder}</Style>
+<Style ss:ID="header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A7C42" ss:Pattern="Solid"/>${thinBorder}</Style>
+<Style ss:ID="groupMerge"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#E8F1EC" ss:Pattern="Solid"/>${thinBorder}</Style>
+<Style ss:ID="selected"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1" ss:Color="#0A7C42"/><Interior ss:Color="#F0FFF5" ss:Pattern="Solid"/>${thinBorder}</Style>
+<Style ss:ID="risk"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Color="#B91C1C"/><Interior ss:Color="#FFF1F1" ss:Pattern="Solid"/>${thinBorder}</Style>
 </Styles>
 ${excelWorksheet('志愿基础表',headers,rows,widths)}
 </Workbook>`;
