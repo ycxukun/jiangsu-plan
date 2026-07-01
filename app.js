@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.37 保研双非层次修正版';
+const VERSION='2026在招专业组版｜V1.1.38 纯圆形回顶悬浮球版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -413,7 +413,7 @@ function createLayout(){
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
-    <button id="backTopBtn" class="back-top" type="button" title="回到顶部" aria-label="回到顶部">↑</button>
+    <button id="backTopBtn" class="back-top" type="button" title="" aria-label="向上">↑</button>
     <div class="footer">GitHub Pages 静态部署版 · 数据分片加载 · 公开页只读 / 管理员页可写备注</div>
   </div>`;
 }
