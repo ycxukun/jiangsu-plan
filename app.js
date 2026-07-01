@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.23 导出与悬浮修正版';
+const VERSION='2026在招专业组版｜V1.1.24 未选专业标红导出版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -1090,24 +1090,29 @@ function exportVolunteerXlsx(){
     const items=majorItems.length?majorItems:[{m:null,order:'',selected:false}];
     const span=items.length;
     const merge=span>1?span-1:0;
-    const groupTitle=groupShortTitle(s,g);
+    const selectedCount=selectedMajorOrder(key).length;
+    const totalMajors=(g.majors||[]).length;
+    const groupTitle=`${groupShortTitle(s,g)}（${selectedCount}-${totalMajors}）`;
     const groupInfo=groupExportInfo(s,g);
     items.forEach((item,idx)=>{
       const m=item.m;
       const selected=item.selected;
       const status=selected?`已选第${item.order}专业`:'未选';
+      const majorSeqStyle=selected?'seq':'unselectedSeq';
+      const majorTextStyle=selected?'body':'unselected';
+      const majorNumStyle=selected?'num':'unselectedNum';
       const majorCells=[
-        {value:m?item.order:'',style:'seq',index:5},
-        {value:m?(m.code||''):'',style:'body'},
-        {value:m?(m.name||'未选择具体专业'):'未选择具体专业',style:'body'},
-        {value:m?valueOrBlank(m.plan26):'',style:'num'},
-        {value:m?valueOrBlank(m.plan25):'',style:'num'},
-        {value:m?valueOrBlank(m.score25):'',style:'num'},
-        {value:m?valueOrBlank(m.rank25):'',style:'num'},
-        {value:m?valueOrBlank(m.avgScore3):'',style:'num'},
-        {value:m?valueOrBlank(m.avgRank3):'',style:'num'}
+        {value:m?item.order:'',style:majorSeqStyle,index:5},
+        {value:m?(m.code||''):'',style:majorTextStyle},
+        {value:m?(m.name||'未选择具体专业'):'未选择具体专业',style:majorTextStyle},
+        {value:m?valueOrBlank(m.plan26):'',style:majorNumStyle},
+        {value:m?valueOrBlank(m.plan25):'',style:majorNumStyle},
+        {value:m?valueOrBlank(m.score25):'',style:majorNumStyle},
+        {value:m?valueOrBlank(m.rank25):'',style:majorNumStyle},
+        {value:m?valueOrBlank(m.avgScore3):'',style:majorNumStyle},
+        {value:m?valueOrBlank(m.avgRank3):'',style:majorNumStyle}
       ];
-      const statusCell={value:status,style:'body'};
+      const statusCell={value:status,style:selected?'body':'unselectedStatus'};
       if(idx===0){
         rows.push([
           {value:i+1,style:'seq',mergeDown:merge},
@@ -1153,6 +1158,10 @@ function exportVolunteerXlsx(){
 <Style ss:ID="seq"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1"/>${thinBorder}</Style>
 <Style ss:ID="num"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10"/>${thinBorder}</Style>
 <Style ss:ID="note"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Color="#374151"/><Interior ss:Color="#FAFAFA" ss:Pattern="Solid"/>${thinBorder}</Style>
+<Style ss:ID="unselected"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Color="#B91C1C"/>${thinBorder}</Style>
+<Style ss:ID="unselectedSeq"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1" ss:Color="#B91C1C"/>${thinBorder}</Style>
+<Style ss:ID="unselectedNum"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Color="#B91C1C"/>${thinBorder}</Style>
+<Style ss:ID="unselectedStatus"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1" ss:Color="#B91C1C"/>${thinBorder}</Style>
 </Styles>
 <Worksheet ss:Name="志愿基础表"><Table>${columns}${topRows}${body}</Table><AutoFilter x:Range="R2C1:R${lastRow}C${lastCol}" xmlns="urn:schemas-microsoft-com:office:excel"/><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>
 </Workbook>`;
