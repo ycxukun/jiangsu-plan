@@ -359,6 +359,37 @@ body.compact-mode .info-kv{grid-template-columns:112px minmax(0,1fr);gap:6px 10p
 @media(max-width:640px){.info-kv{grid-template-columns:1fr}.info-kv dt{margin-top:6px}.school-title-main{width:100%}}
 
 </style>
+<style>
+/* V1.1.34 filter UX + light school-info entry */
+.school-title-main{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important}
+.school-info-link{appearance:none!important;border:0!important;background:transparent!important;color:var(--green)!important;padding:2px 0!important;border-radius:0!important;border-bottom:1px solid rgba(10,124,66,.28)!important;font-size:12px!important;font-weight:800!important;line-height:1.3!important;box-shadow:none!important;outline:none!important}
+.school-info-link:hover{background:linear-gradient(transparent 58%,rgba(10,124,66,.10) 58%)!important;border-bottom-color:var(--green)!important;color:#075f33!important}
+.facet-panel,body.compact-mode .facet-panel{width:min(720px,94vw)!important;max-width:720px!important}
+.facet-panel .panel-body{padding:0!important;display:flex;flex-direction:column;min-height:0;background:#fff}
+.facet-top{position:sticky;top:0;z-index:3;background:#fff;border-bottom:1px solid var(--line);padding:14px 18px 12px}
+.facet-help{font-size:12px;line-height:1.55;color:var(--muted);margin-bottom:10px}
+.facet-search{width:100%;height:40px;border:1px solid var(--line);border-radius:14px;background:#fbfdfc;padding:0 12px;outline:none}
+.facet-search:focus{border-color:#9fd8b7;box-shadow:0 0 0 3px rgba(10,124,66,.10);background:#fff}
+.facet-selected{margin-bottom:10px;min-height:34px}
+.facet-selected-title{font-size:12px;color:var(--muted);font-weight:800;margin-bottom:7px}
+.facet-selected-empty{font-size:12px;color:var(--muted);border:1px dashed #dbe8e0;background:#fbfdfc;border-radius:14px;padding:8px 10px}
+.facet-selected-chips{display:flex;flex-wrap:wrap;gap:6px}
+.facet-selected-chips button{border:1px solid #b7dfc6;background:#f0faf4;color:var(--green);border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}
+.facet-selected-chips button:hover{background:#e6f6ec;border-color:#8ed2aa}
+.facet-section-list{padding:14px 18px 84px;display:grid;gap:14px}
+.facet-section{border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
+.facet-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;background:#f8fbf9;border-bottom:1px solid var(--line)}
+.facet-section-head h4{margin:0;font-size:14px;color:#213429}.facet-section-head h4 span{color:var(--muted);font-size:12px;font-weight:700}
+.facet-section-head div{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.facet-section-head button{border:1px solid #cfe6d8;background:#fff;color:var(--green);border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800}
+.facet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:12px}
+.facet-option{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:7px 9px;font-size:12px;color:#28392f;min-width:0;transition:.12s ease}
+.facet-option span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.facet-option em{font-style:normal;color:var(--muted);font-size:11px}.facet-option:hover{border-color:#b7dfc6;background:#fbfffc}.facet-option.checked{border-color:#8ed2aa;background:#f0faf4;color:#064d2b;font-weight:800}.facet-option.checked em{color:var(--green)}
+.facet-footer{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 18px;display:flex;justify-content:flex-end;gap:10px;z-index:4;box-shadow:0 -10px 24px rgba(0,0,0,.04)}
+.facet-footer button{border:1px solid var(--line);border-radius:12px;padding:9px 13px;background:#fff;font-weight:800;color:#24352b}.facet-footer .save{background:var(--green);border-color:var(--green);color:#fff}.facet-footer button:hover{background:#f6faf8}.facet-footer .save:hover{background:#076c3a}
+@media(max-width:720px){.facet-panel,body.compact-mode .facet-panel{width:100vw!important;max-width:none!important}.facet-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.facet-section-list{padding-left:12px;padding-right:12px}.facet-top,.facet-footer{padding-left:12px;padding-right:12px}}
+@media(max-width:440px){.facet-grid{grid-template-columns:1fr}}
+</style>
+
 </head>
 <body data-admin="0">
 <noscript>本系统需要启用 JavaScript。</noscript>

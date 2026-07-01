@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.33 院校专业基础信息弹层版';
+const VERSION='2026在招专业组版｜V1.1.34 筛选交互优化版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -14,6 +14,22 @@ const GISCUS_CONFIG={
 };
 const disciplineOrder=['工学','理学','农学','医学','经济学','管理学','法学','教育学','文学/历史/哲学','艺术学','其他'];
 const hotOrder=['计算机类','电子信息类','电气类','自动化类','机械类','临床医学类','口腔医学类','金融学类','法学类','数学类','统计学类'];
+const provinceRegionGroups=[
+  {title:'华东',items:['江苏','上海','浙江','安徽','福建','山东','江西']},
+  {title:'华北',items:['北京','天津','河北','山西','内蒙古']},
+  {title:'华中',items:['湖北','湖南','河南']},
+  {title:'华南',items:['广东','广西','海南','香港']},
+  {title:'西南',items:['四川','重庆','贵州','云南','西藏']},
+  {title:'西北',items:['陕西','甘肃','青海','宁夏','新疆']},
+  {title:'东北',items:['辽宁','吉林','黑龙江']}
+];
+const levelFacetGroups=[
+  {title:'国家层次',items:['985','211','双一流']},
+  {title:'常规层次',items:['双非','民办']},
+  {title:'办学性质',items:['公办','中外合作办学机构']},
+  {title:'院校类型',items:['综合类','理工类','师范类','医药类','财经类','政法类','农林类']},
+  {title:'行业标签',items:['电力','邮电','交通','水利','航空航天','兵器','石油']}
+];
 let DB=Array.isArray(window.DB)?window.DB:[];
 let DETAILS=window.MAJOR_DETAILS||{};
 let GROUP_NAMING=window.GROUP_NAMING||{};
@@ -376,10 +392,10 @@ function createLayout(){
       </div>
     </header>
     <div class="layout"><aside class="sidebar"><div class="side-head"><strong>院校索引</strong><span id="resultMeta">正在加载数据</span></div><div id="schoolList" class="school-list"></div></aside><main id="main" class="main"></main></div>
-    <div id="provincePanel" class="panel"><div class="panel-head"><h3>省份多选筛选</h3><button class="close-btn" data-close="provincePanel">×</button></div><div class="panel-body"><div id="provincePanelBody"></div></div></div>
-    <div id="levelPanel" class="panel"><div class="panel-head"><h3>院校层次多选</h3><button class="close-btn" data-close="levelPanel">×</button></div><div class="panel-body"><div id="levelPanelBody"></div></div></div>
-    <div id="requirementPanel" class="panel"><div class="panel-head"><h3>选科要求多选筛选</h3><button class="close-btn" data-close="requirementPanel">×</button></div><div class="panel-body"><div id="requirementPanelBody"></div></div></div>
-    <div id="classPanel" class="panel"><div class="panel-head"><h3>专业大类二级多选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
+    <div id="provincePanel" class="panel facet-panel"><div class="panel-head"><h3>地区筛选</h3><button class="close-btn" data-close="provincePanel">×</button></div><div class="panel-body"><div id="provincePanelBody"></div></div></div>
+    <div id="levelPanel" class="panel facet-panel"><div class="panel-head"><h3>院校层次筛选</h3><button class="close-btn" data-close="levelPanel">×</button></div><div class="panel-body"><div id="levelPanelBody"></div></div></div>
+    <div id="requirementPanel" class="panel facet-panel"><div class="panel-head"><h3>选科要求筛选</h3><button class="close-btn" data-close="requirementPanel">×</button></div><div class="panel-body"><div id="requirementPanelBody"></div></div></div>
+    <div id="classPanel" class="panel facet-panel"><div class="panel-head"><h3>专业大类筛选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
     <div id="changePanel" class="panel change-panel"><div class="panel-head"><div><h3>专业组变迁</h3><p id="changePanelTitle" class="panel-subtitle"></p></div><button class="close-btn" data-close="changePanel">×</button></div><div id="changePanelBody" class="panel-body"></div></div>
     <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
@@ -409,10 +425,10 @@ function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g
 function bindEvents(){
   ['batchFilter','subjectFilter','roleFilter','modeFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; if(id==='modeFilter')state.mode=e.target.value; applyFilters();}));
   $('#searchInput').addEventListener('input',e=>{state.q=e.target.value; applyFilters();});
-  $('#provinceBtn').addEventListener('click',()=>openPanel('provincePanel'));
-  $('#levelBtn').addEventListener('click',()=>openPanel('levelPanel'));
-  $('#requirementBtn').addEventListener('click',()=>openPanel('requirementPanel'));
-  $('#classBtn').addEventListener('click',()=>openPanel('classPanel'));
+  $('#provinceBtn').addEventListener('click',()=>{buildProvincePanel();openPanel('provincePanel')});
+  $('#levelBtn').addEventListener('click',()=>{buildLevelPanel();openPanel('levelPanel')});
+  $('#requirementBtn').addEventListener('click',()=>{buildRequirementPanel();openPanel('requirementPanel')});
+  $('#classBtn').addEventListener('click',()=>{buildClassPanel();openPanel('classPanel')});
   $('#scoreBtn').addEventListener('click',()=>{updateRangeSummary();openPanel('scorePanel')});
   $('#volunteerPanelBtn').addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
   $('#fillVolunteerBtn').addEventListener('click',fillVolunteerFromCurrentFilters);
@@ -468,24 +484,83 @@ function isValidFacetValue(v){
   if(/^#(VALUE|N\/A|DIV\/0|NAME|NULL|NUM)!?$/i.test(t))return false;
   return true;
 }
-function buildCheckPanel(panelId, items, counterMap, setRef, buttonUpdater, clearLabel){
-  const body=typeof panelId==='string' ? document.getElementById(panelId.replace(/^#/,'')) : panelId;
-  if(!body){console.error('筛选面板容器不存在：',panelId);return;}
-  const baseId=String(panelId).replace(/^#/,'').replace('Body','');
-  const clearBtnId=baseId+'ClearBtn';
-  body.innerHTML=`<div class="class-grid">${items.map(v=>`<label class="class-chip"><input type="checkbox" value="${esc(v)}" ${setRef.has(v)?'checked':''}>${esc(v)} <span class="muted">${counterMap.get(v)||0}</span></label>`).join('')}</div><div class="modal-actions"><button id="${clearBtnId}">${clearLabel}</button></div>`;
-  body.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{setRef.clear(); body.querySelectorAll('input[type=checkbox]:checked').forEach(x=>setRef.add(x.value)); buttonUpdater(); applyFilters();}));
-  document.getElementById(clearBtnId).addEventListener('click',()=>{body.querySelectorAll('input[type=checkbox]').forEach(x=>x.checked=false); setRef.clear(); buttonUpdater(); applyFilters();});
+function countGet(counterMap,key){return counterMap&&typeof counterMap.get==='function'?(counterMap.get(key)||0):0;}
+function selectedSummary(defaultText,setRef,unit){
+  const arr=[...setRef];
+  if(!arr.length)return defaultText;
+  return arr.length===1?arr[0]:`${arr[0]} +${arr.length-1}`;
+}
+function groupsFromOrderedItems(items,counts,groupDefs,otherTitle='其他'){
+  const itemSet=new Set(items);
+  const used=new Set();
+  const out=[];
+  groupDefs.forEach(def=>{
+    const arr=(def.items||[]).filter(x=>itemSet.has(x)&&countGet(counts,x)>0);
+    arr.forEach(x=>used.add(x));
+    if(arr.length)out.push({title:def.title,items:arr});
+  });
+  const other=items.filter(x=>!used.has(x));
+  if(other.length)out.push({title:otherTitle,items:other});
+  return out;
+}
+function renderFacetPanel(opts){
+  const {panelId,bodyId,title,searchPlaceholder,groups,counts,setRef,buttonUpdater,clearLabel}=opts;
+  const body=document.getElementById(bodyId);
+  if(!body){console.error('筛选面板容器不存在：',bodyId);return;}
+  const draft=new Set([...setRef]);
+  const groupPayloads=groups.map(g=>g.items||[]);
+  body.innerHTML=`
+    <div class="facet-top">
+      <div class="facet-help">先在面板内勾选，最后点“应用筛选”；支持搜索、分组全选和单项取消。</div>
+      <div class="facet-selected" data-facet-selected></div>
+      <input class="facet-search" type="search" placeholder="${esc(searchPlaceholder||'搜索选项')}">
+    </div>
+    <div class="facet-section-list">
+      ${groups.map((g,idx)=>`<section class="facet-section" data-facet-section>
+        <div class="facet-section-head"><h4>${esc(g.title)} <span>${(g.items||[]).length}</span></h4><div><button type="button" data-facet-group-select="${idx}">全选</button><button type="button" data-facet-group-clear="${idx}">清空</button></div></div>
+        <div class="facet-grid">${(g.items||[]).map(v=>`<label class="facet-option" data-facet-item data-search="${esc(v)}"><input type="checkbox" data-facet-value value="${esc(v)}" ${draft.has(v)?'checked':''}><span>${esc(v)}</span><em>${countGet(counts,v)}</em></label>`).join('')}</div>
+      </section>`).join('')}
+    </div>
+    <div class="facet-footer"><button type="button" data-facet-clear>${esc(clearLabel||'清空全部')}</button><button type="button" data-facet-cancel>取消</button><button type="button" class="save" data-facet-apply>应用筛选</button></div>`;
+  const cbs=()=>Array.from(body.querySelectorAll('input[data-facet-value]'));
+  function syncChecks(){
+    cbs().forEach(cb=>{cb.checked=draft.has(cb.value); cb.closest('.facet-option')?.classList.toggle('checked',cb.checked);});
+    const selected=body.querySelector('[data-facet-selected]');
+    const arr=[...draft];
+    selected.innerHTML=arr.length?`<div class="facet-selected-title">已选 ${arr.length} 项</div><div class="facet-selected-chips">${arr.map(v=>`<button type="button" data-facet-remove="${esc(v)}">${esc(v)} ×</button>`).join('')}</div>`:`<div class="facet-selected-empty">尚未选择，默认不过滤。</div>`;
+    selected.querySelectorAll('[data-facet-remove]').forEach(btn=>btn.addEventListener('click',()=>{draft.delete(btn.dataset.facetRemove);syncChecks();}));
+  }
+  function filterOptions(){
+    const q=normalize(body.querySelector('.facet-search')?.value||'');
+    body.querySelectorAll('[data-facet-item]').forEach(el=>{
+      const show=!q||normalize(el.dataset.search||el.textContent).includes(q);
+      el.style.display=show?'':'none';
+    });
+    body.querySelectorAll('[data-facet-section]').forEach(sec=>{
+      const any=Array.from(sec.querySelectorAll('[data-facet-item]')).some(el=>el.style.display!=='none');
+      sec.style.display=any?'':'none';
+    });
+  }
+  cbs().forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked)draft.add(cb.value);else draft.delete(cb.value);syncChecks();}));
+  body.querySelectorAll('[data-facet-group-select]').forEach(btn=>btn.addEventListener('click',()=>{(groupPayloads[+btn.dataset.facetGroupSelect]||[]).forEach(v=>draft.add(v));syncChecks();filterOptions();}));
+  body.querySelectorAll('[data-facet-group-clear]').forEach(btn=>btn.addEventListener('click',()=>{(groupPayloads[+btn.dataset.facetGroupClear]||[]).forEach(v=>draft.delete(v));syncChecks();filterOptions();}));
+  body.querySelector('[data-facet-clear]').addEventListener('click',()=>{draft.clear();syncChecks();filterOptions();});
+  body.querySelector('[data-facet-cancel]').addEventListener('click',()=>closePanel(panelId));
+  body.querySelector('[data-facet-apply]').addEventListener('click',()=>{setRef.clear();draft.forEach(v=>setRef.add(v));buttonUpdater();closePanel(panelId);applyFilters();});
+  body.querySelector('.facet-search').addEventListener('input',filterOptions);
+  syncChecks();
 }
 function buildProvincePanel(){
   const counts=schoolCountBy('province');
   const items=Array.from(counts.keys()).sort((a,b)=>(counts.get(b)-counts.get(a))||a.localeCompare(b,'zh-Hans-CN'));
-  buildCheckPanel('provincePanelBody',items,counts,state.selectedProvinces,updateProvinceButton,'清空省份筛选');
+  const groups=groupsFromOrderedItems(items,counts,provinceRegionGroups,'其他地区');
+  renderFacetPanel({panelId:'provincePanel',bodyId:'provincePanelBody',title:'地区筛选',searchPlaceholder:'搜索省份，如 江苏 / 浙江 / 黑龙江',groups,counts,setRef:state.selectedProvinces,buttonUpdater:updateProvinceButton,clearLabel:'清空地区筛选'});
 }
 function buildLevelPanel(){
   const counts=schoolCountBy('level');
   const items=Array.from(counts.keys()).sort((a,b)=>String(a).localeCompare(String(b),'zh-Hans-CN'));
-  buildCheckPanel('levelPanelBody',items,counts,state.selectedLevels,updateLevelButton,'清空院校层次');
+  const groups=groupsFromOrderedItems(items,counts,levelFacetGroups,'其他层次');
+  renderFacetPanel({panelId:'levelPanel',bodyId:'levelPanelBody',title:'院校层次筛选',searchPlaceholder:'搜索层次，如 985 / 211 / 双一流 / 民办',groups,counts,setRef:state.selectedLevels,buttonUpdater:updateLevelButton,clearLabel:'清空院校层次'});
 }
 function buildRequirementPanel(){
   const counts=groupCountBy('requirement');
@@ -497,7 +572,8 @@ function buildRequirementPanel(){
     if(bi>=0)return 1;
     return (counts.get(b)-counts.get(a))||String(a).localeCompare(String(b),'zh-Hans-CN');
   });
-  buildCheckPanel('requirementPanelBody',items,counts,state.selectedRequirements,updateRequirementButton,'清空选科要求');
+  const groups=groupsFromOrderedItems(items,counts,[{title:'常用要求',items:['不限','化学','生物']},{title:'组合要求',items:['化和生','政和地','生和地']},{title:'其他要求',items:['政治','地理']}],'其他选科');
+  renderFacetPanel({panelId:'requirementPanel',bodyId:'requirementPanelBody',title:'选科要求筛选',searchPlaceholder:'搜索选科要求，如 化学 / 不限',groups,counts,setRef:state.selectedRequirements,buttonUpdater:updateRequirementButton,clearLabel:'清空选科要求'});
 }
 function CounterLike(){this.m=new Map();this.add=k=>this.m.set(k,(this.m.get(k)||0)+1);this.keys=()=>this.m.keys();this.get=k=>this.m.get(k)||0;}
 function buildClassPanel(){
@@ -505,15 +581,13 @@ function buildClassPanel(){
   DB.forEach(s=>s.groups.forEach(g=>(g.majorClasses||[]).forEach(c=>counts.add(c))));
   const byDisc={};
   [...counts.keys()].forEach(c=>{let disc='其他'; DB.some(s=>s.groups.some(g=>g.majors.some(m=>{if(m.majorClass===c){disc=m.discipline||'其他';return true}return false;}))); (byDisc[disc]||(byDisc[disc]=[])).push(c);});
-  const html=disciplineOrder.map(d=>{let arr=byDisc[d]||[]; arr.sort((a,b)=>{let ai=hotOrder.indexOf(a),bi=hotOrder.indexOf(b); if(ai<0)ai=999;if(bi<0)bi=999; if(ai!==bi)return ai-bi; return (counts.get(b)-counts.get(a))||a.localeCompare(b,'zh-Hans-CN');}); if(!arr.length)return ''; return `<section class="class-group"><h4>${esc(d)}</h4><div class="class-grid">${arr.map(c=>`<label class="class-chip"><input type="checkbox" value="${esc(c)}" ${state.selectedClasses.has(c)?'checked':''}>${esc(c)} <span class="muted">${counts.get(c)}</span></label>`).join('')}</div></section>`;}).join('');
-  $('#classPanelBody').innerHTML=html+`<div class="modal-actions"><button id="clearClassBtn">清空专业大类</button></div>`;
-  $$('#classPanel input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{state.selectedClasses=new Set($$('#classPanel input[type=checkbox]:checked').map(x=>x.value));updateClassButton();applyFilters();}));
-  $('#clearClassBtn').addEventListener('click',()=>{$$('#classPanel input[type=checkbox]').forEach(x=>x.checked=false);state.selectedClasses.clear();updateClassButton();applyFilters();});
+  const groups=disciplineOrder.map(d=>{let arr=byDisc[d]||[]; arr.sort((a,b)=>{let ai=hotOrder.indexOf(a),bi=hotOrder.indexOf(b); if(ai<0)ai=999;if(bi<0)bi=999; if(ai!==bi)return ai-bi; return (counts.get(b)-counts.get(a))||a.localeCompare(b,'zh-Hans-CN');}); return {title:d,items:arr};}).filter(g=>g.items.length);
+  renderFacetPanel({panelId:'classPanel',bodyId:'classPanelBody',title:'专业大类筛选',searchPlaceholder:'搜索专业类，如 计算机 / 电子信息 / 土木',groups,counts,setRef:state.selectedClasses,buttonUpdater:updateClassButton,clearLabel:'清空专业大类'});
 }
-function updateProvinceButton(){const n=state.selectedProvinces.size; $('#provinceBtn').textContent=n===0?'全部省份':n===1?[...state.selectedProvinces][0]:`已选 ${n} 个省份`;}
-function updateLevelButton(){const n=state.selectedLevels.size; $('#levelBtn').textContent=n===0?'院校层次':n===1?[...state.selectedLevels][0]:`已选 ${n} 个院校层次`;}
-function updateRequirementButton(){const n=state.selectedRequirements.size; $('#requirementBtn').textContent=n===0?'选科要求':n===1?[...state.selectedRequirements][0]:`已选 ${n} 个选科要求`;}
-function updateClassButton(){const n=state.selectedClasses.size; $('#classBtn').textContent=n===0?'全部专业大类':n===1?[...state.selectedClasses][0]:`已选 ${n} 个专业大类`;}
+function updateProvinceButton(){const n=state.selectedProvinces.size; $('#provinceBtn').textContent=selectedSummary('全部省份',state.selectedProvinces,'省份');}
+function updateLevelButton(){const n=state.selectedLevels.size; $('#levelBtn').textContent=selectedSummary('院校层次',state.selectedLevels,'院校层次');}
+function updateRequirementButton(){const n=state.selectedRequirements.size; $('#requirementBtn').textContent=selectedSummary('选科要求',state.selectedRequirements,'选科要求');}
+function updateClassButton(){const n=state.selectedClasses.size; $('#classBtn').textContent=selectedSummary('全部专业大类',state.selectedClasses,'专业大类');}
 function groupMatchesSearch(s,g,q){if(!q)return true; const nq=normalize(q); if(normalize(s.name+s.province+s.city+s.subject+s.batch).includes(nq))return true; if(normalize(g.groupName+groupDisplayName(s,g)+g.requirement+(g.tags||[]).join('')+(g.majorClasses||[]).join('')+g.majorSummary).includes(nq))return true; return g.majors.some(m=>normalize(m.name+m.majorClass+m.discipline+m.code).includes(nq));}
 function groupMatchesScore(s,g){
   if(!state.scoreRange)return true;
@@ -578,7 +652,7 @@ function schoolHTML(s,groups,withCards){
   const plan26=groups.reduce((a,g)=>a+(g.plan26||0),0);
   const plan25=groups.reduce((a,g)=>a+(g.plan25||0),0);
   const planDiff=plan26-plan25;
-  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(s.province)}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span></div><div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
+  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(s.province)}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span></div><div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
 }
 function groupCardHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
