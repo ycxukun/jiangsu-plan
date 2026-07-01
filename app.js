@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.20 展开状态保持版';
+const VERSION='2026在招专业组版｜V1.1.22 导出核验修正版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -1033,10 +1033,10 @@ function excelMetric(v){
 }
 function exportVolunteerXlsx(){
   const date=localDateStamp();
-  const headers=['志愿序号','院校代码','院校专业组','专业序号','专业代码','专业','2026计划','25计划','25最低分','25最低位次','24计划','24最低分','24最低位次','23最低分','23最低位次','定位','服从调剂','备注'];
-  const widths=[56,82,260,58,72,220,68,68,68,90,68,68,90,72,90,64,72,220];
-  const valueOrDash=v=>v===null||v===undefined||v===''||Number.isNaN(v)?'—':v;
-  const selectedRows=[];
+  const headers=['志愿序号','院校代码','专业组名称','专业志愿序号','专业代码','专业名称','25年分数','25年位次','3年平均分','3年平均位次','招生人数','选择状态','定位','服从调剂','备注'];
+  const widths=[58,82,300,72,76,260,76,92,86,110,76,112,70,78,220];
+  const valueOrBlank=v=>v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
+  const rows=[];
   for(let i=0;i<volunteerKeys.length;i++){
     const key=volunteerKeys[i];
     const rec=getGroupRecord(key);
@@ -1047,29 +1047,21 @@ function exportVolunteerXlsx(){
     const majors=selected.length?selected:[null];
     const span=majors.length;
     const merge=span>1?span-1:0;
-    const groupTitle=[
-      `${s.name} ${g.groupName}`,
-      `${s.province||'—'}｜${s.subject||'—'}｜${s.batch||'—'}｜再选 ${g.requirement||'—'}`,
-      groupDisplayName(s,g)||'',
-      `26计划 ${fmt(g.plan26)}｜25分 ${fmtNum(g.score25)}｜25位次 ${fmtNum(g.rank25)}`
-    ].filter(Boolean).join('\n');
+    const groupTitle=[s.name,g.groupName,groupDisplayName(s,g)||''].filter(Boolean).join(' ');
     majors.forEach((m,idx)=>{
       const majorCells=[
         {value:m?idx+1:'',style:'seq',index:4},
         {value:m?(m.code||''):'',style:'body'},
         {value:m?(m.name||'未选择具体专业'):'未选择具体专业',style:m&&m.risk?'risk':'body'},
-        {value:m?valueOrDash(m.plan26):'—',style:'num'},
-        {value:m?valueOrDash(m.plan25):'—',style:'num'},
-        {value:m?valueOrDash(m.score25):'—',style:'num'},
-        {value:m?valueOrDash(m.rank25):'—',style:'num'},
-        {value:m?valueOrDash(m.plan24):'—',style:'num'},
-        {value:m?valueOrDash(m.score24):'—',style:'num'},
-        {value:m?valueOrDash(m.rank24):'—',style:'num'},
-        {value:m?valueOrDash(m.score23):'—',style:'num'},
-        {value:m?valueOrDash(m.rank23):'—',style:'num'}
+        {value:m?valueOrBlank(m.score25):'',style:'num'},
+        {value:m?valueOrBlank(m.rank25):'',style:'num'},
+        {value:m?valueOrBlank(m.avgScore3):'',style:'num'},
+        {value:m?valueOrBlank(m.avgRank3):'',style:'num'},
+        {value:m?valueOrBlank(m.plan26):'',style:'num'},
+        {value:m?`已选第${idx+1}专业`:'未选专业',style:m?'body':'risk'}
       ];
       if(idx===0){
-        selectedRows.push([
+        rows.push([
           {value:i+1,style:'seq',mergeDown:merge},
           {value:g.groupCode||'',style:'body',mergeDown:merge},
           {value:groupTitle,style:'group',mergeDown:merge},
@@ -1079,31 +1071,22 @@ function exportVolunteerXlsx(){
           {value:meta.note||'',style:'note',mergeDown:merge}
         ]);
       }else{
-        selectedRows.push(majorCells);
+        rows.push(majorCells);
       }
     });
   }
-  if(!selectedRows.length){
+  if(!rows.length){
     alert('志愿表为空，暂无可导出的专业组。');
     return;
   }
   const thinBorder='<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/></Borders>';
   const columns=excelColumns(headers,widths);
-  const title=`江苏本科志愿表｜已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 专业组｜导出日期 ${date}`;
+  const title=`江苏志愿基础表｜已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 专业组｜导出日期 ${date}`;
   const topRows=[
     excelRow([{value:title,style:'title',mergeAcross:headers.length-1}],null,{height:32}),
-    excelRow([
-      {value:'基础信息',style:'header',mergeAcross:2},
-      {value:'专业志愿',style:'header',mergeAcross:2},
-      {value:'2026招生计划',style:'header'},
-      {value:'2025物理',style:'header',mergeAcross:2},
-      {value:'2024物理',style:'header',mergeAcross:2},
-      {value:'2023物理',style:'header',mergeAcross:1},
-      {value:'志愿信息',style:'header',mergeAcross:2}
-    ],null,{height:28}),
     excelRow(headers.map(h=>({value:h,style:'subheader'})),null,{height:30})
   ].join('');
-  const body=selectedRows.map(r=>excelRow(r,'body')).join('');
+  const body=rows.map(r=>excelRow(r,'body')).join('');
   const workbook=`<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
@@ -1111,7 +1094,6 @@ function exportVolunteerXlsx(){
 <Styles>
 <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10"/>${thinBorder}</Style>
 <Style ss:ID="title"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="15" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A7C42" ss:Pattern="Solid"/>${thinBorder}</Style>
-<Style ss:ID="header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0A7C42" ss:Pattern="Solid"/>${thinBorder}</Style>
 <Style ss:ID="subheader"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#E8F1EC" ss:Pattern="Solid"/>${thinBorder}</Style>
 <Style ss:ID="group"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Bold="1" ss:Color="#173526"/><Interior ss:Color="#F3FBF6" ss:Pattern="Solid"/>${thinBorder}</Style>
 <Style ss:ID="body"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10"/>${thinBorder}</Style>
@@ -1120,7 +1102,7 @@ function exportVolunteerXlsx(){
 <Style ss:ID="num"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10"/>${thinBorder}</Style>
 <Style ss:ID="note"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Microsoft YaHei" ss:Size="10" ss:Color="#374151"/><Interior ss:Color="#FAFAFA" ss:Pattern="Solid"/>${thinBorder}</Style>
 </Styles>
-<Worksheet ss:Name="志愿基础表"><Table>${columns}${topRows}${body}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>3</SplitHorizontal><TopRowBottomPane>3</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>
+<Worksheet ss:Name="志愿基础表"><Table>${columns}${topRows}${body}</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>
 </Workbook>`;
   const blob=new Blob(['\ufeff',workbook],{type:'application/vnd.ms-excel;charset=utf-8'});
   const a=document.createElement('a');
