@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.49 取消专业详情点击版';
+const VERSION='2026在招专业组版｜V1.1.50 体检受限联动版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -32,6 +32,29 @@ const levelFacetGroups=[
   {title:'行业标签',items:['电力','邮电','交通','水利','航空航天','兵器','石油']},
   {title:'录取规则',items:['专业优先','部分专业优先']}
 ];
+const MEDICAL_CODE_META={
+  '11':'严重心脏病、心肌病、高血压病：学校可以不予录取',
+  '12':'重症支气管扩张、哮喘、恶性肿瘤、慢性肾炎、尿毒症：学校可以不予录取',
+  '13':'严重血液、内分泌、代谢系统疾病、风湿性疾病：学校可以不予录取',
+  '14':'重症或难治性癫痫、严重精神病等：学校可以不予录取',
+  '15':'慢性肝炎且肝功能不正常：学校可以不予录取',
+  '16':'结核病相关限制：学校可以不予录取',
+  '21':'色弱：化学、化工、药学、生物、医学、食品、农林、水产、心理、材料化学等不能录取',
+  '22':'色盲：含色弱全部限制，另含美术、设计、摄影、动画、地理、材料物理、交通运输等不能录取',
+  '23':'单色识别异常：含色弱/色盲限制，另含经管、公共管理、图书档案，以及显示器颜色识别异常下的计算机等',
+  '24':'裸眼视力任一眼低于5.0：飞行技术、航海技术、消防工程、刑事科学技术、侦察等不能录取',
+  '25':'裸眼视力任一眼低于4.8：轮机工程、运动训练、民族传统体育等不能录取',
+  '26':'公安院校普通专业身体条件：公安学、公安技术、刑事科学、侦查等需重点限报',
+  '31':'主要脏器手术或相关病史：地矿、水利、交通、能动、公安、体育、海洋、大气、水产、测绘、环境、土木等不宜就读',
+  '32':'先天性心脏病术后或轻微缺损：不宜就读同31类专业',
+  '33':'肢体残疾不继续恶化：不宜就读同31类专业',
+  '34':'矫正到4.8且镜片度数>400：海洋、测控、核工、生医工、服装、飞行器制造等不宜就读',
+  '35':'矫正到4.8且镜片度数>800：地矿、水利、土建、材料、能动、化工、医学、电子信息科学、测绘、交通、船舶、生物工程等不宜就读',
+  '36':'一眼失明且另一眼矫正到4.8镜片度数>400：工学、农学、医学、法学及部分理学专业不宜就读',
+  '37':'双耳听力均3米以内或一耳5米另一耳全聋：法学、外语、新闻、学前、音乐、土木、交通、动物、医学等不宜就读',
+  '38':'嗅觉迟钝、口吃、步态异常、驼背、面部疤痕等：教育、公安、外交、法学、新闻、音乐表演、表演等不宜就读',
+  '39':'斜视、嗅觉迟钝、口吃：医学类专业不宜就读'
+};
 let DB=Array.isArray(window.DB)?window.DB:[];
 let DETAILS=window.MAJOR_DETAILS||{};
 let GROUP_NAMING=window.GROUP_NAMING||{};
@@ -40,7 +63,7 @@ let ASSASSIN_GROUP_RISKS=window.ASSASSIN_GROUP_RISKS||{};
 let ASSASSIN_MAJOR_RISKS=window.ASSASSIN_MAJOR_RISKS||{};
 let ASSASSIN_RISK_AUTHORITATIVE=Boolean(window.ASSASSIN_RISK_AUTHORITATIVE);
 let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
-let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,compact:true,activeSchoolId:null,filtered:[]};
+let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 const VOLUNTEER_LIMIT=40;
@@ -48,6 +71,7 @@ const MAX_MAJOR_PER_GROUP=6;
 const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
 const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v2';
 const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
+const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
 let volunteerKeys=loadVolunteerKeys();
 let volunteerMajorKeys=loadVolunteerMajorKeys();
 let volunteerMeta=loadVolunteerMeta();
@@ -83,6 +107,13 @@ function loadVolunteerMajorKeys(){try{const data=JSON.parse(localStorage.getItem
 function saveVolunteerMajorKeys(){try{localStorage.setItem(VOLUNTEER_MAJOR_STORAGE_KEY,JSON.stringify(volunteerMajorKeys));}catch(e){}}
 function loadVolunteerMeta(){try{const data=JSON.parse(localStorage.getItem(VOLUNTEER_META_STORAGE_KEY)||'{}'); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}catch(e){return {};}}
 function saveVolunteerMeta(){try{localStorage.setItem(VOLUNTEER_META_STORAGE_KEY,JSON.stringify(volunteerMeta));}catch(e){}}
+function parseMedicalCodes(raw){
+  const valid=new Set(Object.keys(MEDICAL_CODE_META));
+  return String(raw||'').split(/[^0-9]+/).map(x=>x.trim()).filter(Boolean).filter(x=>valid.has(x));
+}
+function loadMedicalRestrictionCodes(){try{return parseMedicalCodes(JSON.parse(localStorage.getItem(MEDICAL_RESTRICTION_STORAGE_KEY)||'[]').join(','));}catch(e){return [];}}
+function saveMedicalRestrictionCodes(){try{localStorage.setItem(MEDICAL_RESTRICTION_STORAGE_KEY,JSON.stringify([...state.medicalCodes]));}catch(e){}}
+function medicalCodesActive(){return state.medicalCodes&&state.medicalCodes.size>0;}
 const coldMajorPattern=/材料|化工|化学类|应用化学|环境|生态|生物|食品|地质|地球物理|测绘|遥感|地理空间|土木|建筑|交通运输|安全|消防|矿|采矿|资源|海洋|农业|农学|林学|水产|动物|植物|草学|轻工|纺织|服装|旅游管理|酒店管理|外国语言|翻译|俄语|日语|法语|西班牙语|朝鲜语|印地语|哲学|历史学|考古|图书馆|档案|社会学|公共管理|行政管理|戏剧影视|广播电视编导/;
 const hotMajorPattern=/计算机|软件|人工智能|智能科学|数据科学|网络空间|电子信息|通信工程|微电子|集成电路|电气工程|自动化|临床医学|口腔医学|法学|会计学|金融学|数学|统计/;
 function normalize(s){return String(s??'').toLowerCase().replace(/\s+/g,'');}
@@ -377,6 +408,89 @@ function pushMapList(map,key,value){
   map.get(key).push(value);
 }
 function detailOf(m){return DETAILS[m.key]||{};}
+function medicalMajorText(m){
+  const d=detailOf(m)||{};
+  return `${m?.name||''} ${m?.majorClass||''} ${m?.discipline||''} ${d.name||''} ${d.majorFullName||''} ${d.undergraduateName||''} ${d.subjectMajor||''} ${d.majorClass||''} ${d.discipline||''} ${d.majorRemark||''}`;
+}
+function medicalTextHas(m,pattern){return pattern.test(medicalMajorText(m));}
+function medicalRuleMatched(code,m){
+  const t=medicalMajorText(m);
+  const d=detailOf(m)||{};
+  const discipline=String(m?.discipline||d.discipline||'');
+  if(/^1[1-6]$/.test(code))return true;
+  if(code==='21')return /(化学|化工|制药|药学|生物科学|生物工程|生物医学工程|医学|公安技术|地质|动物医学|动物科学|野生动物|心理学|应用心理|生态学|侦察|侦查|特种能源|烟火|考古|海洋科学|海洋技术|轮机工程|食品科学|轻化工程|林产化工|农学|园艺|植物保护|茶学|林学|园林|蚕学|农业资源|水产养殖|海洋渔业|材料化学|环境工程|高分子材料|过程装备|学前教育|特殊教育|体育教育|运动训练|运动人体科学|民族传统体育)/.test(t);
+  if(code==='22')return medicalRuleMatched('21',m)||/(美术|绘画|艺术设计|视觉传达|环境设计|产品设计|服装与服饰设计|摄影|动画|博物馆|应用物理|天文学|地理科学|应用气象|材料物理|矿物加工|资源勘查|资源勘探|冶金|无机非金属材料|交通运输|油气储运)/.test(t);
+  if(code==='23')return medicalRuleMatched('22',m)||/(经济学|财政|税收|金融|经贸|管理科学|信息管理|工程管理|工商管理|会计|财务管理|公共管理|行政管理|农业经济管理|图书|档案|计算机科学与技术|计算机类|软件工程|网络工程|信息安全|数据科学|人工智能|智能科学)/.test(t);
+  if(code==='24')return /(飞行技术|航海技术|消防工程|刑事科学技术|侦察|侦查|海洋船舶驾驶|空中交通管制)/.test(t);
+  if(code==='25')return /(轮机工程|运动训练|民族传统体育|武术与民族传统体育|烹饪与营养|烹饪工艺)/.test(t);
+  if(code==='26')return /(公安学|公安技术|侦察|侦查|刑事科学|治安学|警务|警犬|禁毒|经济犯罪侦查|涉外警务|交通管理工程|网络安全与执法|安全防范工程|消防工程)/.test(t);
+  if(['31','32','33'].includes(code))return /(地矿|矿业|采矿|资源勘查|地质|水利|水文|交通运输|交通工程|能源动力|公安学|体育学|海洋科学|大气科学|水产|测绘|遥感|海洋工程|林业工程|武器|兵器|森林资源|环境科学|环境生态|生态学|旅游管理|草业科学|土木工程|消防工程|农业水利工程|农学|法医学|水土保持|荒漠化防治|动物科学)/.test(t);
+  if(code==='34')return /(海洋技术|海洋科学|测控技术与仪器|核工程与核技术|生物医学工程|服装设计与工程|飞行器制造工程)/.test(t);
+  if(code==='35')return /(地矿|矿业|采矿|资源勘查|水利|土建|土木|建筑|动物生产|动物科学|动物医学|水产|材料|能源动力|化工|制药|武器|兵器|农业工程|林业工程|植物生产|农学|园艺|植物保护|森林资源|环境生态|环境科学|环境工程|医学|心理学|环境与安全|安全工程|电子信息科学|材料科学|地质学|大气科学|地理科学|测绘工程|遥感|交通工程|交通运输|油气储运|船舶与海洋工程|生物工程|草业科学)/.test(t);
+  if(code==='36')return /^(工学|农学|医学|法学)$/.test(discipline)||/(应用物理|应用化学|生物技术|地质学|生态学|环境科学|海洋科学|海洋技术|生物科学|应用心理)/.test(t);
+  if(code==='37')return /(法学|外国语言|英语|日语|俄语|法语|德语|西班牙语|外交学|新闻学|侦察|侦查|学前教育|音乐学|录音艺术|土木工程|交通运输|动物科学|动物医学|医学)/.test(t);
+  if(code==='38')return /(教育学|学前教育|特殊教育|公安学|外交学|法学|新闻学|音乐表演|表演)/.test(t);
+  if(code==='39')return /(医学|临床医学|口腔医学|中医学|基础医学|法医学|医学技术|护理|药学)/.test(t);
+  return false;
+}
+function medicalRestrictionForMajor(m){
+  if(!medicalCodesActive())return {blocked:false,codes:[],reason:''};
+  const hits=[...state.medicalCodes].filter(code=>medicalRuleMatched(code,m));
+  if(!hits.length)return {blocked:false,codes:[],reason:''};
+  const severe=hits.some(c=>/^1[1-6]$/.test(c));
+  const reason=hits.map(c=>`${c}：${MEDICAL_CODE_META[c]||'体检受限'}`).join('；');
+  return {blocked:true,codes:hits,reason,level:severe?'severe':'restricted'};
+}
+function medicalRestrictionLabelHTML(meta){
+  return meta&&meta.blocked?`<span class="medical-risk-label" title="${esc(meta.reason)}">体检限报 ${esc(meta.codes.join('/'))}</span>`:'';
+}
+function groupMedicalRestrictionSummary(g){
+  if(!medicalCodesActive())return null;
+  const majors=g?.majors||[];
+  const blocked=majors.filter(m=>medicalRestrictionForMajor(m).blocked);
+  if(!blocked.length)return null;
+  return {count:blocked.length,total:majors.length,all:blocked.length===majors.length};
+}
+function groupMedicalBadge(g){
+  const x=groupMedicalRestrictionSummary(g);
+  if(!x)return '';
+  return `<span class="badge red medical-group-badge" title="当前体检代码下，本专业组有 ${x.count}/${x.total} 个专业受限，受限专业禁止勾选。">${x.all?'体检全限报':'体检限报'} ${x.count}/${x.total}</span>`;
+}
+function cleanupVolunteerForMedicalRestrictions(){
+  let changed=false;
+  Object.keys(volunteerMajorKeys).forEach(key=>{
+    const rec=getGroupRecord(key);
+    if(!rec)return;
+    const old=Array.isArray(volunteerMajorKeys[key])?volunteerMajorKeys[key]:[];
+    const next=uniqueValidMajorKeys(old,rec.g);
+    if(next.length!==old.length||next.some((v,i)=>v!==old[i])){volunteerMajorKeys[key]=next;changed=true;}
+  });
+  if(changed)saveVolunteerMajorKeys();
+  return changed;
+}
+function updateMedicalButton(){
+  const btn=$('#medicalBtn');
+  if(!btn)return;
+  const arr=[...state.medicalCodes];
+  btn.textContent=arr.length?`体检 ${arr.join('/')}`:'体检受限';
+  btn.classList.toggle('medical-active',arr.length>0);
+}
+function updateMedicalPanelSummary(){
+  const input=$('#medicalCodeInput');
+  const summary=$('#medicalCodeSummary');
+  if(!input||!summary)return;
+  const codes=parseMedicalCodes(input.value);
+  if(!codes.length){summary.innerHTML='<div class="medical-empty">未输入体检代码。格式示例：21、22、34 或 21 35。</div>';return;}
+  summary.innerHTML=`<div class="medical-code-list">${codes.map(c=>`<div class="medical-code-card"><b>代码${esc(c)}</b><span>${esc(MEDICAL_CODE_META[c]||'体检受限')}</span></div>`).join('')}</div>`;
+}
+function renderMedicalVolunteerNotice(){
+  const el=$('#medicalVolunteerNotice');
+  if(!el)return;
+  const arr=[...state.medicalCodes];
+  if(!arr.length){el.innerHTML='';el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML=`<b>体检受限已启用：</b>代码 ${esc(arr.join('、'))}。受限专业在主表和志愿表中禁止勾选；已选受限专业会自动移出专业志愿。`;
+}
 function cleanMajorText(v){
   return normalize(String(v||'')
     .replace(/（[^）]*）|\([^)]*\)|\[[^\]]*\]|【[^】]*】/g,'')
@@ -616,9 +730,11 @@ function groupChangeButtonHTML(s,g,variant){
 function volunteerButtonHTML(s,g){
   const key=keyGroup(s,g);
   const selected=volunteerKeys.includes(key);
-  const disabled=!selected&&volunteerKeys.length>=VOLUNTEER_LIMIT;
-  const label=selected?'已加入志愿表':disabled?'志愿表已满':'加入志愿表';
-  const title=selected?'再次点击：从志愿表移出该专业组，并清空本组已选专业':'点击：加入志愿表';
+  const med=groupMedicalRestrictionSummary(g);
+  const allMedicalBlocked=Boolean(med&&med.all);
+  const disabled=!selected&&(volunteerKeys.length>=VOLUNTEER_LIMIT||allMedicalBlocked);
+  const label=selected?'已加入志愿表':allMedicalBlocked?'体检全限报':disabled?'志愿表已满':'加入志愿表';
+  const title=selected?'再次点击：从志愿表移出该专业组，并清空本组已选专业':allMedicalBlocked?'当前体检代码下该专业组全部专业受限，不建议加入':'点击：加入志愿表';
   const cls=`volunteer-add-btn ${selected?'selected':''}`.trim();
   return `<button class="${cls}" type="button" data-volunteer-key="${esc(key)}" title="${esc(title)}" ${disabled?'disabled':''}>${label}</button>`;
 }
@@ -645,6 +761,7 @@ function createLayout(){
         <select id="modeFilter"><option value="schools">全部院校</option><option value="groups">全部专业组</option></select>
         <button id="classBtn" class="filter-btn">全部专业大类</button>
         <button id="scoreBtn" class="filter-btn">目标分区间</button>
+        <button id="medicalBtn" class="filter-btn">体检受限</button>
         <input id="searchInput" placeholder="搜索院校、专业组、专业、专业大类，例如：计算机类 / 南京邮电 / 中外合作" />
       </div>
     </header>
@@ -654,8 +771,9 @@ function createLayout(){
     <div id="requirementPanel" class="panel facet-panel"><div class="panel-head"><h3>选科要求筛选</h3><button class="close-btn" data-close="requirementPanel">×</button></div><div class="panel-body"><div id="requirementPanelBody"></div></div></div>
     <div id="classPanel" class="panel facet-panel"><div class="panel-head"><h3>专业大类筛选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
+    <div id="medicalPanel" class="panel medical-panel"><div class="panel-head"><h3>体检受限</h3><button class="close-btn" data-close="medicalPanel">×</button></div><div class="panel-body"><p class="medical-help">输入体检结论代码，例如：21、22、23、34、35。系统会在主表和志愿表中提示，并禁止受限专业被勾选。</p><input id="medicalCodeInput" class="medical-code-input" placeholder="输入体检代码，如：21 35 或 23,34"><div class="medical-quick-codes">${Object.keys(MEDICAL_CODE_META).map(c=>`<button type="button" data-medical-code="${c}">${c}</button>`).join('')}</div><div id="medicalCodeSummary" class="medical-code-summary"></div><div class="modal-actions"><button id="clearMedicalBtn">清空体检代码</button><button id="applyMedicalBtn" class="save">应用体检限制</button></div></div></div>
     <div id="changePanel" class="panel change-panel"><div class="panel-head"><div><h3>专业组变迁</h3><p id="changePanelTitle" class="panel-subtitle"></p></div><button class="close-btn" data-close="changePanel">×</button></div><div id="changePanelBody" class="panel-body"></div></div>
-    <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
+    <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="medicalVolunteerNotice" class="medical-active-notice" style="display:none"></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
     <div id="annotationDrawer" class="annotation-drawer">
       <div class="annotation-head"><div><h3>批注</h3><p id="annotationObject">未选择批注对象</p></div><button id="closeAnnotationBtn" class="close-btn" type="button">×</button></div>
       <div class="annotation-body"><div id="giscusMount" class="giscus-mount"></div></div>
@@ -780,6 +898,7 @@ function bindEvents(){
   $('#requirementBtn').addEventListener('click',()=>{buildRequirementPanel();openPanel('requirementPanel')});
   $('#classBtn').addEventListener('click',()=>{buildClassPanel();openPanel('classPanel')});
   $('#scoreBtn').addEventListener('click',()=>{updateRangeSummary();openPanel('scorePanel')});
+  $('#medicalBtn').addEventListener('click',()=>{const input=$('#medicalCodeInput'); if(input)input.value=[...state.medicalCodes].join(' '); updateMedicalPanelSummary(); openPanel('medicalPanel')});
   $('#volunteerPanelBtn').addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
   $('#fillVolunteerBtn').addEventListener('click',fillVolunteerFromCurrentFilters);
   $('#exportVolunteerBtn').addEventListener('click',exportVolunteerXlsx);
@@ -802,6 +921,7 @@ function bindEvents(){
   $('#closeAnnotationBtn').addEventListener('click',closeAnnotationDrawer);
   $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closePanel(b.dataset.close)));
   bindScoreInputs();
+  bindMedicalInputs();
   $('#modalMask').addEventListener('click',e=>{if(e.target.id==='modalMask')closeModal();});
   $('#adminDockBtn')?.addEventListener('click',()=>$('#adminMenu').classList.toggle('open'));
   $('#loginBtn')?.addEventListener('click',showLoginModal);
@@ -816,6 +936,38 @@ function bindScoreInputs(){
   $('#clearScoreBtn').addEventListener('click',()=>{state.scoreRange=null;$('#scoreBtn').textContent='目标分区间';closePanel('scorePanel');applyFilters();});
 }
 function updateRangeSummary(){const t=+$('#targetScoreInput').value||0,d=+$('#downInput').value||0,u=+$('#upInput').value||0;$('#rangeSummary').textContent=`目标分：${t}｜下浮${d}｜上浮${u}｜区间${t-d}—${t+u}｜含新增组预测分`;}
+function bindMedicalInputs(){
+  const input=$('#medicalCodeInput');
+  if(!input)return;
+  input.addEventListener('input',updateMedicalPanelSummary);
+  $$('[data-medical-code]').forEach(btn=>btn.addEventListener('click',()=>{
+    const codes=new Set(parseMedicalCodes(input.value));
+    const c=btn.dataset.medicalCode;
+    if(codes.has(c))codes.delete(c); else codes.add(c);
+    input.value=[...codes].sort((a,b)=>Number(a)-Number(b)).join(' ');
+    updateMedicalPanelSummary();
+  }));
+  $('#applyMedicalBtn')?.addEventListener('click',()=>{
+    state.medicalCodes=new Set(parseMedicalCodes(input.value));
+    saveMedicalRestrictionCodes();
+    const changed=cleanupVolunteerForMedicalRestrictions();
+    updateMedicalButton();
+    closePanel('medicalPanel');
+    applyFilters();
+    if($('#volunteerPanel')?.classList.contains('open'))renderVolunteerPanel({skipCapture:true});
+    if(changed)alert('已自动移除志愿表中与当前体检代码冲突的专业。');
+  });
+  $('#clearMedicalBtn')?.addEventListener('click',()=>{
+    input.value='';
+    state.medicalCodes=new Set();
+    saveMedicalRestrictionCodes();
+    updateMedicalPanelSummary();
+    updateMedicalButton();
+    closePanel('medicalPanel');
+    applyFilters();
+    if($('#volunteerPanel')?.classList.contains('open'))renderVolunteerPanel({skipCapture:true});
+  });
+}
 function openPanel(id){const panel=$('#'+id);if(panel)panel.classList.add('open');if(id==='volunteerPanel')document.body.classList.add('volunteer-workbench-open');}
 function closePanel(id){const panel=$('#'+id);if(panel)panel.classList.remove('open');if(id==='volunteerPanel')document.body.classList.remove('volunteer-workbench-open');}
 function toggleHeader(){
@@ -1053,13 +1205,13 @@ function groupCardHTML(s,g){
   const topTags=[...(g.tags||[]).slice(0,3),...(g.majorClasses||[]).slice(0,3)];
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
+  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${groupMedicalBadge(g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${groupMedicalBadge(g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?`<br><span class="muted">${m.avgYears}年均值</span>`:'';
@@ -1067,8 +1219,11 @@ function majorRowHTML(s,g,m){
   const order=selectedMajorIndex(groupKey,m.key);
   const checked=order>=0;
   const riskMeta=majorRiskMeta(s,g,m);
+  const physical=medicalRestrictionForMajor(m);
   const riskToneClass=riskMeta.tone?`risk-tone-${riskMeta.tone}`:'';
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${checked?'major-selected-row':''}" title="${riskMeta.risk?esc(riskMeta.reason):''}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  const disabled=physical.blocked?' disabled':'';
+  const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(physical.blocked?'当前体检代码下该专业限报，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${medicalRestrictionLabelHTML(physical)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
@@ -1222,7 +1377,7 @@ function uniqueValidMajorKeys(keys,g){
   const valid=new Set((g.majors||[]).map(m=>m.key));
   const out=[];
   (Array.isArray(keys)?keys:[]).forEach(k=>{
-    if(valid.has(k)&&!out.includes(k)&&out.length<MAX_MAJOR_PER_GROUP)out.push(k);
+    if(valid.has(k)&&!out.includes(k)&&out.length<MAX_MAJOR_PER_GROUP){const m=(g.majors||[]).find(x=>x.key===k); if(m&&!medicalRestrictionForMajor(m).blocked)out.push(k);}
   });
   return out;
 }
@@ -1251,6 +1406,9 @@ function setMajorSelection(key,majorKey,checked){
   if(!rec)return false;
   let arr=selectedMajorOrder(key);
   if(checked){
+    const target=(rec.g.majors||[]).find(m=>m.key===majorKey);
+    const physical=target?medicalRestrictionForMajor(target):null;
+    if(physical&&physical.blocked){alert(`体检受限：该专业不能选择。\n${physical.reason}`);return false;}
     if(!ensureVolunteerGroupForMajor(key))return false;
     arr=selectedMajorOrder(key);
     if(!arr.includes(majorKey)){
@@ -1308,15 +1466,21 @@ function updateVolunteerUI(){
   if(countEl)countEl.textContent=`已选 ${count} / ${VOLUNTEER_LIMIT} 个专业组`;
   $$('[data-volunteer-key]').forEach(btn=>{
     const selected=volunteerKeys.includes(btn.dataset.volunteerKey);
-    const disabled=!selected&&volunteerKeys.length>=VOLUNTEER_LIMIT;
-    btn.textContent=selected?'已加入志愿表':disabled?'志愿表已满':'加入志愿表';
-    btn.title=selected?'再次点击：从志愿表移出该专业组，并清空本组已选专业':'点击：加入志愿表';
+    const rec=getGroupRecord(btn.dataset.volunteerKey);
+    const med=rec?groupMedicalRestrictionSummary(rec.g):null;
+    const allMedicalBlocked=Boolean(med&&med.all);
+    const disabled=!selected&&(volunteerKeys.length>=VOLUNTEER_LIMIT||allMedicalBlocked);
+    btn.textContent=selected?'已加入志愿表':allMedicalBlocked?'体检全限报':disabled?'志愿表已满':'加入志愿表';
+    btn.title=selected?'再次点击：从志愿表移出该专业组，并清空本组已选专业':allMedicalBlocked?'当前体检代码下该专业组全部专业受限，不建议加入':'点击：加入志愿表';
     btn.classList.toggle('selected',selected);
     btn.disabled=disabled;
   });
 }
 function addVolunteerKey(key){
   if(!groupIndex.has(key))return;
+  const rec=groupIndex.get(key);
+  const med=rec?groupMedicalRestrictionSummary(rec.g):null;
+  if(!volunteerKeys.includes(key)&&med&&med.all){alert('当前体检代码下，该专业组全部专业受限，不能加入志愿表。');return;}
   if(!volunteerKeys.includes(key)){
     if(volunteerKeys.length>=VOLUNTEER_LIMIT){alert(`志愿表最多 ${VOLUNTEER_LIMIT} 个专业组。`);return;}
     volunteerKeys.push(key);
@@ -1423,7 +1587,8 @@ function fillVolunteerFromCurrentFilters(){
     for(const g of s.visibleGroups){
       if(volunteerKeys.length>=VOLUNTEER_LIMIT)break;
       const key=keyGroup(s,g);
-      if(!volunteerKeys.includes(key))addVolunteerKey(key);
+      const med=groupMedicalRestrictionSummary(g);
+      if(!volunteerKeys.includes(key)&&!(med&&med.all))addVolunteerKey(key);
     }
     if(volunteerKeys.length>=VOLUNTEER_LIMIT)break;
   }
@@ -1493,6 +1658,8 @@ function renderVolunteerPanel(options={}){
   if(!list)return;
   if(!options.skipCapture)captureVolunteerExpandedState();
   const visible=volunteerVisibleEntries();
+  cleanupVolunteerForMedicalRestrictions();
+  renderMedicalVolunteerNotice();
   const countEl=$('#volunteerPanelCount');
   if(countEl)countEl.textContent=`已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 个专业组｜当前显示 ${visible.length} 个`;
   const expandBtn=$('#expandVolunteerBtn');
@@ -1525,7 +1692,7 @@ function volunteerRowHTML(key,index){
   const groupAlias=groupDisplayName(s,g)||'未命名';
   const poolFilter=volunteerMajorPoolFilter[key]||'all';
   const selectedList=selectedMajors.length?`<ol class="volunteer-major-strip">${selectedMajors.map((m,i)=>`<li class="volunteer-major-strip-item"><span class="major-order-badge">${i+1}</span><div class="volunteer-major-name"><b><span class="major-name-text">${esc(m.name)}</span>${majorRiskLabelHTML(majorRiskMeta(s,g,m))}</b><small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></div><div class="volunteer-major-mini-actions"><button title="专业上移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="-1" ${i===0?'disabled':''}>↑</button><button title="专业下移" data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="1" ${i===selectedMajors.length-1?'disabled':''}>↓</button><button title="取消该专业" data-major-unselect="${esc(key)}" data-major-key="${esc(m.key)}">×</button></div></li>`).join('')}</ol>`:`<div class="volunteer-selected-empty-compact">尚未选择具体专业。展开专业池后勾选，系统会按勾选顺序生成第 1—6 专业。</div>`;
-  const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><select data-major-pool-filter="${esc(key)}"><option value="all" ${poolFilter==='all'?'selected':''}>全部专业</option><option value="selected" ${poolFilter==='selected'?'selected':''}>只看已选</option><option value="unselected" ${poolFilter==='unselected'?'selected':''}>只看未选</option></select><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);const isSelected=order>=0;const hidden=(poolFilter==='selected'&&!isSelected)||(poolFilter==='unselected'&&isSelected);const riskMeta=majorRiskMeta(s,g,m);return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${isSelected?'selected':'unselected'}" title="${riskMeta.risk?esc(riskMeta.reason):''}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''}>${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}<b><span class="major-name-text">${esc(m.name)}</span></b>${majorRiskLabelHTML(riskMeta)}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分｜位次 ${fmtNum(m.rank25)}</small></label>`;}).join('')}</div></details>`;
+  const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><select data-major-pool-filter="${esc(key)}"><option value="all" ${poolFilter==='all'?'selected':''}>全部专业</option><option value="selected" ${poolFilter==='selected'?'selected':''}>只看已选</option><option value="unselected" ${poolFilter==='unselected'?'selected':''}>只看未选</option></select><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);const isSelected=order>=0;const hidden=(poolFilter==='selected'&&!isSelected)||(poolFilter==='unselected'&&isSelected);const riskMeta=majorRiskMeta(s,g,m);const physical=medicalRestrictionForMajor(m);return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${physical.blocked?'physical-blocked':''} ${isSelected?'selected':'unselected'}" title="${esc(physical.blocked?physical.reason:(riskMeta.risk?riskMeta.reason:''))}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''} ${physical.blocked?'disabled':''}>${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}<b><span class="major-name-text">${esc(m.name)}</span></b>${medicalRestrictionLabelHTML(physical)}${majorRiskLabelHTML(riskMeta)}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分｜位次 ${fmtNum(m.rank25)}</small></label>`;}).join('')}</div></details>`;
   return `<article class="volunteer-item volunteer-table-row" data-volunteer-item="${esc(key)}">
     <div class="volunteer-order-col"><input class="volunteer-position-input" data-volunteer-position="${esc(key)}" value="${index+1}" title="输入目标序号，例如 10 或 第10" inputmode="numeric" aria-label="志愿序号"><span class="volunteer-drag-handle" data-volunteer-drag-handle="${esc(key)}" draggable="true" title="按住拖动调整专业组顺序">↕</span></div>
     <div class="volunteer-group-col"><div class="volunteer-group-title"><b>${esc(groupShortTitle(s,g))}</b></div><p>再选 ${esc(g.requirement||'—')}</p><p class="volunteer-group-alias">${esc(groupAlias)}</p></div>
