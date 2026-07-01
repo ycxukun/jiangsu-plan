@@ -129,6 +129,21 @@ body.compact-mode .group-quality-badge{padding:3px 7px;font-size:10px}
 .major-check span{color:var(--red);font-weight:900;margin-left:4px}
 .major-check small{display:block;color:var(--muted);margin-top:3px;padding-left:20px}
 .major-check.risk{background:#fff7f6;border-color:#ffd1cc}
+
+.major-select-cell{width:82px;text-align:center;vertical-align:middle}
+.major-select-box{display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;font-weight:900;color:var(--muted)}
+.major-order-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:999px;background:var(--green);color:#fff;font-size:12px;font-weight:900;line-height:1}
+.major-order-placeholder{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:999px;background:#edf2ef;color:var(--muted);font-size:12px;font-weight:900;line-height:1}
+.major-selected-row{background:#f0fff5}
+.major-check.selected{background:#f0fff5;border-color:#9fd8b3}
+.selected-major-list{display:grid;gap:6px;margin:8px 0 10px}
+.selected-major-item{display:grid;grid-template-columns:28px minmax(130px,1fr) minmax(120px,auto) auto auto auto;align-items:center;gap:6px;border:1px solid #b7dfc6;background:#f7fffa;border-radius:12px;padding:7px 8px;font-size:12px}
+.selected-major-item b{font-size:13px;color:#1f3327}
+.selected-major-item small{color:var(--muted)}
+.selected-major-item button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:5px 8px;font-size:12px;font-weight:800;color:#24352b}
+.selected-major-item button:disabled{opacity:.45;cursor:not-allowed}
+.selected-major-empty{margin:8px 0 10px;border:1px dashed #b7dfc6;background:#f8fffb;border-radius:12px;padding:10px;color:var(--muted);font-size:12px;line-height:1.6}
+@media(max-width:640px){.selected-major-item{grid-template-columns:28px 1fr;align-items:start}.selected-major-item small{grid-column:2}.selected-major-item button{grid-column:auto}}
 body.compact-mode .volunteer-add-btn{padding:4px 8px;font-size:10px}
 body.compact-mode .volunteer-panel{width:min(840px,96vw)}
 @media(max-width:640px){.volunteer-panel,body.compact-mode .volunteer-panel{width:100vw}.volunteer-item-head{display:block}.volunteer-actions{justify-content:flex-start;margin-top:8px}.volunteer-meta-row{grid-template-columns:1fr}.major-picker-grid{grid-template-columns:1fr}}

@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.11 新组预测分版';
+const VERSION='2026在招专业组版｜V1.1.12 专业志愿排序修正版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -22,8 +22,9 @@ let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Se
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 const VOLUNTEER_LIMIT=40;
+const MAX_MAJOR_PER_GROUP=6;
 const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
-const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v1';
+const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v2';
 const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
 let volunteerKeys=loadVolunteerKeys();
 let volunteerMajorKeys=loadVolunteerMajorKeys();
@@ -566,16 +567,20 @@ function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?`<br><span class="muted">${m.avgYears}年均值</span>`:'';
-  return `<tr class="${m.risk?'risk-row':''} clickable-row" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}" data-detail-row="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(keyGroup(s,g))}"><td>${esc(m.code)}</td><td class="major-name">${esc(m.name)}${m.risk?'<span class="risk-label">风险</span>':''}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  const groupKey=keyGroup(s,g);
+  const order=selectedMajorIndex(groupKey,m.key);
+  const checked=order>=0;
+  return `<tr class="${m.risk?'risk-row':''} ${checked?'major-selected-row':''} clickable-row" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}" data-detail-row="${esc(m.key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}"><td class="major-select-cell"><label class="major-select-box" title="勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}</label></td><td>${esc(m.code)}</td><td class="major-name">${esc(m.name)}${m.risk?'<span class="risk-label">风险</span>':''}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
   $$('[data-detail-row]').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('button,a,input,label,textarea'))return; showDetail(tr.dataset.detailRow,tr.dataset.schoolKey,tr.dataset.groupKey);}));
   bindVolunteerButtons();
+  bindMainMajorChecks();
   bindGroupChangeButtons();
   bindAnnotationButtons();
   bindNoteHoverAndContext();
@@ -616,14 +621,77 @@ function buildGroupIndex(){
 }
 function getGroupRecord(key){return groupIndex.get(key)||null;}
 function sortedMajors(g){return [...(g.majors||[])].sort((a,b)=>{if(Boolean(a.risk)!==Boolean(b.risk))return a.risk?1:-1; return majorSortByThreeYear(a,b);});}
-function defaultMajorKeys(g){return sortedMajors(g).slice(0,6).map(m=>m.key);}
+function defaultMajorKeys(g){return sortedMajors(g).slice(0,MAX_MAJOR_PER_GROUP).map(m=>m.key);}
+function uniqueValidMajorKeys(keys,g){
+  const valid=new Set((g.majors||[]).map(m=>m.key));
+  const out=[];
+  (Array.isArray(keys)?keys:[]).forEach(k=>{
+    if(valid.has(k)&&!out.includes(k)&&out.length<MAX_MAJOR_PER_GROUP)out.push(k);
+  });
+  return out;
+}
 function ensureVolunteerSelection(key){
   const rec=getGroupRecord(key);
   if(!rec)return;
-  const valid=new Set((rec.g.majors||[]).map(m=>m.key));
-  const old=Array.isArray(volunteerMajorKeys[key])?volunteerMajorKeys[key].filter(k=>valid.has(k)):[];
-  volunteerMajorKeys[key]=old.length?old:defaultMajorKeys(rec.g);
+  volunteerMajorKeys[key]=uniqueValidMajorKeys(volunteerMajorKeys[key],rec.g);
   if(!volunteerMeta[key])volunteerMeta[key]={strategy:'',obey:'是',note:''};
+}
+function ensureVolunteerGroupForMajor(key){
+  if(!groupIndex.has(key))return false;
+  if(!volunteerKeys.includes(key)){
+    if(volunteerKeys.length>=VOLUNTEER_LIMIT){alert(`志愿表最多 ${VOLUNTEER_LIMIT} 个专业组。`);return false;}
+    volunteerKeys.push(key);
+  }
+  ensureVolunteerSelection(key);
+  return true;
+}
+function selectedMajorOrder(key){
+  const rec=getGroupRecord(key);
+  return rec?uniqueValidMajorKeys(volunteerMajorKeys[key],rec.g):[];
+}
+function selectedMajorIndex(key,majorKey){return selectedMajorOrder(key).indexOf(majorKey);}
+function setMajorSelection(key,majorKey,checked){
+  const rec=getGroupRecord(key);
+  if(!rec)return false;
+  let arr=selectedMajorOrder(key);
+  if(checked){
+    if(!ensureVolunteerGroupForMajor(key))return false;
+    arr=selectedMajorOrder(key);
+    if(!arr.includes(majorKey)){
+      if(arr.length>=MAX_MAJOR_PER_GROUP){alert(`每个专业组最多只能选择 ${MAX_MAJOR_PER_GROUP} 个专业；请先取消一个已选专业，再选择新的专业。`);return false;}
+      arr.push(majorKey);
+    }
+  }else{
+    arr=arr.filter(k=>k!==majorKey);
+  }
+  volunteerMajorKeys[key]=arr;
+  ensureVolunteerSelection(key);
+  saveVolunteerKeys();
+  saveVolunteerMajorKeys();
+  saveVolunteerMeta();
+  updateVolunteerUI();
+  return true;
+}
+function setMajorSelectionBulk(key,majorKeys){
+  if(!ensureVolunteerGroupForMajor(key))return false;
+  const rec=getGroupRecord(key);
+  if(!rec)return false;
+  volunteerMajorKeys[key]=uniqueValidMajorKeys(majorKeys,rec.g);
+  saveVolunteerKeys();
+  saveVolunteerMajorKeys();
+  saveVolunteerMeta();
+  updateVolunteerUI();
+  return true;
+}
+function moveMajorSelection(key,majorKey,delta){
+  const arr=selectedMajorOrder(key);
+  const i=arr.indexOf(majorKey);
+  const j=i+delta;
+  if(i<0||j<0||j>=arr.length)return false;
+  [arr[i],arr[j]]=[arr[j],arr[i]];
+  volunteerMajorKeys[key]=arr;
+  saveVolunteerMajorKeys();
+  return true;
 }
 function updateVolunteerUI(){
   const count=volunteerKeys.length;
@@ -680,6 +748,17 @@ function bindVolunteerButtons(){
     };
   });
 }
+function bindMainMajorChecks(){
+  $$('[data-main-major-check]').forEach(cb=>{
+    cb.addEventListener('click',e=>e.stopPropagation());
+    cb.addEventListener('change',()=>{
+      const ok=setMajorSelection(cb.dataset.mainMajorCheck,cb.value,cb.checked);
+      if(!ok)cb.checked=!cb.checked;
+      render();
+      renderVolunteerPanel();
+    });
+  });
+}
 function fillVolunteerFromCurrentFilters(){
   for(const s of state.filtered){
     for(const g of s.visibleGroups){
@@ -707,8 +786,8 @@ function clearVolunteers(){
 function selectedMajorsForKey(key){
   const rec=getGroupRecord(key);
   if(!rec)return [];
-  const selected=new Set(volunteerMajorKeys[key]||[]);
-  return sortedMajors(rec.g).filter(m=>selected.has(m.key));
+  const byKey=new Map((rec.g.majors||[]).map(m=>[m.key,m]));
+  return selectedMajorOrder(key).map(k=>byKey.get(k)).filter(Boolean);
 }
 function renderVolunteerPanel(){
   const list=$('#volunteerList');
@@ -729,19 +808,51 @@ function volunteerRowHTML(key,index){
   ensureVolunteerSelection(key);
   const meta=volunteerMeta[key]||{};
   const majors=sortedMajors(g);
-  const selected=new Set(volunteerMajorKeys[key]||[]);
+  const selectedOrder=selectedMajorOrder(key);
+  const selectedSet=new Set(selectedOrder);
+  const selectedMajors=selectedMajorsForKey(key);
   const quality=groupQuality(s,g);
   const change=groupChangeData(s,g);
   const planDiff=(g.plan26||0)-(g.plan25||0);
-  return `<article class="volunteer-item" data-volunteer-item="${esc(key)}"><div class="volunteer-item-head"><div><b>${index+1}. ${esc(s.name)} ${esc(g.groupName)}</b><p>${esc(s.province)}｜${esc(s.subject)}｜${esc(s.batch)}｜再选 ${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</p></div><div class="volunteer-actions"><button data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>上移</button><button data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>下移</button><button data-volunteer-remove="${esc(key)}">删除</button></div></div><div class="volunteer-meta-row"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label><label>服从调剂<select data-volunteer-meta="${esc(key)}" data-field="obey"><option value="是" ${meta.obey!=='否'?'selected':''}>是</option><option value="否" ${meta.obey==='否'?'selected':''}>否</option></select></label><input data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注，例如校区/学费/调剂风险"></div><div class="tag-row"><span class="group-quality-badge ${quality.tone}">${esc(quality.label)}</span>${predictionBadgeHTML(s,g)}<span class="badge">${esc(groupDisplayName(s,g)||'未命名')}</span>${change?`<span class="badge ${change.advice==='重点核对'?'red':'green'}">${esc(change.status||'变迁')}</span>`:''}</div><details class="major-picker" open><summary>已选专业 ${selected.size} / ${majors.length}</summary><div class="major-picker-actions"><button data-major-preset="${esc(key)}" data-preset="top6">默认前6</button><button data-major-preset="${esc(key)}" data-preset="all">全选</button><button data-major-preset="${esc(key)}" data-preset="none">清空</button></div><div class="major-picker-grid">${majors.map(m=>`<label class="major-check ${m.risk?'risk':''}"><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${selected.has(m.key)?'checked':''}>${esc(m.name)}${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></label>`).join('')}</div></details></article>`;
+  const selectedList=selectedMajors.length?`<div class="selected-major-list">${selectedMajors.map((m,i)=>`<div class="selected-major-item"><span class="major-order-badge">${i+1}</span><b>${esc(m.name)}</b><small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small><button data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="-1" ${i===0?'disabled':''}>上移</button><button data-major-move="${esc(key)}" data-major-key="${esc(m.key)}" data-delta="1" ${i===selectedMajors.length-1?'disabled':''}>下移</button><button data-major-unselect="${esc(key)}" data-major-key="${esc(m.key)}">取消</button></div>`).join('')}</div>`:`<div class="selected-major-empty">当前专业组还没有选择具体专业。请在下方勾选，系统会按勾选先后生成 1-6 的专业顺序。</div>`;
+  return `<article class="volunteer-item" data-volunteer-item="${esc(key)}"><div class="volunteer-item-head"><div><b>${index+1}. ${esc(s.name)} ${esc(g.groupName)}</b><p>${esc(s.province)}｜${esc(s.subject)}｜${esc(s.batch)}｜再选 ${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</p></div><div class="volunteer-actions"><button data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>上移</button><button data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>下移</button><button data-volunteer-remove="${esc(key)}">删除</button></div></div><div class="volunteer-meta-row"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label><label>服从调剂<select data-volunteer-meta="${esc(key)}" data-field="obey"><option value="是" ${meta.obey!=='否'?'selected':''}>是</option><option value="否" ${meta.obey==='否'?'selected':''}>否</option></select></label><input data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注，例如校区/学费/调剂风险"></div><div class="tag-row"><span class="group-quality-badge ${quality.tone}">${esc(quality.label)}</span>${predictionBadgeHTML(s,g)}<span class="badge">${esc(groupDisplayName(s,g)||'未命名')}</span>${change?`<span class="badge ${change.advice==='重点核对'?'red':'green'}">${esc(change.status||'变迁')}</span>`:''}</div><details class="major-picker" open><summary>已选专业 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary>${selectedList}<div class="major-picker-actions"><button data-major-preset="${esc(key)}" data-preset="top6">选前6</button><button data-major-preset="${esc(key)}" data-preset="all">全选/最多6</button><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);return `<label class="major-check ${m.risk?'risk':''} ${order>=0?'selected':''}"><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${order>=0?'checked':''}>${order>=0?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}${esc(m.name)}${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分</small></label>`;}).join('')}</div></details></article>`;
 }
+
 function bindVolunteerPanelControls(){
   $$('[data-volunteer-remove]').forEach(btn=>btn.addEventListener('click',()=>removeVolunteerKey(btn.dataset.volunteerRemove)));
   $$('[data-volunteer-move]').forEach(btn=>btn.addEventListener('click',()=>moveVolunteerKey(btn.dataset.volunteerMove,Number(btn.dataset.delta)||0)));
   $$('[data-volunteer-meta]').forEach(el=>el.addEventListener('input',()=>{const key=el.dataset.volunteerMeta; volunteerMeta[key]={...(volunteerMeta[key]||{}),[el.dataset.field]:el.value}; saveVolunteerMeta();}));
-  $$('[data-major-check]').forEach(cb=>cb.addEventListener('change',()=>{const key=cb.dataset.majorCheck; const checked=$$(`[data-major-check="${CSS.escape(key)}"]:checked`).map(x=>x.value); volunteerMajorKeys[key]=checked; saveVolunteerMajorKeys(); renderVolunteerPanel();}));
-  $$('[data-major-preset]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault(); const key=btn.dataset.majorPreset; const rec=getGroupRecord(key); if(!rec)return; if(btn.dataset.preset==='top6')volunteerMajorKeys[key]=defaultMajorKeys(rec.g); if(btn.dataset.preset==='all')volunteerMajorKeys[key]=(rec.g.majors||[]).map(m=>m.key); if(btn.dataset.preset==='none')volunteerMajorKeys[key]=[]; saveVolunteerMajorKeys(); renderVolunteerPanel();}));
+  $$('[data-major-check]').forEach(cb=>cb.addEventListener('change',()=>{
+    const ok=setMajorSelection(cb.dataset.majorCheck,cb.value,cb.checked);
+    if(!ok)cb.checked=!cb.checked;
+    renderVolunteerPanel();
+    render();
+  }));
+  $$('[data-major-preset]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.preventDefault();
+    const key=btn.dataset.majorPreset;
+    const rec=getGroupRecord(key);
+    if(!rec)return;
+    if(btn.dataset.preset==='top6')setMajorSelectionBulk(key,defaultMajorKeys(rec.g));
+    if(btn.dataset.preset==='all')setMajorSelectionBulk(key,sortedMajors(rec.g).slice(0,MAX_MAJOR_PER_GROUP).map(m=>m.key));
+    if(btn.dataset.preset==='none')setMajorSelectionBulk(key,[]);
+    renderVolunteerPanel();
+    render();
+  }));
+  $$('[data-major-move]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.preventDefault();
+    moveMajorSelection(btn.dataset.majorMove,btn.dataset.majorKey,Number(btn.dataset.delta)||0);
+    renderVolunteerPanel();
+    render();
+  }));
+  $$('[data-major-unselect]').forEach(btn=>btn.addEventListener('click',e=>{
+    e.preventDefault();
+    setMajorSelection(btn.dataset.majorUnselect,btn.dataset.majorKey,false);
+    renderVolunteerPanel();
+    render();
+  }));
 }
+
 function xlsCell(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function localDateStamp(d=new Date()){
   const pad=n=>String(n).padStart(2,'0');
@@ -770,7 +881,7 @@ function excelMetric(v){
   return v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
 }
 function exportVolunteerXlsx(){
-  const headers=['志愿序号','院校代码','专业组名称','专业序号','专业代码','专业名称','25年分数','25年位次','3年平均分','3年平均位次','招生人数','是否已选'];
+  const headers=['志愿序号','院校代码','专业组名称','专业志愿序号','专业代码','专业名称','25年分数','25年位次','3年平均分','3年平均位次','招生人数','选择状态'];
   const widths=[58,80,190,58,70,260,78,88,86,100,70,70];
   const rows=[];
   for(let i=0;i<volunteerKeys.length;i++){
@@ -779,17 +890,19 @@ function exportVolunteerXlsx(){
     if(!rec)continue;
     const {s,g}=rec;
     const allMajors=sortedMajors(g);
-    const selectedMajorKeys=new Set(volunteerMajorKeys[key]||[]);
+    const selectedOrder=selectedMajorOrder(key);
+    const selectedMajorKeys=new Set(selectedOrder);
     const mergeDown=Math.max(allMajors.length-1,0);
     const groupTitle=`${s.name} ${g.groupName}${groupDisplayName(s,g)?`\n${groupDisplayName(s,g)}`:''}`;
     allMajors.forEach((m,j)=>{
-      const isSelected=selectedMajorKeys.has(m.key);
+      const selectedNo=selectedOrder.indexOf(m.key)+1;
+      const isSelected=selectedNo>0;
       const style=isSelected?'selected':(m.risk?'risk':'');
       const row=j===0?[
         {value:i+1,style:'groupMerge',mergeDown},
         {value:g.groupCode||'',style:'groupMerge',mergeDown},
         {value:groupTitle,style:'groupMerge',mergeDown},
-        j+1,
+        isSelected?selectedNo:'',
         m.code||'',
         m.name||'',
         excelMetric(m.score25),
@@ -797,9 +910,9 @@ function exportVolunteerXlsx(){
         excelMetric(m.avgScore3),
         excelMetric(m.avgRank3),
         excelMetric(m.plan26),
-        isSelected?'已选':'未选'
+        isSelected?`已选第${selectedNo}专业`:'未选'
       ]:[
-        {index:4,value:j+1},
+        {index:4,value:isSelected?selectedNo:''},
         m.code||'',
         m.name||'',
         excelMetric(m.score25),
@@ -807,7 +920,7 @@ function exportVolunteerXlsx(){
         excelMetric(m.avgScore3),
         excelMetric(m.avgRank3),
         excelMetric(m.plan26),
-        isSelected?'已选':'未选'
+        isSelected?`已选第${selectedNo}专业`:'未选'
       ];
       rows.push({style,values:row});
     });
