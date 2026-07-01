@@ -358,6 +358,21 @@ body.compact-mode .volunteer-table-row,body.compact-mode .volunteer-table-head{g
 body.compact-mode .info-kv{grid-template-columns:112px minmax(0,1fr);gap:6px 10px}
 @media(max-width:640px){.info-kv{grid-template-columns:1fr}.info-kv dt{margin-top:6px}.school-title-main{width:100%}}
 
+
+/* V1.1.36 专业优先录取规则红色提示 */
+.admission-priority-badge{display:inline-flex;align-items:center;gap:3px;margin-left:6px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:900;vertical-align:middle;line-height:1.25;white-space:nowrap}
+.admission-priority-badge.partial{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.school-item.priority-admission-school{border-color:#fecaca;background:linear-gradient(135deg,#fff,#fff7f7)}
+.school-item.priority-admission-school.active{border-color:#ef4444;background:#fff1f2}
+.school-item.priority-admission-school .score-pill{background:#fff7f7;color:#991b1b}
+.admission-rule-alert{margin-top:14px;border:1px solid #fecaca;background:#fff1f2;color:#991b1b;border-radius:16px;padding:12px 14px;line-height:1.55}
+.admission-rule-alert b{display:block;font-size:13px;margin-bottom:4px}
+.admission-rule-alert span{font-size:12px;color:#7f1d1d}
+.admission-rule-alert.partial{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.admission-rule-alert.partial span{color:#7c2d12}
+body.compact-mode .admission-priority-badge{padding:2px 6px;font-size:10px;margin-left:4px}
+body.compact-mode .admission-rule-alert{margin-top:10px;padding:9px 11px;border-radius:13px}
+
 </style>
 <style>
 /* V1.1.34 filter UX + light school-info entry */
@@ -388,8 +403,44 @@ body.compact-mode .info-kv{grid-template-columns:112px minmax(0,1fr);gap:6px 10p
 .facet-footer button{border:1px solid var(--line);border-radius:12px;padding:9px 13px;background:#fff;font-weight:800;color:#24352b}.facet-footer .save{background:var(--green);border-color:var(--green);color:#fff}.facet-footer button:hover{background:#f6faf8}.facet-footer .save:hover{background:#076c3a}
 @media(max-width:720px){.facet-panel,body.compact-mode .facet-panel{width:100vw!important;max-width:none!important}.facet-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.facet-section-list{padding-left:12px;padding-right:12px}.facet-top,.facet-footer{padding-left:12px;padding-right:12px}}
 @media(max-width:440px){.facet-grid{grid-template-columns:1fr}}
+
+/* V1.1.36 专业优先录取规则红色提示 */
+.admission-priority-badge{display:inline-flex;align-items:center;gap:3px;margin-left:6px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:900;vertical-align:middle;line-height:1.25;white-space:nowrap}
+.admission-priority-badge.partial{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.school-item.priority-admission-school{border-color:#fecaca;background:linear-gradient(135deg,#fff,#fff7f7)}
+.school-item.priority-admission-school.active{border-color:#ef4444;background:#fff1f2}
+.school-item.priority-admission-school .score-pill{background:#fff7f7;color:#991b1b}
+.admission-rule-alert{margin-top:14px;border:1px solid #fecaca;background:#fff1f2;color:#991b1b;border-radius:16px;padding:12px 14px;line-height:1.55}
+.admission-rule-alert b{display:block;font-size:13px;margin-bottom:4px}
+.admission-rule-alert span{font-size:12px;color:#7f1d1d}
+.admission-rule-alert.partial{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.admission-rule-alert.partial span{color:#7c2d12}
+body.compact-mode .admission-priority-badge{padding:2px 6px;font-size:10px;margin-left:4px}
+body.compact-mode .admission-rule-alert{margin-top:10px;padding:9px 11px;border-radius:13px}
+
 </style>
 
+
+<style>
+/* V1.1.36 专业优先标红 + 回到顶部悬浮球 + 组内加权均分 */
+.admission-priority-badge{display:inline-flex;align-items:center;gap:3px;margin-left:6px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:900;vertical-align:middle;line-height:1.25;white-space:nowrap}
+.admission-priority-badge.partial{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.school-item.priority-admission-school{border-color:#fecaca;background:linear-gradient(135deg,#fff,#fff7f7)}
+.school-item.priority-admission-school.active{border-color:#ef4444;background:#fff1f2}
+.school-item.priority-admission-school .score-pill{background:#fff7f7;color:#991b1b}
+.admission-rule-alert{margin-top:14px;border:1px solid #fecaca;background:#fff1f2;color:#991b1b;border-radius:16px;padding:12px 14px;line-height:1.55}
+.admission-rule-alert b{display:block;font-size:13px;margin-bottom:4px}
+.admission-rule-alert span{font-size:12px;color:#7f1d1d}
+.admission-rule-alert.partial{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.admission-rule-alert.partial span{color:#7c2d12}
+.group-weighted-score{background:#eefdf4!important;color:#08713d!important;border:1px solid #b7dfc6!important;font-weight:900}
+.back-top{width:52px!important;height:52px!important;right:22px!important;bottom:88px!important;padding:0!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;border:1px solid #b7dfc6!important;background:linear-gradient(145deg,#ffffff,#eefbf3)!important;color:var(--green)!important;font-size:24px!important;font-weight:1000!important;box-shadow:0 14px 34px rgba(10,124,66,.20)!important;z-index:59!important}
+.back-top:hover{transform:translateY(-2px);background:#e9f8ef!important;border-color:#76c895!important}
+body.compact-mode .admission-priority-badge{padding:2px 6px;font-size:10px;margin-left:4px}
+body.compact-mode .admission-rule-alert{margin-top:10px;padding:9px 11px;border-radius:13px}
+body.compact-mode .back-top{width:46px!important;height:46px!important;right:18px!important;bottom:82px!important;font-size:21px!important}
+@media(max-width:640px){.back-top{right:16px!important;bottom:76px!important;width:46px!important;height:46px!important}}
+</style>
 </head>
 <body data-admin="1">
 <noscript>本系统需要启用 JavaScript。</noscript>
