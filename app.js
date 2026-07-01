@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.29 河海土木中外分数修正版';
+const VERSION='2026在招专业组版｜V1.1.31 行级权威数据重构版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -957,7 +957,7 @@ function volunteerRowHTML(key,index){
   const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><select data-major-pool-filter="${esc(key)}"><option value="all" ${poolFilter==='all'?'selected':''}>全部专业</option><option value="selected" ${poolFilter==='selected'?'selected':''}>只看已选</option><option value="unselected" ${poolFilter==='unselected'?'selected':''}>只看未选</option></select><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>{const order=selectedOrder.indexOf(m.key);const isSelected=order>=0;const hidden=(poolFilter==='selected'&&!isSelected)||(poolFilter==='unselected'&&isSelected);return `<label class="major-check ${m.risk?'risk':''} ${isSelected?'selected':'unselected'}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}><input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''}>${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder">—</span>'}<b>${esc(m.name)}</b>${m.risk?' <span>风险</span>':''}<small>${esc(m.majorClass||'其他')}｜${fmt(m.plan26)}人｜${fmtNum(m.score25)}分｜位次 ${fmtNum(m.rank25)}</small></label>`;}).join('')}</div></details>`;
   return `<article class="volunteer-item volunteer-table-row" data-volunteer-item="${esc(key)}">
     <div class="volunteer-order-col"><input class="volunteer-position-input" data-volunteer-position="${esc(key)}" value="${index+1}" title="输入目标序号，例如 10 或 第10" inputmode="numeric" aria-label="志愿序号"><span class="volunteer-drag-handle" data-volunteer-drag-handle="${esc(key)}" draggable="true" title="按住拖动调整专业组顺序">↕</span></div>
-    <div class="volunteer-group-col"><div class="volunteer-group-title"><b>${esc(s.name)} ${esc(g.groupName)}</b></div><p>再选 ${esc(g.requirement||'—')}</p><p class="volunteer-group-alias">${esc(groupAlias)}</p></div>
+    <div class="volunteer-group-col"><div class="volunteer-group-title"><b>${esc(groupShortTitle(s,g))}</b></div><p>再选 ${esc(g.requirement||'—')}</p><p class="volunteer-group-alias">${esc(groupAlias)}</p></div>
     <div class="volunteer-major-col"><div class="volunteer-selected-summary"><div class="volunteer-col-caption">已选专业 <span>${selectedOrder.length}/${MAX_MAJOR_PER_GROUP}</span></div>${selectedList}</div>${majorPicker}</div>
     <div class="volunteer-data-col"><div class="volunteer-data-line emphasis">${groupScoreLineHTML(s,g)}</div><div class="volunteer-data-line">26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</div><div class="volunteer-mini-controls single"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label></div><div class="volunteer-obey-fixed">默认服从专业组内调剂</div><input class="volunteer-note-compact" data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注"></div>
     <div class="volunteer-actions volunteer-action-col"><button class="icon-btn" title="上移" aria-label="上移" data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>↑</button><button class="icon-btn" title="下移" aria-label="下移" data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>↓</button><button class="icon-btn danger" title="删除" aria-label="删除" data-volunteer-remove="${esc(key)}">×</button></div>
@@ -1124,7 +1124,7 @@ function exportVolunteerXlsx(){
     return;
   }
   const date=localDateStamp();
-  const headers=['志愿序号','院校代码','专业组','专业组信息','专业志愿序号','专业代码','专业名称','2026计划','25计划','25最低分','25最低位次','3年平均分','3年平均位次','定位','服从调剂','备注','选择状态'];
+  const headers=['志愿序号','院校专业组代码','专业组','专业组信息','专业志愿序号','专业代码','专业名称','2026计划','25计划','25最低分','25最低位次','3年平均分','3年平均位次','定位','服从调剂','备注','选择状态'];
   const widths=[58,82,170,320,72,76,280,76,72,76,92,86,110,70,78,220,92];
   const valueOrBlank=v=>v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
   const rows=[];
