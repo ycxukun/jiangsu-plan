@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.46 刺客严格v0.3与专业名下划线版';
+const VERSION='2026在招专业组版｜V1.1.48 专业点击弹层修正版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -803,6 +803,13 @@ function bindEvents(){
   $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closePanel(b.dataset.close)));
   bindScoreInputs();
   $('#modalMask').addEventListener('click',e=>{if(e.target.id==='modalMask')closeModal();});
+  document.addEventListener('click',e=>{
+    const link=e.target.closest('[data-major-detail]');
+    if(!link)return;
+    e.preventDefault();
+    e.stopPropagation();
+    showDetail(link.dataset.majorDetail,link.dataset.schoolKey,link.dataset.groupKey);
+  },true);
   $('#adminDockBtn')?.addEventListener('click',()=>$('#adminMenu').classList.toggle('open'));
   $('#loginBtn')?.addEventListener('click',showLoginModal);
   $('#reloadNotesBtn')?.addEventListener('click',fetchNotes);
@@ -1084,11 +1091,7 @@ function bindDynamic(){
 }
 function noteBadge(scope,key){return notes[scope]&&notes[scope][key]?` <span class="note-badge">备注</span>`:'';}
 function bindMajorDetailButtons(){
-  $$('[data-major-detail]').forEach(btn=>btn.addEventListener('click',e=>{
-    e.preventDefault();
-    e.stopPropagation();
-    showDetail(btn.dataset.majorDetail,btn.dataset.schoolKey,btn.dataset.groupKey);
-  }));
+  // 专业详情点击改为全局事件委托，避免筛选/展开/重绘后监听丢失。
 }
 function bindNoteHoverAndContext(){
   $$('[data-note-scope]').forEach(el=>{
@@ -1170,9 +1173,38 @@ function showSchoolInfo(s){
   $('#modal').innerHTML=`<h3>${esc(s.name)}｜院校基础信息</h3><div class="modal-body"><div class="info-subtitle">${esc(subtitle)}｜本弹层只放学校层面的信息，专业层面信息请点击具体专业行查看。</div>${infoSectionHTML('院校基础信息',schoolInfoPairs(s,d),'school-info-section')}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
   openModal();
 }
+function fallbackMajorDetail(ctx,schoolKey,groupKey){
+  if(!ctx)return {};
+  const s=ctx.s||{};
+  const g=ctx.g||{};
+  const m=ctx.m||{};
+  return {
+    school:s.name, group:g.groupName, groupCode:g.groupCode, displayCode:g.displayCode,
+    identityKey:m.identityKey||`${m.groupCode||g.groupCode||''}+${m.code||''}`,
+    sourceExcelRow:m.sourceExcelRow, sourceRule:m.sourceRule,
+    province:s.province||g.province, city:s.city||g.city, subject:s.subject||g.subject, batch:s.batch||g.batch,
+    schoolTags:Array.isArray(g.tags)?g.tags.join('/'):(s.tags||''), schoolLevel:s.level, publicPrivate:s.publicPrivate,
+    baoyanRate:s.baoyanRate, schoolRank:s.schoolRank,
+    schoolCode:s.schoolCode, schoolGroupCode:g.groupCode, rawGroupCode:g.displayCode,
+    name:m.name, code:m.code, majorFullName:m.name, undergraduateName:m.baseName,
+    majorRemark:m.remark, majorClass:m.majorClass, discipline:m.discipline,
+    subjectRequirement:m.subjectRequirement||g.requirement, duration:m.duration, tuition:m.tuition,
+    isNew:m.isNew, predictedRank26:m.predictedRank26,
+    plan26:m.plan26, plan25:m.plan25, admit25:m.admit25, max25:m.max25, maxRank25:m.maxRank25, score25:m.score25, rank25:m.rank25,
+    plan24:m.plan24, admit24:m.admit24, max24:m.max24, maxRank24:m.maxRank24, score24:m.score24, rank24:m.rank24,
+    plan23:m.plan23, admit23:m.admit23, max23:m.max23, maxRank23:m.maxRank23, score23:m.score23, rank23:m.rank23,
+    avgScore3:m.avgScore3, avgRank3:m.avgRank3, avgYears:m.avgYears,
+    groupPlan26:g.plan26, groupMajorCount:g.groupMajorCount, groupCleanliness:g.groupCleanliness,
+    groupScore25:g.score25, groupRank25:g.rank25, rawGroupMajors:g.rawGroupMajors
+  };
+}
+function mergedMajorDetail(key,ctx){
+  DETAILS=window.MAJOR_DETAILS||DETAILS||{};
+  return Object.assign({}, fallbackMajorDetail(ctx), DETAILS[key]||{});
+}
 function showDetail(key,schoolKey,groupKey){
-  const d=DETAILS[key]||{};
   const ctx=findMajorContext(key,groupKey);
+  const d=mergedMajorDetail(key,ctx);
   const schoolNote=notes.schools[schoolKey]||'';
   const groupNote=notes.groups[groupKey]||'';
   const majorNote=notes.majors[key]||'';
@@ -1182,8 +1214,8 @@ function showDetail(key,schoolKey,groupKey){
   openModal();
 }
 function noteBlock(title,text){return text?`<section class="metric" style="margin-top:12px"><b style="font-size:14px">${esc(title)}</b><span style="white-space:pre-wrap;color:#33443a">${esc(text)}</span></section>`:'';}
-function openModal(){$('#modalMask').classList.add('open');}
-function closeModal(){$('#modalMask').classList.remove('open');}
+function openModal(){const mask=$('#modalMask'); if(mask){mask.classList.add('open'); mask.style.display='flex';}}
+function closeModal(){const mask=$('#modalMask'); if(mask){mask.classList.remove('open'); mask.style.display='';}}
 
 function buildGroupIndex(){
   groupIndex=new Map();
