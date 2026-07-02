@@ -1,0 +1,13 @@
+﻿metric,value
+source_file,江苏高考专家版数据-已更新26最新招生计划（本科阶段汇总）-6.24更新.xlsx
+source_sheet,汇总版
+valid_rows,22147
+generated_majors,22147
+generated_groups,5617
+generated_school_records,2141
+identity_key_rule,院校专业组代码+专业代码
+identity_key_unique_count,22147
+identity_key_duplicate_count,0
+db_parts,4
+major_detail_parts,28
+source_policy,"all mapped fields copied from the same authoritative Excel row; no old score patch, no cross-group match"

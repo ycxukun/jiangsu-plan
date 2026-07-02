@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='本科版｜V1.1.56 本专科合并入口版';
+const VERSION='高职专科版｜V0.2 合并入口版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -12,8 +12,8 @@ const GISCUS_CONFIG={
   theme:'light',
   lang:'zh-CN'
 };
-const disciplineOrder=['工学','理学','农学','医学','经济学','管理学','法学','教育学','文学/历史/哲学','艺术学','其他'];
-const hotOrder=['计算机类','电子信息类','电气类','自动化类','机械类','临床医学类','口腔医学类','金融学类','法学类','数学类','统计学类'];
+const disciplineOrder=['交通运输大类','电子与信息大类','装备制造大类','医药卫生大类','财经商贸大类','教育与体育大类','土木建筑大类','能源动力与材料大类','生物与化工大类','食品药品与粮食大类','农林牧渔大类','文化艺术大类','旅游大类','公安司法大类','资源环境与安全大类','公共管理与服务大类','新闻传播大类','其他'];
+const hotOrder=['铁道运输类','城市轨道交通类','航海运输类','计算机类','电子信息类','电气自动化类','护理医学类','财务会计类','教育体育类','机械设计制造类','汽车制造类','药学类','财经商贸类'];
 const provinceRegionGroups=[
   {title:'华东',items:['江苏','上海','浙江','安徽','福建','山东','江西']},
   {title:'华北',items:['北京','天津','河北','山西','内蒙古']},
@@ -24,13 +24,9 @@ const provinceRegionGroups=[
   {title:'东北',items:['辽宁','吉林','黑龙江']}
 ];
 const levelFacetGroups=[
-  {title:'国家层次',items:['985','211','双一流']},
-  {title:'保研层次',items:['保研双非']},
-  {title:'常规层次',items:['普通公办','民办']},
-  {title:'办学性质',items:['公办','中外合作办学机构']},
-  {title:'院校类型',items:['综合类','理工类','师范类','医药类','财经类','政法类','农林类','军事类']},
-  {title:'行业标签',items:['电力','邮电','交通','水利','航空航天','兵器','石油']},
-  {title:'录取规则',items:['专业优先','部分专业优先']}
+  {title:'专科层次',items:['职业本科','高水平','专科公办','专科民办','本科公办','公办','民办']},
+  {title:'强势方向',items:['铁道轨交','信息技术','医药护理','电力能源','师范教育','公安司法']},
+  {title:'特殊性质',items:['中外合作','联合培养','高收费','定向/军士','航海轮机']}
 ];
 const specialTypeFacetGroups=[
   {title:'合作与培养模式',items:['中外合作','联合培养','高收费','境外/国际培养','校企合作/产教融合']},
@@ -767,7 +763,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <header class="topbar">
-      <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><div class="version">${VERSION}</div><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">本科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
+      <div class="hero"><div class="brand"><h1>江苏专科招生计划变化知识库</h1><p>基于 2026 高职专科行级数据生成；院校与专业组均按专业加权均分排序，支持志愿表、特殊类型、体检受限与风险提示。</p></div><div class="top-actions"><div class="stage-switch"><a href="../index.html">本科</a><a class="active" href="./index.html">专科</a></div><div class="version">${VERSION}</div><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">专科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
       <div class="filters">
         <select id="batchFilter"><option value="">全部批次</option></select>
         <select id="subjectFilter"><option value="">全部科类</option></select>
@@ -2064,7 +2060,7 @@ function exportVolunteerXlsx(){
   }
   const thinBorder='<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#C8D6CC"/></Borders>';
   const columns=excelColumns(headers,widths);
-  const title=`江苏本科志愿表｜已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 专业组｜导出日期 ${date}`;
+  const title=`江苏专科志愿表｜已选 ${volunteerKeys.length} / ${VOLUNTEER_LIMIT} 专业组｜导出日期 ${date}`;
   const topRows=[
     excelRow([{value:title,style:'title',mergeAcross:headers.length-1}],null,{height:32}),
     excelRow(headers.map(h=>({value:h,style:'subheader'})),null,{height:30})
@@ -2113,7 +2109,7 @@ function bindGroupChangeButtons(){
 function openGroupChange(key,title){
   $('#changePanelTitle').textContent=title||key;
   const data=GROUP_CHANGES[key];
-  $('#changePanelBody').innerHTML=data?groupChangeHTML(data):`<div class="change-empty">暂无普通批 25-26 变迁数据。<br><span class="muted">当前变迁表主要覆盖普通类本科批；提前批或异常组可能未纳入。</span></div>`;
+  $('#changePanelBody').innerHTML=data?groupChangeHTML(data):`<div class="change-empty">暂无普通批 25-26 变迁数据。<br><span class="muted">当前专科首版暂未接入完整25-26专业组变迁表；不影响行级分数、计划与志愿表。</span></div>`;
   openPanel('changePanel');
 }
 function metricTile(label,value,sub){

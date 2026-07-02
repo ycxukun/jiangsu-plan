@@ -1,0 +1,7 @@
+V1.1.35 专业组变迁与保研筛选版
+
+上传到 GitHub Pages 时保留本目录全部文件。
+核心入口：index.html
+管理入口：admin.html
+新增变迁数据：data-group-changes.js
+新增审计文件：group_change_mapping_summary.csv、group_change_mapping_audit.csv
