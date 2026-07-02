@@ -26,3 +26,9 @@
 - 使用《高职专科专业目录_单表合并版》重新匹配专科专业名称、专业类、专业大类。
 - 专科端有效专业 7660 条，匹配 7660 条，未匹配 0 条。
 - 新增 specialty/specialty_catalog_rematch_full_audit.csv 与 specialty/specialty_catalog_rematch_summary.csv。
+
+
+## 地区筛选更新
+- 省份支持多选。
+- 选择江苏后，可继续在“江苏十三太保”中选择南京、苏州、无锡、常州等地级市。
+- 勾选城市会自动限定江苏；适合家长只看南京/苏州等地区的场景。

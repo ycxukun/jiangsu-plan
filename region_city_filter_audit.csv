@@ -1,0 +1,2 @@
+version,scope,change
+V1.1.59,undergrad+specialty,地区筛选新增江苏十三太保城市多选；选择城市会自动限定江苏；支持省份多选与城市多选叠加

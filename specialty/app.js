@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='高职专科版｜V0.3 专业目录重匹配版';
+const VERSION='高职专科版｜V0.4 地区省市联动筛选版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -23,6 +23,7 @@ const provinceRegionGroups=[
   {title:'西北',items:['陕西','甘肃','青海','宁夏','新疆']},
   {title:'东北',items:['辽宁','吉林','黑龙江']}
 ];
+const JIANGSU_CITIES=['南京','无锡','徐州','常州','苏州','南通','连云港','淮安','盐城','扬州','镇江','泰州','宿迁'];
 const levelFacetGroups=[
   {title:'专科层次',items:['职业本科','高水平','专科公办','专科民办','本科公办','公办','民办']},
   {title:'强势方向',items:['铁道轨交','信息技术','医药护理','电力能源','师范教育','公安司法']},
@@ -65,7 +66,7 @@ let ASSASSIN_GROUP_RISKS=window.ASSASSIN_GROUP_RISKS||{};
 let ASSASSIN_MAJOR_RISKS=window.ASSASSIN_MAJOR_RISKS||{};
 let ASSASSIN_RISK_AUTHORITATIVE=Boolean(window.ASSASSIN_RISK_AUTHORITATIVE);
 let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
-let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
+let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 const VOLUNTEER_LIMIT=40;
@@ -807,6 +808,7 @@ function initFilters(){
   fillSelect('#subjectFilter',subjects);
 }
 function schoolCountBy(field){const m=new Map(); DB.forEach(s=>{const key=String(s[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);}); return m;}
+function schoolCityCountByProvince(province){const m=new Map(); DB.forEach(s=>{if(String(s.province||'').trim()!==province)return; const key=String(s.city??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);}); return m;}
 
 function collectSchoolAdmissionRules(s){
   const rules=[];
@@ -1065,11 +1067,68 @@ function renderFacetPanel(opts){
   syncChecks();
 }
 function buildProvincePanel(){
-  const counts=schoolCountBy('province');
-  const items=Array.from(counts.keys()).sort((a,b)=>(counts.get(b)-counts.get(a))||a.localeCompare(b,'zh-Hans-CN'));
-  const groups=groupsFromOrderedItems(items,counts,provinceRegionGroups,'其他地区');
-  renderFacetPanel({panelId:'provincePanel',bodyId:'provincePanelBody',title:'地区筛选',searchPlaceholder:'搜索省份，如 江苏 / 浙江 / 黑龙江',groups,counts,setRef:state.selectedProvinces,buttonUpdater:updateProvinceButton,clearLabel:'清空地区筛选'});
+  const provinceCounts=schoolCountBy('province');
+  const provinceItems=Array.from(provinceCounts.keys()).sort((a,b)=>(provinceCounts.get(b)-provinceCounts.get(a))||a.localeCompare(b,'zh-Hans-CN'));
+  const provinceGroups=groupsFromOrderedItems(provinceItems,provinceCounts,provinceRegionGroups,'其他地区');
+  const cityCounts=schoolCityCountByProvince('江苏');
+  const jiangsuCities=JIANGSU_CITIES.filter(c=>cityCounts.has(c)||true);
+  const body=document.getElementById('provincePanelBody');
+  if(!body)return;
+  const draftP=new Set([...state.selectedProvinces]);
+  const draftC=new Set([...state.selectedCities]);
+  const provincePayloads=provinceGroups.map(g=>g.items||[]);
+  body.innerHTML=`
+    <div class="facet-top">
+      <div class="facet-help">地区支持两级筛选：先多选省份；如果选择江苏，可以继续在“十三太保”里勾选南京、苏州等地级市。最后点“应用筛选”。</div>
+      <div class="facet-selected" data-facet-selected></div>
+      <input class="facet-search" type="search" placeholder="搜索省份或城市，如 江苏 / 南京 / 苏州">
+    </div>
+    <div class="facet-section-list">
+      ${provinceGroups.map((g,idx)=>`<section class="facet-section" data-facet-section data-section-type="province">
+        <div class="facet-section-head"><h4>${esc(g.title)} <span>${(g.items||[]).length}</span></h4><div><button type="button" data-province-group-select="${idx}">全选</button><button type="button" data-province-group-clear="${idx}">清空</button></div></div>
+        <div class="facet-grid">${(g.items||[]).map(v=>`<label class="facet-option" data-facet-item data-search="${esc(v)}"><input type="checkbox" data-province-value value="${esc(v)}" ${draftP.has(v)?'checked':''}><span>${esc(v)}</span><em>${countGet(provinceCounts,v)}</em></label>`).join('')}</div>
+      </section>`).join('')}
+      <section class="facet-section city-facet-section" data-facet-section data-section-type="city" data-province-city-section="江苏">
+        <div class="facet-section-head"><h4>江苏十三太保 <span>${jiangsuCities.length}</span></h4><div><button type="button" data-city-select-all>全选13市</button><button type="button" data-city-clear>清空城市</button></div></div>
+        <div class="facet-grid">${jiangsuCities.map(v=>`<label class="facet-option city-option" data-facet-item data-search="${esc('江苏 '+v)}"><input type="checkbox" data-city-value value="${esc(v)}" ${draftC.has(v)?'checked':''}><span>${esc(v)}</span><em>${countGet(cityCounts,v)}</em></label>`).join('')}</div>
+      </section>
+    </div>
+    <div class="facet-footer"><button type="button" data-facet-clear>清空全部地区</button><button type="button" data-facet-cancel>取消</button><button type="button" class="save" data-facet-apply>应用筛选</button></div>`;
+  const provinceCbs=()=>Array.from(body.querySelectorAll('input[data-province-value]'));
+  const cityCbs=()=>Array.from(body.querySelectorAll('input[data-city-value]'));
+  function syncChecks(){
+    if(draftC.size)draftP.add('江苏');
+    if(!draftP.has('江苏'))draftC.clear();
+    provinceCbs().forEach(cb=>{cb.checked=draftP.has(cb.value); cb.closest('.facet-option')?.classList.toggle('checked',cb.checked);});
+    cityCbs().forEach(cb=>{cb.checked=draftC.has(cb.value); cb.closest('.facet-option')?.classList.toggle('checked',cb.checked);});
+    const citySection=body.querySelector('[data-province-city-section="江苏"]');
+    if(citySection)citySection.classList.toggle('city-section-active',draftP.has('江苏'));
+    const selected=body.querySelector('[data-facet-selected]');
+    const chips=[];
+    [...draftP].forEach(v=>chips.push({type:'province',value:v,label:v}));
+    [...draftC].forEach(v=>chips.push({type:'city',value:v,label:`${v}市`}));
+    selected.innerHTML=chips.length?`<div class="facet-selected-title">已选 ${draftP.size} 省 / ${draftC.size} 市</div><div class="facet-selected-chips">${chips.map(x=>`<button type="button" data-region-remove-type="${x.type}" data-region-remove="${esc(x.value)}">${esc(x.label)} ×</button>`).join('')}</div>`:`<div class="facet-selected-empty">尚未选择，默认不过滤地区。</div>`;
+    selected.querySelectorAll('[data-region-remove]').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.regionRemoveType==='city')draftC.delete(btn.dataset.regionRemove);else{draftP.delete(btn.dataset.regionRemove);if(btn.dataset.regionRemove==='江苏')draftC.clear();}syncChecks();filterOptions();}));
+  }
+  function filterOptions(){
+    const q=normalize(body.querySelector('.facet-search')?.value||'');
+    body.querySelectorAll('[data-facet-item]').forEach(el=>{const show=!q||normalize(el.dataset.search||el.textContent).includes(q); el.style.display=show?'':'none';});
+    body.querySelectorAll('[data-facet-section]').forEach(sec=>{const any=Array.from(sec.querySelectorAll('[data-facet-item]')).some(el=>el.style.display!=='none'); sec.style.display=any?'':'none';});
+  }
+  provinceCbs().forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked)draftP.add(cb.value);else{draftP.delete(cb.value);if(cb.value==='江苏')draftC.clear();}syncChecks();filterOptions();}));
+  cityCbs().forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked){draftC.add(cb.value);draftP.add('江苏');}else draftC.delete(cb.value);syncChecks();filterOptions();}));
+  body.querySelectorAll('[data-province-group-select]').forEach(btn=>btn.addEventListener('click',()=>{(provincePayloads[+btn.dataset.provinceGroupSelect]||[]).forEach(v=>draftP.add(v));syncChecks();filterOptions();}));
+  body.querySelectorAll('[data-province-group-clear]').forEach(btn=>btn.addEventListener('click',()=>{(provincePayloads[+btn.dataset.provinceGroupClear]||[]).forEach(v=>{draftP.delete(v);if(v==='江苏')draftC.clear();});syncChecks();filterOptions();}));
+  body.querySelector('[data-city-select-all]').addEventListener('click',()=>{JIANGSU_CITIES.forEach(v=>draftC.add(v));draftP.add('江苏');syncChecks();filterOptions();});
+  body.querySelector('[data-city-clear]').addEventListener('click',()=>{draftC.clear();syncChecks();filterOptions();});
+  body.querySelector('[data-facet-clear]').addEventListener('click',()=>{draftP.clear();draftC.clear();syncChecks();filterOptions();});
+  body.querySelector('[data-facet-cancel]').addEventListener('click',()=>closePanel('provincePanel'));
+  body.querySelector('[data-facet-apply]').addEventListener('click',()=>{if(draftC.size)draftP.add('江苏');state.selectedProvinces.clear();draftP.forEach(v=>state.selectedProvinces.add(v));state.selectedCities.clear();draftC.forEach(v=>state.selectedCities.add(v));updateProvinceButton();closePanel('provincePanel');applyFilters();});
+  body.querySelector('.facet-search').addEventListener('input',filterOptions);
+  syncChecks();
+  filterOptions();
 }
+
 function buildLevelPanel(){
   const counts=schoolFacetCounts();
   const items=Array.from(counts.keys()).sort((a,b)=>{
@@ -1229,7 +1288,7 @@ function buildClassPanel(){
   const groups=disciplineOrder.map(d=>{let arr=byDisc[d]||[]; arr.sort((a,b)=>{let ai=hotOrder.indexOf(a),bi=hotOrder.indexOf(b); if(ai<0)ai=999;if(bi<0)bi=999; if(ai!==bi)return ai-bi; return (counts.get(b)-counts.get(a))||a.localeCompare(b,'zh-Hans-CN');}); return {title:d,items:arr};}).filter(g=>g.items.length);
   renderFacetPanel({panelId:'classPanel',bodyId:'classPanelBody',title:'专业大类筛选',searchPlaceholder:'搜索专业类，如 计算机 / 电子信息 / 土木',groups,counts,setRef:state.selectedClasses,buttonUpdater:updateClassButton,clearLabel:'清空专业大类'});
 }
-function updateProvinceButton(){const n=state.selectedProvinces.size; $('#provinceBtn').textContent=selectedSummary('全部省份',state.selectedProvinces,'省份');}
+function updateProvinceButton(){const p=state.selectedProvinces.size,c=state.selectedCities.size; const btn=$('#provinceBtn'); if(!btn)return; if(!p&&!c){btn.textContent='全部省份';return;} if(c&&p===1&&state.selectedProvinces.has('江苏')){const arr=[...state.selectedCities]; btn.textContent=arr.length===1?`江苏：${arr[0]}`:`江苏：${arr[0]} +${arr.length-1}`;return;} btn.textContent=`地区 ${p}省${c?`/${c}市`:''}`;}
 function updateLevelButton(){const n=state.selectedLevels.size; $('#levelBtn').textContent=selectedSummary('院校层次',state.selectedLevels,'院校层次');}
 function updateRequirementButton(){const n=state.selectedRequirements.size; $('#requirementBtn').textContent=selectedSummary('选科要求',state.selectedRequirements,'选科要求');}
 function updateClassButton(){const n=state.selectedClasses.size; $('#classBtn').textContent=selectedSummary('全部专业大类',state.selectedClasses,'专业大类');}
@@ -1288,6 +1347,7 @@ function applyFilters(){
     if(state.batch&&s.batch!==state.batch)return;
     if(state.subject&&s.subject!==state.subject)return;
     if(state.selectedProvinces.size&&!state.selectedProvinces.has(s.province))return;
+    if(state.selectedCities.size&&!state.selectedCities.has(s.city))return;
     if(!schoolMatchesLevelFacet(s))return;
     const groups=s.groups.filter(g=>{if(!groupMatchesSpecialSelection(s,g))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
     const visibleGroups=sortGroupsByWeightedMajorScore(groups);
