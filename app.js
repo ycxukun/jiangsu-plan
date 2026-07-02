@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.52 色觉限制延伸严格版';
+const VERSION='2026在招专业组版｜V1.1.53 特殊类型排除筛选版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -32,6 +32,12 @@ const levelFacetGroups=[
   {title:'行业标签',items:['电力','邮电','交通','水利','航空航天','兵器','石油']},
   {title:'录取规则',items:['专业优先','部分专业优先']}
 ];
+const specialTypeFacetGroups=[
+  {title:'合作与培养模式',items:['中外合作','联合培养','高收费','境外/国际培养','校企合作/产教融合']},
+  {title:'政策与特殊招生',items:['定向/公费/优师','专项计划','民族班/预科','军警航海']},
+  {title:'特殊班型',items:['实验班/拔尖班','双学位/本博硕博']}
+];
+
 const MEDICAL_CODE_META={
   '11':'严重心脏病、心肌病、高血压病：学校可以不予录取',
   '12':'重症支气管扩张、哮喘、恶性肿瘤、慢性肾炎、尿毒症：学校可以不予录取',
@@ -63,7 +69,7 @@ let ASSASSIN_GROUP_RISKS=window.ASSASSIN_GROUP_RISKS||{};
 let ASSASSIN_MAJOR_RISKS=window.ASSASSIN_MAJOR_RISKS||{};
 let ASSASSIN_RISK_AUTHORITATIVE=Boolean(window.ASSASSIN_RISK_AUTHORITATIVE);
 let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
-let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
+let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),excludedSpecialTypes:new Set(),selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 const VOLUNTEER_LIMIT=40;
@@ -768,6 +774,7 @@ function createLayout(){
         <button id="requirementBtn" class="filter-btn">选科要求</button>
         <button id="provinceBtn" class="filter-btn">全部省份</button>
         <button id="levelBtn" class="filter-btn">院校层次</button>
+        <button id="specialBtn" class="filter-btn">特殊类型</button>
         <select id="roleFilter"><option value="">角色/客观标签</option></select>
         <select id="modeFilter"><option value="schools">全部院校</option><option value="groups">全部专业组</option></select>
         <button id="classBtn" class="filter-btn">全部专业大类</button>
@@ -779,6 +786,7 @@ function createLayout(){
     <div class="layout"><aside class="sidebar"><div class="side-head"><strong>院校索引</strong><span id="resultMeta">正在加载数据</span></div><div id="schoolList" class="school-list"></div></aside><main id="main" class="main"></main></div>
     <div id="provincePanel" class="panel facet-panel"><div class="panel-head"><h3>地区筛选</h3><button class="close-btn" data-close="provincePanel">×</button></div><div class="panel-body"><div id="provincePanelBody"></div></div></div>
     <div id="levelPanel" class="panel facet-panel"><div class="panel-head"><h3>院校层次筛选</h3><button class="close-btn" data-close="levelPanel">×</button></div><div class="panel-body"><div id="levelPanelBody"></div></div></div>
+    <div id="specialPanel" class="panel facet-panel"><div class="panel-head"><h3>特殊类型排除</h3><button class="close-btn" data-close="specialPanel">×</button></div><div class="panel-body"><div id="specialPanelBody"></div></div></div>
     <div id="requirementPanel" class="panel facet-panel"><div class="panel-head"><h3>选科要求筛选</h3><button class="close-btn" data-close="requirementPanel">×</button></div><div class="panel-body"><div id="requirementPanelBody"></div></div></div>
     <div id="classPanel" class="panel facet-panel"><div class="panel-head"><h3>专业大类筛选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
@@ -906,6 +914,7 @@ function bindEvents(){
   $('#searchInput').addEventListener('input',e=>{state.q=e.target.value; applyFilters();});
   $('#provinceBtn').addEventListener('click',()=>{buildProvincePanel();openPanel('provincePanel')});
   $('#levelBtn').addEventListener('click',()=>{buildLevelPanel();openPanel('levelPanel')});
+  $('#specialBtn').addEventListener('click',()=>{buildSpecialPanel();openPanel('specialPanel')});
   $('#requirementBtn').addEventListener('click',()=>{buildRequirementPanel();openPanel('requirementPanel')});
   $('#classBtn').addEventListener('click',()=>{buildClassPanel();openPanel('classPanel')});
   $('#scoreBtn').addEventListener('click',()=>{updateRangeSummary();openPanel('scorePanel')});
@@ -1017,14 +1026,14 @@ function groupsFromOrderedItems(items,counts,groupDefs,otherTitle='其他'){
   return out;
 }
 function renderFacetPanel(opts){
-  const {panelId,bodyId,title,searchPlaceholder,groups,counts,setRef,buttonUpdater,clearLabel}=opts;
+  const {panelId,bodyId,title,searchPlaceholder,groups,counts,setRef,buttonUpdater,clearLabel,helpText}=opts;
   const body=document.getElementById(bodyId);
   if(!body){console.error('筛选面板容器不存在：',bodyId);return;}
   const draft=new Set([...setRef]);
   const groupPayloads=groups.map(g=>g.items||[]);
   body.innerHTML=`
     <div class="facet-top">
-      <div class="facet-help">先在面板内勾选，最后点“应用筛选”；支持搜索、分组全选和单项取消。</div>
+      <div class="facet-help">${esc(helpText||'先在面板内勾选，最后点“应用筛选”；支持搜索、分组全选和单项取消。')}</div>
       <div class="facet-selected" data-facet-selected></div>
       <input class="facet-search" type="search" placeholder="${esc(searchPlaceholder||'搜索选项')}">
     </div>
@@ -1081,6 +1090,60 @@ function buildLevelPanel(){
   const groups=groupsFromOrderedItems(items,counts,levelFacetGroups,'其他层次');
   renderFacetPanel({panelId:'levelPanel',bodyId:'levelPanelBody',title:'院校层次筛选',searchPlaceholder:'搜索层次，如 985 / 211 / 双一流 / 保研双非 / 普通公办',groups,counts,setRef:state.selectedLevels,buttonUpdater:updateLevelButton,clearLabel:'清空院校层次'});
 }
+
+function groupSpecialTypeValues(s,g){
+  const vals=new Set();
+  const parts=[s?.name,s?.level,s?.batch,s?.subject,g?.groupName,g?.displayCode,g?.rawGroupName,g?.majorSummary,g?.remark,(g?.tags||[]).join(' '),(g?.majorClasses||[]).join(' ')];
+  (g?.majors||[]).forEach(m=>{
+    const d=DETAILS[m.key]||{};
+    parts.push(m.name,m.baseName,m.remark,m.majorClass,m.discipline,m.tuition,d.majorFullName,d.majorRemark,d.tuition,d.schoolTags,d.schoolLevel,d.recruitChapter,d.admissionRule);
+  });
+  const text=String(parts.filter(Boolean).join(' '));
+  const add=x=>vals.add(x);
+  if(/中外合作|合作办学|中外合办|国际合作|4\+0|3\+1|2\+2|外方|双校园|中英|中澳|中美|中法|中德|中俄|中韩|中日/.test(text))add('中外合作');
+  if(/联合培养|高职院校联合|本科与高职|分段培养|贯通培养|协同培养|联合办学|联合学院/.test(text))add('联合培养');
+  const hasHighTuition=(g?.majors||[]).some(m=>{const d=DETAILS[m.key]||{}; const t=num(m.tuition)||num(d.tuition); return t!==null&&t>=25000;});
+  if(/高收费|较高收费|收费较高|学费较高/.test(text)||hasHighTuition)add('高收费');
+  if(/境外|国外|海外|国际校区|马来西亚|香港|澳门|全英文|都柏林|奥塔哥|蒙纳士|昆士兰|诺森比亚|诺丁汉|杜克|纽约大学|利物浦/.test(text))add('境外/国际培养');
+  if(/校企合作|产教融合|现代产业学院|产业学院|企业联合|行业联合|订单班|卓越工程师学院|未来技术学院/.test(text))add('校企合作/产教融合');
+  if(/定向|公费师范|免费师范|优师|免费医学|委托培养|订单定向/.test(text))add('定向/公费/优师');
+  if(/地方专项|高校专项|国家专项|农村专项|专项计划|综合评价|强基/.test(text))add('专项计划');
+  if(/民族班|预科|少数民族/.test(text))add('民族班/预科');
+  if(/军校|公安|警校|航海|轮机|飞行技术|民航|空中交通管制|司法警官|消防/.test(text))add('军警航海');
+  if(/实验班|试验班|拔尖|强基|钱学森|英才|菁英|创新班|卓越班|领军|尖班|书院/.test(text))add('实验班/拔尖班');
+  if(/双学士|双学位|本博|本硕|硕博|直博|长学制|八年制|九年制/.test(text))add('双学位/本博硕博');
+  return vals;
+}
+function specialTypeCounts(){
+  const m=new Map();
+  DB.forEach(s=>(s.groups||[]).forEach(g=>groupSpecialTypeValues(s,g).forEach(v=>m.set(v,(m.get(v)||0)+1))));
+  return m;
+}
+function buildSpecialPanel(){
+  const counts=specialTypeCounts();
+  const items=Array.from(counts.keys()).sort((a,b)=>{
+    const order=specialTypeFacetGroups.flatMap(g=>g.items);
+    const ai=order.indexOf(a), bi=order.indexOf(b);
+    if(ai>=0&&bi>=0)return ai-bi;
+    if(ai>=0)return -1; if(bi>=0)return 1;
+    return (counts.get(b)-counts.get(a))||String(a).localeCompare(String(b),'zh-Hans-CN');
+  });
+  const groups=groupsFromOrderedItems(items,counts,specialTypeFacetGroups,'其他特殊类型');
+  renderFacetPanel({panelId:'specialPanel',bodyId:'specialPanelBody',title:'特殊类型排除',searchPlaceholder:'搜索特殊类型，如 中外合作 / 联合培养 / 高收费',groups,counts,setRef:state.excludedSpecialTypes,buttonUpdater:updateSpecialButton,clearLabel:'清空特殊类型排除',helpText:'这里是“排除/不看”筛选：勾选中外合作、联合培养、高收费等类型后，主页面将隐藏命中的专业组；不会删除已经加入志愿表的专业组。'});
+}
+function updateSpecialButton(){
+  const arr=[...state.excludedSpecialTypes];
+  const btn=$('#specialBtn');
+  if(!btn)return;
+  btn.textContent=arr.length?(arr.length===1?`排除${arr[0]}`:`排除${arr[0]} +${arr.length-1}`):'特殊类型';
+  btn.classList.toggle('special-active',arr.length>0);
+}
+function groupMatchesSpecialExclusion(s,g){
+  if(!state.excludedSpecialTypes.size)return true;
+  const vals=groupSpecialTypeValues(s,g);
+  return ![...state.excludedSpecialTypes].some(v=>vals.has(v));
+}
+
 function buildRequirementPanel(){
   const counts=groupCountBy('requirement');
   const order=['不限','化学','生物','化和生','政治','地理','政和地','生和地'];
@@ -1163,7 +1226,7 @@ function applyFilters(){
     if(state.subject&&s.subject!==state.subject)return;
     if(state.selectedProvinces.size&&!state.selectedProvinces.has(s.province))return;
     if(!schoolMatchesLevelFacet(s))return;
-    const groups=s.groups.filter(g=>{if(state.role&&!(g.tags||[]).includes(state.role))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
+    const groups=s.groups.filter(g=>{if(state.role&&!(g.tags||[]).includes(state.role))return false; if(!groupMatchesSpecialExclusion(s,g))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
     const visibleGroups=sortGroupsByWeightedMajorScore(groups);
     if(visibleGroups.length){result.push({...s,visibleGroups});}
   });
@@ -2109,10 +2172,12 @@ function init(){
   initFilters();
   buildProvincePanel();
   buildLevelPanel();
+  buildSpecialPanel();
   buildRequirementPanel();
   buildClassPanel();
   updateProvinceButton();
   updateLevelButton();
+  updateSpecialButton();
   updateRequirementButton();
   updateClassButton();
   bindEvents();
