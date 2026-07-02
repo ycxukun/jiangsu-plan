@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.53 特殊类型排除筛选版';
+const VERSION='2026在招专业组版｜V1.1.54 特殊类型双向筛选版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -69,7 +69,7 @@ let ASSASSIN_GROUP_RISKS=window.ASSASSIN_GROUP_RISKS||{};
 let ASSASSIN_MAJOR_RISKS=window.ASSASSIN_MAJOR_RISKS||{};
 let ASSASSIN_RISK_AUTHORITATIVE=Boolean(window.ASSASSIN_RISK_AUTHORITATIVE);
 let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
-let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),excludedSpecialTypes:new Set(),selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
+let state={batch:'',subject:'',selectedProvinces:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 const VOLUNTEER_LIMIT=40;
@@ -774,8 +774,7 @@ function createLayout(){
         <button id="requirementBtn" class="filter-btn">选科要求</button>
         <button id="provinceBtn" class="filter-btn">全部省份</button>
         <button id="levelBtn" class="filter-btn">院校层次</button>
-        <button id="specialBtn" class="filter-btn">特殊类型</button>
-        <select id="roleFilter"><option value="">角色/客观标签</option></select>
+        <button id="specialBtn" class="filter-btn">特殊类型/标签</button>
         <select id="modeFilter"><option value="schools">全部院校</option><option value="groups">全部专业组</option></select>
         <button id="classBtn" class="filter-btn">全部专业大类</button>
         <button id="scoreBtn" class="filter-btn">目标分区间</button>
@@ -786,7 +785,7 @@ function createLayout(){
     <div class="layout"><aside class="sidebar"><div class="side-head"><strong>院校索引</strong><span id="resultMeta">正在加载数据</span></div><div id="schoolList" class="school-list"></div></aside><main id="main" class="main"></main></div>
     <div id="provincePanel" class="panel facet-panel"><div class="panel-head"><h3>地区筛选</h3><button class="close-btn" data-close="provincePanel">×</button></div><div class="panel-body"><div id="provincePanelBody"></div></div></div>
     <div id="levelPanel" class="panel facet-panel"><div class="panel-head"><h3>院校层次筛选</h3><button class="close-btn" data-close="levelPanel">×</button></div><div class="panel-body"><div id="levelPanelBody"></div></div></div>
-    <div id="specialPanel" class="panel facet-panel"><div class="panel-head"><h3>特殊类型排除</h3><button class="close-btn" data-close="specialPanel">×</button></div><div class="panel-body"><div id="specialPanelBody"></div></div></div>
+    <div id="specialPanel" class="panel facet-panel"><div class="panel-head"><h3>特殊类型/标签筛选</h3><button class="close-btn" data-close="specialPanel">×</button></div><div class="panel-body"><div id="specialPanelBody"></div></div></div>
     <div id="requirementPanel" class="panel facet-panel"><div class="panel-head"><h3>选科要求筛选</h3><button class="close-btn" data-close="requirementPanel">×</button></div><div class="panel-body"><div id="requirementPanelBody"></div></div></div>
     <div id="classPanel" class="panel facet-panel"><div class="panel-head"><h3>专业大类筛选</h3><button class="close-btn" data-close="classPanel">×</button></div><div class="panel-body"><div id="classPanelBody"></div></div></div>
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
@@ -805,14 +804,12 @@ function createLayout(){
   </div>`;
 }
 function unique(arr){return Array.from(new Set(arr.filter(v=>v!==undefined&&v!==null&&String(v).trim()!=='')));}
-function fillSelect(sel,vals){const el=$(sel); const first=el.options[0].outerHTML; el.innerHTML=first+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');}
+function fillSelect(sel,vals){const el=$(sel); if(!el)return; const first=el.options[0].outerHTML; el.innerHTML=first+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');}
 function initFilters(){
   const batches=unique(DB.map(s=>s.batch)).sort();
   const subjects=unique(DB.map(s=>s.subject)).sort();
-  const roles=unique(DB.flatMap(s=>s.groups.flatMap(g=>g.tags||[]))).sort((a,b)=>String(a).localeCompare(String(b),'zh-Hans-CN'));
   fillSelect('#batchFilter',batches);
   fillSelect('#subjectFilter',subjects);
-  fillSelect('#roleFilter',roles);
 }
 function schoolCountBy(field){const m=new Map(); DB.forEach(s=>{const key=String(s[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);}); return m;}
 
@@ -910,7 +907,7 @@ function schoolFacetCounts(){const m=new Map(); DB.forEach(s=>schoolFacetValues(
 function schoolMatchesLevelFacet(s){if(!state.selectedLevels.size)return true; const vals=schoolFacetValues(s); return [...state.selectedLevels].some(v=>vals.has(v));}
 function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g=>{const key=String(g[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);})); return m;}
 function bindEvents(){
-  ['batchFilter','subjectFilter','roleFilter','modeFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; if(id==='modeFilter')state.mode=e.target.value; applyFilters();}));
+  ['batchFilter','subjectFilter','modeFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; if(id==='modeFilter')state.mode=e.target.value; applyFilters();}));
   $('#searchInput').addEventListener('input',e=>{state.q=e.target.value; applyFilters();});
   $('#provinceBtn').addEventListener('click',()=>{buildProvincePanel();openPanel('provincePanel')});
   $('#levelBtn').addEventListener('click',()=>{buildLevelPanel();openPanel('levelPanel')});
@@ -1099,7 +1096,8 @@ function groupSpecialTypeValues(s,g){
     parts.push(m.name,m.baseName,m.remark,m.majorClass,m.discipline,m.tuition,d.majorFullName,d.majorRemark,d.tuition,d.schoolTags,d.schoolLevel,d.recruitChapter,d.admissionRule);
   });
   const text=String(parts.filter(Boolean).join(' '));
-  const add=x=>vals.add(x);
+  const add=x=>{if(isValidFacetValue(x))vals.add(x);};
+  (g?.tags||[]).forEach(t=>add(t));
   if(/中外合作|合作办学|中外合办|国际合作|4\+0|3\+1|2\+2|外方|双校园|中英|中澳|中美|中法|中德|中俄|中韩|中日/.test(text))add('中外合作');
   if(/联合培养|高职院校联合|本科与高职|分段培养|贯通培养|协同培养|联合办学|联合学院/.test(text))add('联合培养');
   const hasHighTuition=(g?.majors||[]).some(m=>{const d=DETAILS[m.key]||{}; const t=num(m.tuition)||num(d.tuition); return t!==null&&t>=25000;});
@@ -1119,29 +1117,99 @@ function specialTypeCounts(){
   DB.forEach(s=>(s.groups||[]).forEach(g=>groupSpecialTypeValues(s,g).forEach(v=>m.set(v,(m.get(v)||0)+1))));
   return m;
 }
+function specialTagItems(){
+  return unique(DB.flatMap(s=>(s.groups||[]).flatMap(g=>g.tags||[]))).filter(isValidFacetValue).sort((a,b)=>String(a).localeCompare(String(b),'zh-Hans-CN'));
+}
 function buildSpecialPanel(){
   const counts=specialTypeCounts();
+  const roleItems=specialTagItems().filter(v=>countGet(counts,v)>0);
   const items=Array.from(counts.keys()).sort((a,b)=>{
-    const order=specialTypeFacetGroups.flatMap(g=>g.items);
+    const order=[...specialTypeFacetGroups.flatMap(g=>g.items),...roleItems];
     const ai=order.indexOf(a), bi=order.indexOf(b);
     if(ai>=0&&bi>=0)return ai-bi;
-    if(ai>=0)return -1; if(bi>=0)return 1;
+    if(ai>=0)return -1;
+    if(bi>=0)return 1;
     return (counts.get(b)-counts.get(a))||String(a).localeCompare(String(b),'zh-Hans-CN');
   });
-  const groups=groupsFromOrderedItems(items,counts,specialTypeFacetGroups,'其他特殊类型');
-  renderFacetPanel({panelId:'specialPanel',bodyId:'specialPanelBody',title:'特殊类型排除',searchPlaceholder:'搜索特殊类型，如 中外合作 / 联合培养 / 高收费',groups,counts,setRef:state.excludedSpecialTypes,buttonUpdater:updateSpecialButton,clearLabel:'清空特殊类型排除',helpText:'这里是“排除/不看”筛选：勾选中外合作、联合培养、高收费等类型后，主页面将隐藏命中的专业组；不会删除已经加入志愿表的专业组。'});
+  const groupDefs=[...specialTypeFacetGroups,{title:'客观标签',items:roleItems}];
+  const groups=groupsFromOrderedItems(items,counts,groupDefs,'其他特殊类型/标签');
+  renderSpecialPanel(groups,counts);
+}
+function renderSpecialPanel(groups,counts){
+  const panelId='specialPanel', bodyId='specialPanelBody';
+  const body=document.getElementById(bodyId);
+  if(!body){console.error('筛选面板容器不存在：',bodyId);return;}
+  const draft=new Set([...state.selectedSpecialTypes]);
+  let draftMode=state.specialTypeMode||'exclude';
+  const groupPayloads=groups.map(g=>g.items||[]);
+  body.innerHTML=`
+    <div class="facet-top">
+      <div class="facet-help">先选择筛选方式：<b>只看已选类型</b> 用来只看中外合作、联合培养等特殊组；<b>排除已选类型</b> 用来不看这些特殊组。原“角色/客观标签”已合并到这里。</div>
+      <div class="special-mode-toggle" data-special-mode>
+        <label class="${draftMode==='include'?'checked':''}"><input type="radio" name="specialModeDraft" value="include" ${draftMode==='include'?'checked':''}>只看已选类型</label>
+        <label class="${draftMode!=='include'?'checked':''}"><input type="radio" name="specialModeDraft" value="exclude" ${draftMode!=='include'?'checked':''}>排除已选类型</label>
+      </div>
+      <div class="facet-selected" data-facet-selected></div>
+      <input class="facet-search" type="search" placeholder="搜索特殊类型或标签，如 中外合作 / 联合培养 / 高收费 / 985 / 保研资格">
+    </div>
+    <div class="facet-section-list">
+      ${groups.map((g,idx)=>`<section class="facet-section" data-facet-section>
+        <div class="facet-section-head"><h4>${esc(g.title)} <span>${(g.items||[]).length}</span></h4><div><button type="button" data-facet-group-select="${idx}">全选</button><button type="button" data-facet-group-clear="${idx}">清空</button></div></div>
+        <div class="facet-grid">${(g.items||[]).map(v=>`<label class="facet-option" data-facet-item data-search="${esc(v)}"><input type="checkbox" data-facet-value value="${esc(v)}" ${draft.has(v)?'checked':''}><span>${esc(v)}</span><em>${countGet(counts,v)}</em></label>`).join('')}</div>
+      </section>`).join('')}
+    </div>
+    <div class="facet-footer"><button type="button" data-facet-clear>清空全部</button><button type="button" data-facet-cancel>取消</button><button type="button" class="save" data-facet-apply>应用筛选</button></div>`;
+  const cbs=()=>Array.from(body.querySelectorAll('input[data-facet-value]'));
+  function syncMode(){
+    body.querySelectorAll('[data-special-mode] label').forEach(label=>{
+      const input=label.querySelector('input');
+      label.classList.toggle('checked',input&&input.checked);
+    });
+  }
+  function syncChecks(){
+    cbs().forEach(cb=>{cb.checked=draft.has(cb.value); cb.closest('.facet-option')?.classList.toggle('checked',cb.checked);});
+    const selected=body.querySelector('[data-facet-selected]');
+    const arr=[...draft];
+    const modeLabel=draftMode==='include'?'只看':'排除';
+    selected.innerHTML=arr.length?`<div class="facet-selected-title">${modeLabel} ${arr.length} 项</div><div class="facet-selected-chips">${arr.map(v=>`<button type="button" data-facet-remove="${esc(v)}">${esc(v)} ×</button>`).join('')}</div>`:`<div class="facet-selected-empty">尚未选择，默认不过滤。</div>`;
+    selected.querySelectorAll('[data-facet-remove]').forEach(btn=>btn.addEventListener('click',()=>{draft.delete(btn.dataset.facetRemove);syncChecks();}));
+    syncMode();
+  }
+  function filterOptions(){
+    const q=normalize(body.querySelector('.facet-search')?.value||'');
+    body.querySelectorAll('[data-facet-item]').forEach(el=>{
+      const show=!q||normalize(el.dataset.search||el.textContent).includes(q);
+      el.style.display=show?'':'none';
+    });
+    body.querySelectorAll('[data-facet-section]').forEach(sec=>{
+      const any=Array.from(sec.querySelectorAll('[data-facet-item]')).some(el=>el.style.display!=='none');
+      sec.style.display=any?'':'none';
+    });
+  }
+  body.querySelectorAll('input[name="specialModeDraft"]').forEach(r=>r.addEventListener('change',()=>{draftMode=r.value;syncChecks();}));
+  cbs().forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked)draft.add(cb.value);else draft.delete(cb.value);syncChecks();}));
+  body.querySelectorAll('[data-facet-group-select]').forEach(btn=>btn.addEventListener('click',()=>{(groupPayloads[+btn.dataset.facetGroupSelect]||[]).forEach(v=>draft.add(v));syncChecks();filterOptions();}));
+  body.querySelectorAll('[data-facet-group-clear]').forEach(btn=>btn.addEventListener('click',()=>{(groupPayloads[+btn.dataset.facetGroupClear]||[]).forEach(v=>draft.delete(v));syncChecks();filterOptions();}));
+  body.querySelector('[data-facet-clear]').addEventListener('click',()=>{draft.clear();syncChecks();filterOptions();});
+  body.querySelector('[data-facet-cancel]').addEventListener('click',()=>closePanel(panelId));
+  body.querySelector('[data-facet-apply]').addEventListener('click',()=>{state.selectedSpecialTypes.clear();draft.forEach(v=>state.selectedSpecialTypes.add(v));state.specialTypeMode=draftMode;updateSpecialButton();closePanel(panelId);applyFilters();});
+  body.querySelector('.facet-search').addEventListener('input',filterOptions);
+  syncChecks();
 }
 function updateSpecialButton(){
-  const arr=[...state.excludedSpecialTypes];
+  const arr=[...state.selectedSpecialTypes];
   const btn=$('#specialBtn');
   if(!btn)return;
-  btn.textContent=arr.length?(arr.length===1?`排除${arr[0]}`:`排除${arr[0]} +${arr.length-1}`):'特殊类型';
-  btn.classList.toggle('special-active',arr.length>0);
+  if(!arr.length){btn.textContent='特殊类型/标签';btn.classList.remove('special-active');return;}
+  const prefix=state.specialTypeMode==='include'?'只看':'排除';
+  btn.textContent=arr.length===1?`${prefix}${arr[0]}`:`${prefix}${arr[0]} +${arr.length-1}`;
+  btn.classList.add('special-active');
 }
-function groupMatchesSpecialExclusion(s,g){
-  if(!state.excludedSpecialTypes.size)return true;
+function groupMatchesSpecialSelection(s,g){
+  if(!state.selectedSpecialTypes.size)return true;
   const vals=groupSpecialTypeValues(s,g);
-  return ![...state.excludedSpecialTypes].some(v=>vals.has(v));
+  const hit=[...state.selectedSpecialTypes].some(v=>vals.has(v));
+  return state.specialTypeMode==='include'?hit:!hit;
 }
 
 function buildRequirementPanel(){
@@ -1226,7 +1294,7 @@ function applyFilters(){
     if(state.subject&&s.subject!==state.subject)return;
     if(state.selectedProvinces.size&&!state.selectedProvinces.has(s.province))return;
     if(!schoolMatchesLevelFacet(s))return;
-    const groups=s.groups.filter(g=>{if(state.role&&!(g.tags||[]).includes(state.role))return false; if(!groupMatchesSpecialExclusion(s,g))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
+    const groups=s.groups.filter(g=>{if(!groupMatchesSpecialSelection(s,g))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
     const visibleGroups=sortGroupsByWeightedMajorScore(groups);
     if(visibleGroups.length){result.push({...s,visibleGroups});}
   });
