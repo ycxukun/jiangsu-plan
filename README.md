@@ -1,4 +1,4 @@
-# 江苏招生计划变化知识库｜本科+专科合并入口版 V1.1.56
+# 江苏招生计划变化知识库｜本科+专科合并入口版｜专科批次口径修正 V1.1.57
 
 ## 部署方式
 
@@ -20,3 +20,9 @@
 
 - 本科数据：根目录 data-*.js
 - 专科数据：specialty/data-*.js
+
+
+## V1.1.58 专科目录重匹配
+- 使用《高职专科专业目录_单表合并版》重新匹配专科专业名称、专业类、专业大类。
+- 专科端有效专业 7660 条，匹配 7660 条，未匹配 0 条。
+- 新增 specialty/specialty_catalog_rematch_full_audit.csv 与 specialty/specialty_catalog_rematch_summary.csv。
