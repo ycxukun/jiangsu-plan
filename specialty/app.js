@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='专科版｜V1.1.60 地区江苏城市前置分组版';
+const VERSION='专科版｜V1.1.61 特殊类型与专业大类排序版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -12,7 +12,7 @@ const GISCUS_CONFIG={
   theme:'light',
   lang:'zh-CN'
 };
-const disciplineOrder=["农林牧渔大类", "资源环境与安全大类", "能源动力与材料大类", "土木建筑大类", "水利大类", "装备制造大类", "生物与化工大类", "轻工纺织大类", "食品药品与粮食大类", "交通运输大类", "电子与信息大类", "医药卫生大类", "财经商贸大类", "旅游大类", "文化艺术大类", "新闻传播大类", "教育与体育大类", "公安与司法大类", "公共管理与服务大类", "其他大类", "其他"];
+const disciplineOrder=["交通运输大类", "电子与信息大类", "装备制造大类", "医药卫生大类", "财经商贸大类", "教育与体育大类", "公安与司法大类", "能源动力与材料大类", "土木建筑大类", "食品药品与粮食大类", "轻工纺织大类", "生物与化工大类", "新闻传播大类", "文化艺术大类", "旅游大类", "公共管理与服务大类", "水利大类", "资源环境与安全大类", "农林牧渔大类", "其他大类", "其他"];
 const hotOrder=["铁道运输类", "城市轨道交通类", "道路运输类", "航空运输类", "水上运输类", "计算机类", "电子信息类", "通信类", "集成电路类", "电气自动化类", "自动化类", "护理类", "临床医学类", "医学技术类", "药学类", "财务会计类", "金融类", "教育类", "体育类", "机械设计制造类", "机电设备类", "汽车制造类", "新能源发电工程类"];
 const provinceRegionGroups=[
   {title:'华东',items:['江苏','上海','浙江','安徽','福建','山东','江西']},
@@ -35,8 +35,9 @@ const levelFacetGroups=[
   {title:'特殊性质',items:['中外合作','联合培养','高收费','定向/军士','航海轮机']}
 ];
 const specialTypeFacetGroups=[
-  {title:'合作与培养模式',items:['中外合作','联合培养','高收费','境外/国际培养','校企合作/产教融合']},
-  {title:'政策与特殊招生',items:['定向/公费/优师','专项计划','民族班/预科','军警航海']},
+  {title:'重点特殊类型',items:['定向军士男','3+2','5+0','中外合作','定向医学','司法警察男','司法警察女','石邮连云港','石邮扬州','石邮淮安','石邮镇江','定向军士女','石邮南通','石邮宿迁']},
+  {title:'合作与培养模式',items:['联合培养','高收费','境外/国际培养','校企合作/产教融合']},
+  {title:'政策与特殊招生',items:['定向/军士','定向/公费/优师','专项计划','民族班/预科','军警航海']},
   {title:'特殊班型',items:['实验班/拔尖班','双学位/本博硕博']}
 ];
 
@@ -1158,6 +1159,14 @@ function groupSpecialTypeValues(s,g){
   const text=String(parts.filter(Boolean).join(' '));
   const add=x=>{if(isValidFacetValue(x))vals.add(x);};
   (g?.tags||[]).forEach(t=>add(t));
+  if(/定向军士男/.test(text))add('定向军士男');
+  if(/定向军士女/.test(text))add('定向军士女');
+  if(/3\+2|3＋2/.test(text))add('3+2');
+  if(/5\+0|5＋0/.test(text))add('5+0');
+  if(/定向医学/.test(text))add('定向医学');
+  if(/司法警察男|只招男生/.test(g?.remark||''))add('司法警察男');
+  if(/司法警察女|只招女生/.test(g?.remark||''))add('司法警察女');
+  ['连云港','扬州','淮安','镇江','南通','宿迁'].forEach(city=>{if(new RegExp(`石邮${city}|${city}地区就业`).test(text)&&/石家庄邮电职业技术学院/.test(text))add(`石邮${city}`);});
   if(/中外合作|合作办学|中外合办|国际合作|4\+0|3\+1|2\+2|外方|双校园|中英|中澳|中美|中法|中德|中俄|中韩|中日/.test(text))add('中外合作');
   if(/联合培养|高职院校联合|本科与高职|分段培养|贯通培养|协同培养|联合办学|联合学院/.test(text))add('联合培养');
   const hasHighTuition=(g?.majors||[]).some(m=>{const d=DETAILS[m.key]||{}; const t=num(m.tuition)||num(d.tuition); return t!==null&&t>=25000;});
@@ -1165,6 +1174,7 @@ function groupSpecialTypeValues(s,g){
   if(/境外|国外|海外|国际校区|马来西亚|香港|澳门|全英文|都柏林|奥塔哥|蒙纳士|昆士兰|诺森比亚|诺丁汉|杜克|纽约大学|利物浦/.test(text))add('境外/国际培养');
   if(/校企合作|产教融合|现代产业学院|产业学院|企业联合|行业联合|订单班|卓越工程师学院|未来技术学院/.test(text))add('校企合作/产教融合');
   if(/定向|公费师范|免费师范|优师|免费医学|委托培养|订单定向/.test(text))add('定向/公费/优师');
+  if(/定向军士|军士/.test(text))add('定向/军士');
   if(/地方专项|高校专项|国家专项|农村专项|专项计划|综合评价|强基/.test(text))add('专项计划');
   if(/民族班|预科|少数民族/.test(text))add('民族班/预科');
   if(/军校|公安|警校|航海|轮机|飞行技术|民航|空中交通管制|司法警官|消防/.test(text))add('军警航海');
@@ -1204,13 +1214,13 @@ function renderSpecialPanel(groups,counts){
   const groupPayloads=groups.map(g=>g.items||[]);
   body.innerHTML=`
     <div class="facet-top">
-      <div class="facet-help">先选择筛选方式：<b>只看已选类型</b> 用来只看中外合作、联合培养等特殊组；<b>排除已选类型</b> 用来不看这些特殊组。原“角色/客观标签”已合并到这里。</div>
+      <div class="facet-help">先选择筛选方式：<b>只看已选类型</b> 用来只看定向军士、3+2、5+0、中外合作、定向医学、司法警察、石邮地区就业等特殊组；<b>排除已选类型</b> 用来不看这些特殊组。</div>
       <div class="special-mode-toggle" data-special-mode>
         <label class="${draftMode==='include'?'checked':''}"><input type="radio" name="specialModeDraft" value="include" ${draftMode==='include'?'checked':''}>只看已选类型</label>
         <label class="${draftMode!=='include'?'checked':''}"><input type="radio" name="specialModeDraft" value="exclude" ${draftMode!=='include'?'checked':''}>排除已选类型</label>
       </div>
       <div class="facet-selected" data-facet-selected></div>
-      <input class="facet-search" type="search" placeholder="搜索特殊类型或标签，如 中外合作 / 联合培养 / 高收费 / 985 / 保研资格">
+      <input class="facet-search" type="search" placeholder="搜索特殊类型，如 定向军士男 / 3+2 / 5+0 / 中外合作 / 石邮扬州">
     </div>
     <div class="facet-section-list">
       ${groups.map((g,idx)=>`<section class="facet-section" data-facet-section>
