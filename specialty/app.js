@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='专科版｜V1.1.61 特殊类型与专业大类排序版';
+const VERSION='专科版｜V1.1.62 江苏院校显示城市版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -815,6 +815,7 @@ function initFilters(){
 }
 function schoolCountBy(field){const m=new Map(); DB.forEach(s=>{const key=String(s[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);}); return m;}
 function schoolCityCountByProvince(province){const m=new Map(); DB.forEach(s=>{if(String(s.province||'').trim()!==province)return; const key=String(s.city??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);}); return m;}
+function displayRegionLabel(s){const province=String(s?.province||'').trim(); const city=String(s?.city||'').trim(); return province==='江苏'&&isValidFacetValue(city)?city:province;}
 
 function collectSchoolAdmissionRules(s){
   const rules=[];
@@ -1395,7 +1396,7 @@ function render(){renderSidebar(); if(state.mode==='groups')renderGroupMode(); e
 function renderSidebar(){
   const totalGroups=state.filtered.reduce((a,s)=>a+s.visibleGroups.length,0);
   $('#resultMeta').textContent=`${state.filtered.length} 所院校｜${totalGroups} 个专业组`;
-  $('#schoolList').innerHTML=state.filtered.map(s=>`<div class="school-item ${s.id===state.activeSchoolId?'active':''} ${admissionPriorityInfo(s)?'priority-admission-school':''}" data-school-id="${s.id}" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="name">${esc(s.name)}${admissionPriorityBadge(s,true)}${noteBadge('schools',keySchool(s))}</div><div class="meta"><span>${esc(s.province)}</span><span>${esc(s.subject)}</span><span>${esc(s.batch)}</span><span>${s.visibleGroups.length}组</span></div><div class="score-pill">加权均分 ${fmtNum(s.weightedScore)}</div></div>`).join('');
+  $('#schoolList').innerHTML=state.filtered.map(s=>`<div class="school-item ${s.id===state.activeSchoolId?'active':''} ${admissionPriorityInfo(s)?'priority-admission-school':''}" data-school-id="${s.id}" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="name">${esc(s.name)}${admissionPriorityBadge(s,true)}${noteBadge('schools',keySchool(s))}</div><div class="meta"><span>${esc(displayRegionLabel(s))}</span><span>${esc(s.subject)}</span><span>${esc(s.batch)}</span><span>${s.visibleGroups.length}组</span></div><div class="score-pill">加权均分 ${fmtNum(s.weightedScore)}</div></div>`).join('');
   $$('.school-item').forEach(el=>el.addEventListener('click',()=>{state.activeSchoolId=el.dataset.schoolId;render();}));
   bindNoteHoverAndContext();
 }
@@ -1411,7 +1412,7 @@ function schoolHTML(s,groups,withCards){
   const plan26=groups.reduce((a,g)=>a+(g.plan26||0),0);
   const plan25=groups.reduce((a,g)=>a+(g.plan25||0),0);
   const planDiff=plan26-plan25;
-  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)} ${admissionPriorityBadge(s)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(s.province)}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span></div>${admissionPriorityAlertHTML(s)}<div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
+  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)} ${admissionPriorityBadge(s)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(displayRegionLabel(s))}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span></div>${admissionPriorityAlertHTML(s)}<div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
 }
 function groupCardHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
