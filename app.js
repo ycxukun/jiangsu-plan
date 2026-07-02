@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='2026在招专业组版｜V1.1.54 特殊类型双向筛选版';
+const VERSION='2026在招专业组版｜V1.1.55 去除视图切换下拉版';
 const SUPABASE_URL='';
 const SUPABASE_ANON_KEY='';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -775,7 +775,6 @@ function createLayout(){
         <button id="provinceBtn" class="filter-btn">全部省份</button>
         <button id="levelBtn" class="filter-btn">院校层次</button>
         <button id="specialBtn" class="filter-btn">特殊类型/标签</button>
-        <select id="modeFilter"><option value="schools">全部院校</option><option value="groups">全部专业组</option></select>
         <button id="classBtn" class="filter-btn">全部专业大类</button>
         <button id="scoreBtn" class="filter-btn">目标分区间</button>
         <button id="medicalBtn" class="filter-btn">体检受限</button>
@@ -907,7 +906,7 @@ function schoolFacetCounts(){const m=new Map(); DB.forEach(s=>schoolFacetValues(
 function schoolMatchesLevelFacet(s){if(!state.selectedLevels.size)return true; const vals=schoolFacetValues(s); return [...state.selectedLevels].some(v=>vals.has(v));}
 function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g=>{const key=String(g[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);})); return m;}
 function bindEvents(){
-  ['batchFilter','subjectFilter','modeFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; if(id==='modeFilter')state.mode=e.target.value; applyFilters();}));
+  ['batchFilter','subjectFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; applyFilters();}));
   $('#searchInput').addEventListener('input',e=>{state.q=e.target.value; applyFilters();});
   $('#provinceBtn').addEventListener('click',()=>{buildProvincePanel();openPanel('provincePanel')});
   $('#levelBtn').addEventListener('click',()=>{buildLevelPanel();openPanel('levelPanel')});
