@@ -675,6 +675,39 @@ body.compact-mode .back-top{width:46px!important;height:46px!important;right:18p
 .stage-switch a:not(.active):hover{background:#f0faf4;color:var(--green)}
 @media(max-width:640px){.stage-switch{margin-bottom:8px}.stage-switch a{height:30px;padding:0 10px}}
 </style>
+
+<style>
+/* V1.1.64 筛选栏文字溢出修复：长按钮允许两行垂直居中，箭头独立定位 */
+.filters{align-items:stretch;}
+.filters .filter-btn{
+  display:flex!important;
+  align-items:center!important;
+  min-height:38px!important;
+  height:auto!important;
+  padding:5px 30px 5px 12px!important;
+  white-space:normal!important;
+  line-height:1.16!important;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+}
+.filters .filter-btn:after{
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  right:11px!important;
+}
+body.compact-mode .filters .filter-btn{
+  min-height:34px!important;
+  height:auto!important;
+  padding:4px 28px 4px 10px!important;
+  font-size:12px!important;
+}
+#requirementBtn.student-sync-active{
+  word-break:keep-all;
+}
+@media(max-width:760px){
+  .filters .filter-btn{min-height:38px!important;}
+}
+</style>
 </head>
 <body data-admin="0">
 <noscript>本系统需要启用 JavaScript。</noscript>

@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='专科版｜V1.1.62 江苏院校显示城市版';
+const VERSION='专科版｜V1.1.64 筛选栏文字溢出修正版';
 const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -1563,7 +1563,7 @@ function updateRequirementButton(){
   const btn=$('#requirementBtn');
   if(!btn)return;
   if(state.requirementAutoFromStudent&&currentStudent){
-    btn.textContent=`选科：${studentSubjectSummary(currentStudent)}`;
+    btn.textContent=`选科：${studentSubjectShortSummary(currentStudent)}`;
     btn.classList.add('student-sync-active');
     return;
   }
