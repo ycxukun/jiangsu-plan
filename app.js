@@ -3,7 +3,6 @@
 const VERSION='本科版｜V1.1.62 江苏院校显示城市版';
 const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
-const ADMIN_EMAIL='ycxukun@gmail.com';
 const GISCUS_CONFIG={
   repo:'ycxukun/jiangsu-plan',
   repoId:'R_kgDOTIG-gg',
@@ -2467,15 +2466,33 @@ function showAccountModal(mode='login'){
     <div class="account-tabs"><button id="loginTab" class="${isRegister?'':'active'}" type="button">登录</button><button id="registerTab" class="${isRegister?'active':''}" type="button">注册</button></div>
     <div class="account-form">
       ${isRegister?'<label>姓名或昵称<input id="accountName" placeholder="例如：王老师"></label>':''}
-      <label>邮箱<input id="accountEmail" type="email" value="${esc(isRegister?'':(auth.user?.email||ADMIN_EMAIL))}" placeholder="you@example.com"></label>
-      <label>密码<input id="accountPassword" type="password" placeholder="至少 6 位"></label>
+      <label>邮箱<input id="accountEmail" type="email" value="" placeholder="you@example.com" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+      <label>密码<input id="accountPassword" type="password" placeholder="至少 6 位" autocomplete="new-password"></label>
     </div>
     <div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">取消</button><button id="accountSubmit" class="save">${isRegister?'注册':'登录'}</button></div>
   </div>`;
   openModal();
+  markAccountFieldsUserEditing();
+  clearAnonymousAccountFields();
   $('#loginTab').addEventListener('click',()=>showAccountModal('login'));
   $('#registerTab').addEventListener('click',()=>showAccountModal('register'));
   $('#accountSubmit').addEventListener('click',()=>isRegister?registerSupabase():loginSupabase());
+}
+function markAccountFieldsUserEditing(){
+  ['accountEmail','accountPassword'].forEach(id=>{
+    const el=$('#'+id);
+    if(!el)return;
+    ['keydown','paste'].forEach(type=>el.addEventListener(type,()=>{el.dataset.userEdited='1';},{once:true}));
+  });
+}
+function clearAnonymousAccountFields(){
+  if(auth.user)return;
+  [0,120,500].forEach(delay=>setTimeout(()=>{
+    const email=$('#accountEmail');
+    const password=$('#accountPassword');
+    if(email&&!email.dataset.userEdited)email.value='';
+    if(password&&!password.dataset.userEdited)password.value='';
+  },delay));
 }
 function showAccountCenter(){
   $('#modal').innerHTML=`<h3>账号中心</h3><div class="modal-body">
