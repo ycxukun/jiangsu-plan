@@ -560,6 +560,18 @@ body.compact-mode .back-top{width:46px!important;height:46px!important;right:18p
 .stage-switch a.active{background:var(--green);color:#fff}
 .stage-switch a:not(.active):hover{background:#f0faf4;color:var(--green)}
 @media(max-width:640px){.stage-switch{margin-bottom:8px}.stage-switch a{height:30px;padding:0 10px}}
+
+/* 顶部胶囊按钮垂直居中 */
+.top-actions{align-items:center;row-gap:8px}
+.top-actions>*{align-self:center}
+.version,.header-toggle,.stage-switch a{display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.version,.header-toggle{height:34px;padding-top:0;padding-bottom:0}
+.header-toggle{min-width:max-content}
+.stage-switch{display:inline-flex;align-items:center;min-height:34px;flex:0 0 auto}
+body.compact-mode .version,body.compact-mode .header-toggle{height:30px;line-height:1}
+body.compact-mode .stage-switch{min-height:30px}
+body.compact-mode .stage-switch a{height:24px;line-height:1}
+@media(max-width:900px){.top-actions{justify-content:flex-start}}
 </style>
 
 

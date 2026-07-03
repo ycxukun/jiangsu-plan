@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>学生档案｜江苏招生计划变化知识库</title>
+<style>
+:root{--green:#0a7c42;--ink:#17211b;--muted:#66756d;--line:#e5ebe7;--bg:#f6f8f7;--red:#b42318;--redbg:#fff0ee;--shadow:0 14px 40px rgba(11,42,26,.08)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.topbar{position:sticky;top:0;z-index:10;background:rgba(246,248,247,.94);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.hero{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:18px 24px}
+h1{margin:0;font-size:24px;letter-spacing:0}
+.subtitle{margin:5px 0 0;color:var(--muted);font-size:13px}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.pill-btn{height:34px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:0 13px;font-size:12px;font-weight:900;color:#26372d;display:inline-flex;align-items:center;justify-content:center;line-height:1;text-decoration:none}
+.pill-btn.save{background:var(--green);border-color:var(--green);color:#fff}
+.page{padding:18px 24px 34px;display:grid;gap:14px}
+.toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 150px 150px auto;gap:10px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow)}
+.toolbar input,.toolbar select{height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px;min-width:0}
+.toolbar button,.form-actions button,.card-actions button,.modal-actions button{height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px;font-size:13px;font-weight:900;color:#24352b}
+.toolbar .save,.form-actions .save,.card-actions .save,.modal-actions .save{background:var(--green);border-color:var(--green);color:#fff}
+.content-grid{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:14px;align-items:start}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.panel-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}
+.panel-head h2{margin:0;font-size:17px}
+.panel-body{padding:14px 16px}
+.student-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.student-form-grid label,.student-choice-field{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:900}
+.student-form-grid input,.student-form-grid select{height:38px;border:1px solid var(--line);border-radius:10px;padding:0 10px;min-width:0}
+.wide{grid-column:1/-1}
+.subject-choice-row{display:flex;gap:8px;flex-wrap:wrap}
+.subject-choice-row label{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:7px 10px;color:#24352b;font-size:12px;font-weight:900}
+.subject-choice-row input{width:auto;height:auto;margin:0}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.list-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px;color:var(--muted);font-size:12px;font-weight:900}
+.student-list{display:grid;gap:10px}
+.student-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px}
+.student-card.active{border-color:#8ed2aa;background:#f7fffa}
+.student-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.student-card h3{margin:0;font-size:16px}
+.student-card p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
+.badge{display:inline-flex;align-items:center;justify-content:center;border:1px solid #cbeed9;border-radius:999px;background:#eaf7ef;color:var(--green);padding:4px 8px;font-size:11px;font-weight:900;line-height:1;white-space:nowrap}
+.card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.form-list{margin-top:10px;border-top:1px solid #eef3ef;padding-top:9px;color:var(--muted);font-size:12px}
+.form-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #f2f5f3}
+.form-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#33443a}
+.form-row small{display:block;margin-top:2px;color:var(--muted)}
+.empty{border:1px dashed #b7dfc6;border-radius:14px;background:#fbfffc;color:var(--muted);padding:18px;text-align:center;line-height:1.7}
+.notice{border:1px solid #fed7aa;border-radius:14px;background:#fff7ed;color:#7c2d12;padding:12px;line-height:1.65}
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;padding:20px;z-index:30}
+.modal-mask.open{display:flex}
+.modal{width:min(720px,96vw);max-height:88vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 28px 90px rgba(0,0,0,.24)}
+.modal h2{margin:0;padding:16px 18px;border-bottom:1px solid var(--line);font-size:18px}
+.modal-body{padding:16px 18px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+@media(max-width:900px){.hero{display:block}.hero-actions{justify-content:flex-start;margin-top:12px}.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1}.content-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.page{padding:12px}.student-form-grid,.toolbar{grid-template-columns:1fr}.wide{grid-column:auto}.student-card-head{display:block}.hero{padding:14px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="hero">
+    <div>
+      <h1>学生档案</h1>
+      <p class="subtitle" id="pageSubtitle">集中管理学生、分数、选科和已保存志愿表。</p>
+    </div>
+    <div class="hero-actions">
+      <a class="pill-btn" id="backMainLink" href="../index.html">返回本科</a>
+      <a class="pill-btn" id="backSpecialtyLink" href="../specialty/index.html">返回专科</a>
+      <button class="pill-btn save" id="refreshBtn" type="button">刷新</button>
+    </div>
+  </div>
+</header>
+<main class="page">
+  <section class="toolbar">
+    <input id="studentSearch" type="search" placeholder="搜索姓名、手机号、分数、位次、城市、选科">
+    <select id="stageFilter">
+      <option value="">全部批次</option>
+      <option value="undergraduate">本科</option>
+      <option value="specialty">专科</option>
+    </select>
+    <select id="subjectFilter">
+      <option value="">全部科类</option>
+      <option value="physics">物理</option>
+      <option value="history">历史</option>
+    </select>
+    <button id="clearSearchBtn" type="button">清空</button>
+  </section>
+  <section id="loginNotice" class="notice" hidden></section>
+  <div class="content-grid">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>新增学生</h2>
+        <span class="badge" id="defaultStageBadge">本科</span>
+      </div>
+      <div class="panel-body">
+        <div class="student-form-grid">
+          <label>姓名<input id="newStudentName" placeholder="学生姓名"></label>
+          <label>手机号<input id="newStudentPhone" placeholder="可选"></label>
+          <label>批次<select id="newStudentStage"><option value="undergraduate">本科</option><option value="specialty">专科</option></select></label>
+          <label>科类<select id="newStudentSubject"><option value="physics">物理</option><option value="history">历史</option></select></label>
+          <div class="wide student-choice-field"><span>再选科目</span><div id="newSubjectChoices"></div></div>
+          <label>分数<input id="newStudentScore" type="number" placeholder="例如 586"></label>
+          <label>位次<input id="newStudentRank" type="number" placeholder="例如 39000"></label>
+          <label class="wide">目标城市<input id="newStudentCities" placeholder="南京、苏州、上海"></label>
+          <label class="wide">体检代码<input id="newStudentMedical" placeholder="如 21 35，可空"></label>
+        </div>
+        <div class="form-actions">
+          <button id="createStudentBtn" class="save" type="button">新增学生</button>
+          <button id="resetFormBtn" type="button">清空表单</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>学生列表</h2>
+        <span class="badge" id="studentCount">0 人</span>
+      </div>
+      <div class="panel-body">
+        <div class="list-head"><span id="accountLine">未登录</span><span id="currentLine">未选择当前学生</span></div>
+        <div id="studentList" class="student-list"><div class="empty">正在读取学生档案...</div></div>
+      </div>
+    </section>
+  </div>
+</main>
+<div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
+<script src="./app.js"></script>
+</body>
+</html>

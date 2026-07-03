@@ -87,6 +87,7 @@ create table if not exists public.students (
   province text not null default '江苏',
   stage public.student_stage not null default 'undergraduate',
   subject_type public.subject_type not null default 'physics',
+  subject_choices text[] not null default '{}',
   score integer check (score between 0 and 750),
   rank integer check (rank >= 0),
   target_cities text[] not null default '{}',
@@ -97,6 +98,9 @@ create table if not exists public.students (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table if exists public.students
+add column if not exists subject_choices text[] not null default '{}';
 
 create index if not exists students_owner_idx on public.students(owner_id);
 create index if not exists students_owner_stage_idx on public.students(owner_id, stage);
