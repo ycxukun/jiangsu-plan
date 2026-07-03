@@ -167,9 +167,20 @@ function saveAuth(){try{localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify({ac
 function clearSavedAuth(){try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(e){}}
 function loadCurrentStudent(){
   try{
+    const userId=auth.user?.id;
+    if(!userId){currentStudent=null;return;}
     let data=storageJSON(currentStudentStorageKey(),null);
-    if(!data&&auth.user?.id)data=storageJSON(CURRENT_STUDENT_STORAGE_KEY,null);
-    currentStudent=data&&data.id?data:null;
+    const belongsToCurrentUser=row=>row&&row.id&&row.owner_id===userId;
+    if(!belongsToCurrentUser(data)){
+      data=null;
+      const legacy=storageJSON(CURRENT_STUDENT_STORAGE_KEY,null);
+      if(belongsToCurrentUser(legacy)){
+        data=legacy;
+        localStorage.setItem(currentStudentStorageKey(),JSON.stringify(legacy));
+        localStorage.removeItem(CURRENT_STUDENT_STORAGE_KEY);
+      }
+    }
+    currentStudent=data||null;
   }catch(e){currentStudent=null;}
 }
 function saveCurrentStudent(){try{currentStudent?localStorage.setItem(currentStudentStorageKey(),JSON.stringify(currentStudent)):localStorage.removeItem(currentStudentStorageKey());}catch(e){}}
@@ -2449,6 +2460,7 @@ function stageLabel(v){return v==='specialty'?'专科':'本科';}
 function subjectLabel(v){return v==='history'?'历史':'物理';}
 
 function showAccountModal(mode='login'){
+  if(auth.user&&mode==='login'){showAccountCenter();return;}
   const isRegister=mode==='register';
   $('#modal').innerHTML=`<h3>${isRegister?'注册账号':'登录账号'}</h3><div class="modal-body">
     ${supabaseConfigured()?'':'<div class="account-notice">数据库还没有配置。请先创建 Supabase 项目，执行 supabase/schema.sql，然后把 URL 和 anon key 填进 app.js。界面已经接好，配置后即可注册登录。</div>'}
@@ -2464,6 +2476,16 @@ function showAccountModal(mode='login'){
   $('#loginTab').addEventListener('click',()=>showAccountModal('login'));
   $('#registerTab').addEventListener('click',()=>showAccountModal('register'));
   $('#accountSubmit').addEventListener('click',()=>isRegister?registerSupabase():loginSupabase());
+}
+function showAccountCenter(){
+  $('#modal').innerHTML=`<h3>账号中心</h3><div class="modal-body">
+    <div class="student-account-box"><b>${esc(auth.user?.email||'已登录')}</b><span class="muted">${currentStudent?`当前学生：${esc(currentStudent.name)}`:'尚未选择学生'}</span></div>
+    <div class="account-notice">退出登录前，请先确认当前志愿表已经“保存到学生”。系统会保留这个账号自己的本地草稿，但不会自动把未保存内容上传到数据库。</div>
+    <div class="modal-actions"><button id="accountOpenStudents" type="button">学生档案</button><button id="accountLogout" class="delete" type="button">退出登录</button><button onclick="document.getElementById('modalMask').classList.remove('open')" type="button">关闭</button></div>
+  </div>`;
+  openModal();
+  $('#accountOpenStudents')?.addEventListener('click',()=>{closeModal();renderStudentPanel();openPanel('studentPanel');});
+  $('#accountLogout')?.addEventListener('click',()=>logoutSupabase());
 }
 function showLoginModal(){showAccountModal('login');}
 async function registerSupabase(){
@@ -2524,7 +2546,12 @@ async function ensureUserProfile(displayName=''){
     await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:'consultant',status:'active'})});
   }catch(err){console.warn('创建/更新用户资料失败',err);}
 }
-function logoutSupabase(){
+function logoutSupabase(options={}){
+  if(auth.user&&!options.skipConfirm){
+    const name=currentStudent?.name?`当前学生：${currentStudent.name}\n`:'';
+    const ok=confirm(`${name}退出登录前，请确认当前志愿表已经点过“保存到学生”。\n\n系统会保存这个账号自己的本地草稿，但未保存到学生的内容不会进入数据库。\n\n确定退出登录吗？`);
+    if(!ok)return false;
+  }
   saveCurrentVolunteerDraft();
   saveCurrentStudent();
   auth={accessToken:'',refreshToken:'',user:null};
@@ -2539,7 +2566,9 @@ function logoutSupabase(){
   updateVolunteerUI();
   render();
   renderStudentPanel();
+  closeModal();
   alert('已退出登录。');
+  return true;
 }
 
 async function fetchStudents(){
@@ -2584,7 +2613,13 @@ function renderStudentPanel(){
 function syncCurrentStudentWithList(students){
   if(!currentStudent?.id)return;
   const fresh=students.find(s=>s.id===currentStudent.id);
-  if(fresh){currentStudent=fresh;saveCurrentStudent();}
+  if(fresh){currentStudent=fresh;saveCurrentStudent();return;}
+  currentStudent=null;
+  currentVolunteerForm=null;
+  saveCurrentStudent();
+  loadCurrentVolunteerDraft();
+  updateAccountUI();
+  updateVolunteerUI();
 }
 function studentPanelHTML(students,forms=[]){
   const formsByStudent=new Map();
