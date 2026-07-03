@@ -1800,7 +1800,7 @@ function representativeDetailForSchool(s){
   }
   return {};
 }
-function schoolInfoPairs(s,d={}){const priority=admissionPriorityInfo(s); return [
+function schoolInfoPairs(s,d={}){const priority=s?admissionPriorityInfo(s):null; return [
   ['院校名称',d.school||s?.name],['录取规则风险',priority?`${priority.label}｜${priority.rules[0]||''}`:''],['所在省份',d.province||s?.province],['所在城市',d.city||s?.city],['城市层级',d.cityLevelTag],['院校代码',d.schoolCode],['院校标签',d.schoolTags||d.firstClass],['院校层次',d.schoolLevel||s?.level],['隶属单位',d.administration],['院校类型',d.schoolType],['公私性质',d.publicPrivate],['本科/专科',d.bachelorSpecialty],['保研率',d.baoyanRate],['学校软科排名',d.schoolRank],['转专业政策',d.transferPolicy],['硕士点数量',d.schoolMasterCount],['硕士点',d.masterPrograms],['博士点数量',d.schoolDoctorCount],['博士点',d.doctorPrograms],['录取规则',d.admissionRule],['招生章程',d.recruitChapter]
 ];}
 function groupInfoPairs(d={}){return [
@@ -1920,7 +1920,7 @@ function showDetail(key,schoolKey,groupKey){
   const heading=d.name||ctx?.m?.name||'专业信息';
   const riskSection=ctx?infoSectionHTML('专业风险与梯队提示',majorRiskDetailPairs(ctx.s,ctx.g,ctx.m),'major-risk-info-section'):'';
   const coopHero=foreignCoopHeroHTML(d);
-  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">点击专业名称查看硕博点、学科评估、软科评级、招生录取数据与风险提示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${coopHero}${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('中外合作项目详情',foreignCoopInfoPairs(d),'foreign-coop-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">点击专业名称查看硕博点、学科评估、软科评级、招生录取数据与风险提示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${coopHero}${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(ctx?.s,d),'school-info-section')}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('中外合作项目详情',foreignCoopInfoPairs(d),'foreign-coop-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
   openModal();
 }
 function noteBlock(title,text){return text?`<section class="metric" style="margin-top:12px"><b style="font-size:14px">${esc(title)}</b><span style="white-space:pre-wrap;color:#33443a">${esc(text)}</span></section>`:'';}
