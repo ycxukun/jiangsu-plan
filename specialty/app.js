@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='专科版｜V1.1.64 筛选栏文字溢出修正版';
+const VERSION='专科版｜V1.1.65 图文资讯中心版';
 const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -1004,7 +1004,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <header class="topbar">
-      <div class="hero"><div class="brand"><h1>江苏专科招生计划变化知识库</h1><p>基于 2026 高职专科行级数据生成；院校与专业组均按专业加权均分排序，支持志愿表、特殊类型、体检受限与风险提示。</p></div><div class="top-actions"><div class="stage-switch"><a href="../index.html">本科</a><a class="active" href="./index.html">专科</a></div><div class="version">${VERSION}</div><button id="studentPanelBtn" class="header-toggle student-toggle" type="button">学生档案</button><button id="accountBtn" class="header-toggle account-toggle" type="button">登录/注册</button><button id="logoutHeaderBtn" class="header-toggle logout-toggle" type="button" hidden>退出登录</button><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">专科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
+      <div class="hero"><div class="brand"><h1>江苏专科招生计划变化知识库</h1><p>基于 2026 高职专科行级数据生成；院校与专业组均按专业加权均分排序，支持志愿表、特殊类型、体检受限与风险提示。</p></div><div class="top-actions"><div class="stage-switch"><a href="../index.html">本科</a><a class="active" href="./index.html">专科</a></div><a id="contentCenterBtn" class="header-toggle content-toggle" href="../content/index.html">升学资讯</a><div class="version">${VERSION}</div><button id="studentPanelBtn" class="header-toggle student-toggle" type="button">学生档案</button><button id="accountBtn" class="header-toggle account-toggle" type="button">登录/注册</button><button id="logoutHeaderBtn" class="header-toggle logout-toggle" type="button" hidden>退出登录</button><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">专科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
       <div class="filters">
         <select id="batchFilter"><option value="">全部批次</option></select>
         <select id="subjectFilter"><option value="">全部科类</option></select>
@@ -2779,6 +2779,20 @@ function clearAnonymousAccountFields(){
     if(password&&!password.dataset.userEdited)password.value='';
   },delay);});
 }
+function showModuleChoiceModal(){
+  if(!auth.user)return;
+  $('#modal').innerHTML=`<h3>选择工作区</h3><div class="modal-body">
+    <div class="account-notice"><b>登录成功。</b><br>你可以进入志愿填报系统，也可以进入升学规划资讯中心。资讯中心支持公开图文、PDF 在线查看和登录上传。</div>
+    <div class="module-choice-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px">
+      <button id="goPlanModule" class="save" type="button" style="border:1px solid #b7dfc6;border-radius:18px;background:#f0faf4;color:#0a7c42;padding:16px;text-align:left;font-weight:900">志愿填报系统<br><span style="display:block;margin-top:6px;color:#647067;font-size:12px;font-weight:600;line-height:1.5">继续使用本科/专科数据、学生档案、志愿表、选科与体检风控。</span></button>
+      <button id="goContentModule" type="button" style="border:1px solid #bfdbfe;border-radius:18px;background:#eff6ff;color:#1d4ed8;padding:16px;text-align:left;font-weight:900">升学规划资讯<br><span style="display:block;margin-top:6px;color:#647067;font-size:12px;font-weight:600;line-height:1.5">查看公开图文资料、在线阅读 PDF，并上传公开资料。</span></button>
+    </div>
+    <div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')" type="button">暂不选择</button></div>
+  </div>`;
+  openModal();
+  $('#goPlanModule')?.addEventListener('click',()=>closeModal());
+  $('#goContentModule')?.addEventListener('click',()=>{window.location.href='../content/index.html';});
+}
 function showAccountCenter(){
   $('#modal').innerHTML='<h3>账号中心</h3><div class="modal-body">'+
     '<div class="student-account-box"><b>'+esc(auth.user?.email||'已登录')+'</b><span class="muted">'+(currentStudent?'当前学生：'+esc(currentStudent.name):'尚未选择学生')+'</span></div>'+
@@ -2812,6 +2826,7 @@ async function registerSupabase(){
       updateVolunteerUI();
       render();
       renderStudentPanel();
+      showModuleChoiceModal();
       alert('注册并登录成功。');
     }else{
       alert('注册成功。若 Supabase 开启了邮箱确认，请先到邮箱完成确认后再登录。');
@@ -2843,6 +2858,7 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     render();
     renderStudentPanel();
     fetchNotes();
+    showModuleChoiceModal();
     if(options.notify!==false)alert('登录成功。');
     return true;
   }catch(err){
