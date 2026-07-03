@@ -2868,6 +2868,10 @@ async function recordVolunteerExportIfPossible(rowCount){
 }
 
 function init(){
+  ensureAccountStyles();
+  loadSavedAuth();
+  loadCurrentStudent();
+  loadCurrentVolunteerDraft();
   buildGroupIndex();
   createLayout();
   initFilters();
@@ -2883,6 +2887,8 @@ function init(){
   updateClassButton();
   bindEvents();
   updateVolunteerUI();
+  updateAccountUI();
+  updateAuthGate();
   applyFilters();
   fetchNotes();
 }
