@@ -88,9 +88,9 @@ const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
 const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v2';
 const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
 const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
-let volunteerKeys=loadVolunteerKeys();
-let volunteerMajorKeys=loadVolunteerMajorKeys();
-let volunteerMeta=loadVolunteerMeta();
+let volunteerKeys=[];
+let volunteerMajorKeys={};
+let volunteerMeta={};
 let volunteerDragKey='';
 let volunteerSearchQuery='';
 let volunteerFilterMode='';
@@ -117,12 +117,45 @@ const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const keySchool=s=>`${s.subject}|${s.batch}|${s.name}`;
 const keyGroup=(s,g)=>`${s.subject}|${s.batch}|${s.name}|${g.groupName}`;
 const keyMajor=m=>m.key;
-function loadVolunteerKeys(){try{const arr=JSON.parse(localStorage.getItem(VOLUNTEER_STORAGE_KEY)||'[]'); return Array.isArray(arr)?arr.filter(x=>typeof x==='string').slice(0,VOLUNTEER_LIMIT):[];}catch(e){return [];}}
-function saveVolunteerKeys(){try{localStorage.setItem(VOLUNTEER_STORAGE_KEY,JSON.stringify(volunteerKeys));}catch(e){}}
-function loadVolunteerMajorKeys(){try{const data=JSON.parse(localStorage.getItem(VOLUNTEER_MAJOR_STORAGE_KEY)||'{}'); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}catch(e){return {};}}
-function saveVolunteerMajorKeys(){try{localStorage.setItem(VOLUNTEER_MAJOR_STORAGE_KEY,JSON.stringify(volunteerMajorKeys));}catch(e){}}
-function loadVolunteerMeta(){try{const data=JSON.parse(localStorage.getItem(VOLUNTEER_META_STORAGE_KEY)||'{}'); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}catch(e){return {};}}
-function saveVolunteerMeta(){try{localStorage.setItem(VOLUNTEER_META_STORAGE_KEY,JSON.stringify(volunteerMeta));}catch(e){}}
+function storageJSON(key,fallback){try{const raw=localStorage.getItem(key); return raw?JSON.parse(raw):fallback;}catch(e){return fallback;}}
+function volunteerStorageSuffix(){
+  const userId=auth.user?.id||'guest';
+  const studentId=currentStudent?.id||'no-student';
+  return `${userId}:${studentId}`;
+}
+function scopedVolunteerKey(base){return `${base}:${volunteerStorageSuffix()}`;}
+function currentStudentStorageKey(){return auth.user?.id?`${CURRENT_STUDENT_STORAGE_KEY}:${auth.user.id}`:CURRENT_STUDENT_STORAGE_KEY;}
+function loadVolunteerKeys(){const arr=storageJSON(scopedVolunteerKey(VOLUNTEER_STORAGE_KEY),[]); return Array.isArray(arr)?arr.filter(x=>typeof x==='string').slice(0,VOLUNTEER_LIMIT):[];}
+function saveVolunteerKeys(){try{localStorage.setItem(scopedVolunteerKey(VOLUNTEER_STORAGE_KEY),JSON.stringify(volunteerKeys));}catch(e){}}
+function loadVolunteerMajorKeys(){const data=storageJSON(scopedVolunteerKey(VOLUNTEER_MAJOR_STORAGE_KEY),{}); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}
+function saveVolunteerMajorKeys(){try{localStorage.setItem(scopedVolunteerKey(VOLUNTEER_MAJOR_STORAGE_KEY),JSON.stringify(volunteerMajorKeys));}catch(e){}}
+function loadVolunteerMeta(){const data=storageJSON(scopedVolunteerKey(VOLUNTEER_META_STORAGE_KEY),{}); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}
+function saveVolunteerMeta(){try{localStorage.setItem(scopedVolunteerKey(VOLUNTEER_META_STORAGE_KEY),JSON.stringify(volunteerMeta));}catch(e){}}
+function saveCurrentVolunteerDraft(){saveVolunteerKeys();saveVolunteerMajorKeys();saveVolunteerMeta();}
+function loadCurrentVolunteerDraft(){
+  volunteerKeys=loadVolunteerKeys();
+  volunteerMajorKeys=loadVolunteerMajorKeys();
+  volunteerMeta=loadVolunteerMeta();
+  currentVolunteerForm=null;
+  if(groupIndex.size)normalizeCurrentVolunteerDraft();
+}
+function normalizeCurrentVolunteerDraft(){
+  volunteerKeys=[...new Set(volunteerKeys)].filter(k=>groupIndex.has(k)).slice(0,VOLUNTEER_LIMIT);
+  volunteerKeys.forEach(ensureVolunteerSelection);
+  Object.keys(volunteerMajorKeys).forEach(k=>{if(!volunteerKeys.includes(k))delete volunteerMajorKeys[k];});
+  Object.keys(volunteerMeta).forEach(k=>{if(!volunteerKeys.includes(k))delete volunteerMeta[k];});
+  saveCurrentVolunteerDraft();
+}
+function dbNumber(v){
+  if(v===null||v===undefined||v==='')return null;
+  const raw=typeof v==='number'?v:String(v).replace(/,/g,'').trim();
+  const n=Number(raw);
+  return Number.isFinite(n)?n:null;
+}
+function dbInteger(v){
+  const n=dbNumber(v);
+  return n===null?null:Math.round(n);
+}
 function parseMedicalCodes(raw){
   const valid=new Set(Object.keys(MEDICAL_CODE_META));
   return String(raw||'').split(/[^0-9]+/).map(x=>x.trim()).filter(Boolean).filter(x=>valid.has(x));
@@ -132,8 +165,14 @@ function saveMedicalRestrictionCodes(){try{localStorage.setItem(MEDICAL_RESTRICT
 function loadSavedAuth(){try{const data=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'{}'); if(data&&data.accessToken&&data.user)auth={accessToken:data.accessToken,refreshToken:data.refreshToken||'',user:data.user};}catch(e){}}
 function saveAuth(){try{localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify({accessToken:auth.accessToken||'',refreshToken:auth.refreshToken||'',user:auth.user||null}));}catch(e){}}
 function clearSavedAuth(){try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(e){}}
-function loadCurrentStudent(){try{const data=JSON.parse(localStorage.getItem(CURRENT_STUDENT_STORAGE_KEY)||'null'); if(data&&data.id)currentStudent=data;}catch(e){}}
-function saveCurrentStudent(){try{currentStudent?localStorage.setItem(CURRENT_STUDENT_STORAGE_KEY,JSON.stringify(currentStudent)):localStorage.removeItem(CURRENT_STUDENT_STORAGE_KEY);}catch(e){}}
+function loadCurrentStudent(){
+  try{
+    let data=storageJSON(currentStudentStorageKey(),null);
+    if(!data&&auth.user?.id)data=storageJSON(CURRENT_STUDENT_STORAGE_KEY,null);
+    currentStudent=data&&data.id?data:null;
+  }catch(e){currentStudent=null;}
+}
+function saveCurrentStudent(){try{currentStudent?localStorage.setItem(currentStudentStorageKey(),JSON.stringify(currentStudent)):localStorage.removeItem(currentStudentStorageKey());}catch(e){}}
 function medicalCodesActive(){return state.medicalCodes&&state.medicalCodes.size>0;}
 const coldMajorPattern=/材料|化工|化学类|应用化学|环境|生态|生物|食品|地质|地球物理|测绘|遥感|地理空间|土木|建筑|交通运输|安全|消防|矿|采矿|资源|海洋|农业|农学|林学|水产|动物|植物|草学|轻工|纺织|服装|旅游管理|酒店管理|外国语言|翻译|俄语|日语|法语|西班牙语|朝鲜语|印地语|哲学|历史学|考古|图书馆|档案|社会学|公共管理|行政管理|戏剧影视|广播电视编导/;
 const hotMajorPattern=/计算机|软件|人工智能|智能科学|数据科学|网络空间|电子信息|通信工程|微电子|集成电路|电气工程|自动化|临床医学|口腔医学|法学|会计学|金融学|数学|统计/;
@@ -781,6 +820,26 @@ function createLayout(){
   document.body.className=[document.body.dataset.admin==='1'?'admin-page':'',state.compact?'compact-mode':''].filter(Boolean).join(' ');
   document.body.innerHTML=`
   <div class="app-shell">
+    <div id="authCover" class="auth-cover" hidden>
+      <section class="auth-cover-panel">
+        <div class="auth-cover-copy">
+          <span class="auth-cover-eyebrow">升学规划工作台</span>
+          <h1>江苏志愿填报系统</h1>
+          <p>登录后进入院校筛选、学生档案、志愿表保存与导出。</p>
+          <div class="auth-cover-actions">
+            <button id="coverLoginBtn" class="save" type="button">登录进入</button>
+            <button id="coverRegisterBtn" type="button">注册账号</button>
+          </div>
+        </div>
+        <div class="auth-cover-preview" aria-hidden="true">
+          <div class="cover-preview-head"><span></span><span></span><span></span></div>
+          <div class="cover-preview-row strong"><b>学生 A</b><em>本科｜物理｜志愿表 3 份</em></div>
+          <div class="cover-preview-row"><b>冲</b><em>南京 · 计算机类 · 已选 6/6</em></div>
+          <div class="cover-preview-row"><b>稳</b><em>苏州 · 电子信息类 · 已保存</em></div>
+          <div class="cover-preview-row"><b>保</b><em>志愿表可导出 Excel</em></div>
+        </div>
+      </section>
+    </div>
     <header class="topbar">
       <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><div class="version">${VERSION}</div><button id="studentPanelBtn" class="header-toggle student-toggle" type="button">学生档案</button><button id="accountBtn" class="header-toggle account-toggle" type="button">登录/注册</button><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">本科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
       <div class="filters">
@@ -924,6 +983,8 @@ function schoolFacetCounts(){const m=new Map(); DB.forEach(s=>schoolFacetValues(
 function schoolMatchesLevelFacet(s){if(!state.selectedLevels.size)return true; const vals=schoolFacetValues(s); return [...state.selectedLevels].some(v=>vals.has(v));}
 function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g=>{const key=String(g[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);})); return m;}
 function bindEvents(){
+  $('#coverLoginBtn')?.addEventListener('click',()=>showAccountModal('login'));
+  $('#coverRegisterBtn')?.addEventListener('click',()=>showAccountModal('register'));
   ['batchFilter','subjectFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; applyFilters();}));
   $('#searchInput').addEventListener('input',e=>{state.q=e.target.value; applyFilters();});
   $('#provinceBtn').addEventListener('click',()=>{buildProvincePanel();openPanel('provincePanel')});
@@ -1586,10 +1647,7 @@ function buildGroupIndex(){
   groupIndex=new Map();
   DB.forEach(s=>(s.groups||[]).forEach(g=>groupIndex.set(keyGroup(s,g),{s,g})));
   buildPredictionIndexes();
-  volunteerKeys=[...new Set(volunteerKeys)].filter(k=>groupIndex.has(k)).slice(0,VOLUNTEER_LIMIT);
-  volunteerKeys.forEach(ensureVolunteerSelection);
-  saveVolunteerKeys();
-  saveVolunteerMajorKeys();
+  normalizeCurrentVolunteerDraft();
 }
 function getGroupRecord(key){return groupIndex.get(key)||null;}
 function sortedMajors(g){return [...(g.majors||[])].sort((a,b)=>{const ar=majorRiskMeta(null,g,a).risk,br=majorRiskMeta(null,g,b).risk; if(Boolean(ar)!==Boolean(br))return ar?1:-1; return majorSortByThreeYear(a,b);});}
@@ -2285,6 +2343,26 @@ function ensureAccountStyles(){
   const style=document.createElement('style');
   style.id='accountStudentStyles';
   style.textContent=`
+    body.auth-locked{overflow:hidden;background:#f6f8f7}
+    body.auth-locked .topbar,body.auth-locked .layout,body.auth-locked .footer,body.auth-locked .admin-dock,body.auth-locked .admin-menu,body.auth-locked .back-top,body.auth-locked .panel,body.auth-locked .annotation-drawer,body.auth-locked .note-panel{display:none!important}
+    .auth-cover{position:fixed;inset:0;z-index:1000;background:#f6f8f7;display:grid;place-items:center;padding:24px}
+    .auth-cover[hidden]{display:none}
+    .auth-cover-panel{width:min(920px,100%);min-height:430px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 20px 70px rgba(11,42,26,.10);display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:28px;padding:34px}
+    .auth-cover-copy{display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+    .auth-cover-eyebrow{display:inline-flex;border:1px solid #cfe6d8;background:#f0faf4;color:var(--green);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900}
+    .auth-cover h1{margin:18px 0 10px;font-size:38px;letter-spacing:0;line-height:1.12;color:#17211b}
+    .auth-cover p{margin:0;color:var(--muted);font-size:15px;line-height:1.8;max-width:420px}
+    .auth-cover-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+    .auth-cover-actions button{height:42px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:0 18px;font-weight:900;color:#24352b}
+    .auth-cover-actions .save{background:var(--green);border-color:var(--green);color:#fff}
+    .auth-cover-preview{align-self:center;border:1px solid var(--line);border-radius:8px;background:#fbfdfc;padding:16px;display:grid;gap:10px}
+    .cover-preview-head{display:flex;gap:6px;margin-bottom:4px}
+    .cover-preview-head span{width:9px;height:9px;border-radius:999px;background:#d6e4dc}
+    .cover-preview-row{border:1px solid #e1e9e4;background:#fff;border-radius:8px;padding:12px;display:grid;gap:5px}
+    .cover-preview-row.strong{border-color:#b7dfc6;background:#f5fff8}
+    .cover-preview-row b{font-size:14px;color:#173526}
+    .cover-preview-row em{font-style:normal;color:var(--muted);font-size:12px;line-height:1.5}
+    body.auth-locked .modal-mask{z-index:1200}
     .account-toggle.logged-in{border-color:#b7dfc6;background:#f0faf4;color:var(--green)}
     .student-toggle.active-student{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
     .student-panel{width:min(760px,94vw)}
@@ -2311,6 +2389,13 @@ function ensureAccountStyles(){
     .account-form input{height:40px;border:1px solid var(--line);border-radius:10px;padding:0 10px}
     .account-notice{border:1px solid #fed7aa;background:#fff7ed;border-radius:14px;padding:12px;color:#7c2d12;line-height:1.65;font-size:13px}
     .student-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .student-form-list{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:7px}
+    .student-form-list-title{display:flex;justify-content:space-between;gap:10px;color:#24352b;font-size:12px;font-weight:900}
+    .student-form-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #edf2ef;border-radius:10px;background:#fbfdfc;padding:8px}
+    .student-form-row span{min-width:0;font-size:12px;color:#33443a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .student-form-row small{display:block;margin-top:3px;color:var(--muted);font-size:11px}
+    .student-form-row button{border:1px solid #b7dfc6;background:#f0faf4;color:var(--green);border-radius:8px;padding:7px 10px;font-size:12px;font-weight:900}
+    @media(max-width:720px){.auth-cover-panel{grid-template-columns:1fr;min-height:0;padding:24px}.auth-cover h1{font-size:30px}.auth-cover-preview{display:none}}
     @media(max-width:640px){.student-form-grid{grid-template-columns:1fr}.student-card-head{display:block}}
   `;
   document.head.appendChild(style);
@@ -2351,6 +2436,12 @@ function updateAccountUI(){
     studentBtn.classList.toggle('active-student',Boolean(currentStudent));
   }
 }
+function updateAuthGate(){
+  const locked=!(auth.accessToken&&auth.user);
+  document.body.classList.toggle('auth-locked',locked);
+  const cover=$('#authCover');
+  if(cover)cover.hidden=!locked;
+}
 function splitListInput(v){return String(v||'').split(/[，,、\s/]+/).map(x=>x.trim()).filter(Boolean);}
 function subjectTypeValue(v){return v==='history'||v==='历史'?'history':'physics';}
 function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergraduate';}
@@ -2389,8 +2480,13 @@ async function registerSupabase(){
       auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
       saveAuth();
       await ensureUserProfile(displayName);
+      loadCurrentStudent();
+      loadCurrentVolunteerDraft();
       closeModal();
       updateAccountUI();
+      updateAuthGate();
+      updateVolunteerUI();
+      render();
       renderStudentPanel();
       alert('注册并登录成功。');
     }else{
@@ -2410,8 +2506,13 @@ async function loginSupabase(){
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
     saveAuth();
     await ensureUserProfile(data.user?.user_metadata?.display_name||'');
+    loadCurrentStudent();
+    loadCurrentVolunteerDraft();
     closeModal();
     updateAccountUI();
+    updateAuthGate();
+    updateVolunteerUI();
+    render();
     renderStudentPanel();
     fetchNotes();
     alert('登录成功。');
@@ -2424,12 +2525,19 @@ async function ensureUserProfile(displayName=''){
   }catch(err){console.warn('创建/更新用户资料失败',err);}
 }
 function logoutSupabase(){
+  saveCurrentVolunteerDraft();
+  saveCurrentStudent();
   auth={accessToken:'',refreshToken:'',user:null};
   currentStudent=null;
   currentVolunteerForm=null;
+  volunteerKeys=[];
+  volunteerMajorKeys={};
+  volunteerMeta={};
   clearSavedAuth();
-  saveCurrentStudent();
   updateAccountUI();
+  updateAuthGate();
+  updateVolunteerUI();
+  render();
   renderStudentPanel();
   alert('已退出登录。');
 }
@@ -2437,8 +2545,17 @@ function logoutSupabase(){
 async function fetchStudents(){
   return apiFetch('students?select=*&archived=eq.false&order=updated_at.desc');
 }
+async function fetchVolunteerFormSummaries(){
+  return apiFetch('volunteer_forms?select=id,student_id,title,status,stage,created_at,updated_at&order=updated_at.desc');
+}
 function studentSummary(s){
   return `${stageLabel(s.stage)}｜${subjectLabel(s.subject_type)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${(s.target_cities||[]).length?'｜城市 '+s.target_cities.join('、'):''}`;
+}
+function shortDateTime(v){
+  if(!v)return '';
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime()))return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 function renderStudentPanel(){
   const body=$('#studentPanelBody');
@@ -2456,14 +2573,26 @@ function renderStudentPanel(){
     return;
   }
   body.innerHTML='<div class="student-empty">正在读取学生档案...</div>';
-  fetchStudents().then(students=>{
-    body.innerHTML=studentPanelHTML(students||[]);
-    bindStudentPanelControls(students||[]);
+  Promise.all([fetchStudents(),fetchVolunteerFormSummaries()]).then(([students,forms])=>{
+    syncCurrentStudentWithList(students||[]);
+    body.innerHTML=studentPanelHTML(students||[],forms||[]);
+    bindStudentPanelControls(students||[],forms||[]);
   }).catch(err=>{
     body.innerHTML=`<div class="account-notice">读取学生失败：${esc(err.message)}</div>`;
   });
 }
-function studentPanelHTML(students){
+function syncCurrentStudentWithList(students){
+  if(!currentStudent?.id)return;
+  const fresh=students.find(s=>s.id===currentStudent.id);
+  if(fresh){currentStudent=fresh;saveCurrentStudent();}
+}
+function studentPanelHTML(students,forms=[]){
+  const formsByStudent=new Map();
+  forms.forEach(f=>{
+    const arr=formsByStudent.get(f.student_id)||[];
+    arr.push(f);
+    formsByStudent.set(f.student_id,arr);
+  });
   const account=`<div class="student-account-box"><b>${esc(auth.user?.email||'已登录')}</b><span class="muted">${currentStudent?`当前学生：${esc(currentStudent.name)}`:'尚未选择学生'}</span></div>`;
   const form=`<section class="student-account-box"><b>新增学生</b><div class="student-form-grid">
     <label>姓名<input id="newStudentName" placeholder="学生姓名"></label>
@@ -2475,40 +2604,79 @@ function studentPanelHTML(students){
     <label class="wide">目标城市<input id="newStudentCities" placeholder="南京、苏州、上海"></label>
     <label class="wide">体检代码<input id="newStudentMedical" placeholder="如 21 35，可空"></label>
   </div><div class="student-inline-actions"><button id="createStudentBtn" class="save" type="button">新增学生</button><button id="refreshStudentsBtn" type="button">刷新列表</button></div></section>`;
-  const list=students.length?`<div class="student-list">${students.map(s=>`<article class="student-card ${currentStudent?.id===s.id?'active':''}" data-student-id="${esc(s.id)}"><div class="student-card-head"><div><h4>${esc(s.name)}</h4><p>${esc(studentSummary(s))}</p></div><span class="badge">${esc(stageLabel(s.stage))}</span></div><div class="student-actions"><button class="save" data-select-student="${esc(s.id)}">设为当前</button><button data-save-for-student="${esc(s.id)}">保存当前志愿表</button><button data-load-latest-form="${esc(s.id)}">加载最近志愿表</button></div></article>`).join('')}</div>`:'<div class="student-empty">还没有学生。先新增一个学生，然后在志愿表里点“保存到学生”。</div>';
+  const list=students.length?`<div class="student-list">${students.map(s=>{
+    const savedForms=formsByStudent.get(s.id)||[];
+    const formList=savedForms.length?`<div class="student-form-list"><div class="student-form-list-title"><span>已保存志愿表</span><span>${savedForms.length} 份</span></div>${savedForms.slice(0,8).map(f=>`<div class="student-form-row"><span>${esc(f.title||'未命名志愿表')}<small>${esc(shortDateTime(f.updated_at||f.created_at))}</small></span><button type="button" data-load-form="${esc(f.id)}">加载</button></div>`).join('')}${savedForms.length>8?`<div class="muted" style="font-size:12px">仅显示最近 8 份。</div>`:''}</div>`:`<div class="student-form-list"><div class="muted" style="font-size:12px">还没有保存过志愿表。</div></div>`;
+    return `<article class="student-card ${currentStudent?.id===s.id?'active':''}" data-student-id="${esc(s.id)}"><div class="student-card-head"><div><h4>${esc(s.name)}</h4><p>${esc(studentSummary(s))}</p></div><span class="badge">${esc(stageLabel(s.stage))}</span></div><div class="student-actions"><button class="save" data-select-student="${esc(s.id)}">设为当前</button><button data-save-for-student="${esc(s.id)}">保存当前志愿表</button><button data-load-latest-form="${esc(s.id)}">加载最近志愿表</button><button data-new-draft-for-student="${esc(s.id)}">新建空草稿</button></div>${formList}</article>`;
+  }).join('')}</div>`:'<div class="student-empty">还没有学生。先新增一个学生，然后在志愿表里点“保存到学生”。</div>';
   return account+form+list;
 }
-function bindStudentPanelControls(students){
+function bindStudentPanelControls(students,forms=[]){
   const byId=new Map(students.map(s=>[s.id,s]));
+  const formById=new Map(forms.map(f=>[f.id,f]));
   $('#createStudentBtn')?.addEventListener('click',createStudentFromPanel);
   $('#refreshStudentsBtn')?.addEventListener('click',renderStudentPanel);
   $$('[data-select-student]').forEach(btn=>btn.addEventListener('click',()=>{
-    currentStudent=byId.get(btn.dataset.selectStudent)||null;
-    currentVolunteerForm=null;
-    saveCurrentStudent();
-    updateAccountUI();
-    renderStudentPanel();
+    setCurrentStudent(byId.get(btn.dataset.selectStudent)||null);
   }));
   $$('[data-save-for-student]').forEach(btn=>btn.addEventListener('click',async()=>{
     currentStudent=byId.get(btn.dataset.saveForStudent)||null;
     saveCurrentStudent();
+    saveCurrentVolunteerDraft();
     await saveCurrentVolunteerForm();
   }));
   $$('[data-load-latest-form]').forEach(btn=>btn.addEventListener('click',async()=>{
+    saveCurrentVolunteerDraft();
     currentStudent=byId.get(btn.dataset.loadLatestForm)||null;
     saveCurrentStudent();
-    await loadLatestVolunteerFormForStudent(currentStudent);
+    await loadLatestVolunteerFormForStudent(currentStudent,{skipDraftSave:true});
   }));
+  $$('[data-load-form]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const form=formById.get(btn.dataset.loadForm);
+    if(!form)return;
+    saveCurrentVolunteerDraft();
+    currentStudent=byId.get(form.student_id)||currentStudent;
+    saveCurrentStudent();
+    await loadVolunteerForm(form,{skipDraftSave:true});
+  }));
+  $$('[data-new-draft-for-student]').forEach(btn=>btn.addEventListener('click',()=>{
+    setCurrentStudent(byId.get(btn.dataset.newDraftForStudent)||null,{loadDraft:false,clearDraft:true});
+  }));
+}
+function setCurrentStudent(student,options={}){
+  saveCurrentVolunteerDraft();
+  currentStudent=student||null;
+  currentVolunteerForm=null;
+  saveCurrentStudent();
+  if(options.clearDraft){
+    volunteerKeys=[];
+    volunteerMajorKeys={};
+    volunteerMeta={};
+    saveCurrentVolunteerDraft();
+  }else if(options.loadDraft!==false){
+    loadCurrentVolunteerDraft();
+  }
+  updateAccountUI();
+  updateVolunteerUI();
+  renderVolunteerPanel();
+  render();
+  renderStudentPanel();
 }
 async function createStudentFromPanel(){
   if(!requireLogin())return;
   const name=$('#newStudentName').value.trim();
   if(!name){alert('请填写学生姓名。');return;}
   try{
-    const rows=await apiFetch('students',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({owner_id:auth.user.id,name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),score:$('#newStudentScore').value?Number($('#newStudentScore').value):null,rank:$('#newStudentRank').value?Number($('#newStudentRank').value):null,target_cities:splitListInput($('#newStudentCities').value),medical_codes:parseMedicalCodes($('#newStudentMedical').value)})});
+    const rows=await apiFetch('students',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({owner_id:auth.user.id,name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:parseMedicalCodes($('#newStudentMedical').value)})});
     currentStudent=rows[0];
+    volunteerKeys=[];
+    volunteerMajorKeys={};
+    volunteerMeta={};
     saveCurrentStudent();
+    saveCurrentVolunteerDraft();
     updateAccountUI();
+    updateVolunteerUI();
+    render();
     renderStudentPanel();
     alert('学生已新增。');
   }catch(err){alert('新增学生失败：'+err.message);}
@@ -2518,7 +2686,7 @@ function groupPayloadForSave(key,index){
   if(!rec)return null;
   const {s,g}=rec;
   const meta=volunteerMeta[key]||{};
-  return {form_id:null,owner_id:auth.user.id,position:index+1,group_key:key,school_name:s.name,school_code:s.schoolCode||null,province:s.province||null,city:s.city||null,batch:s.batch||null,subject:s.subject||null,group_name:g.groupName,group_code:g.groupCode||null,group_alias:groupDisplayName(s,g)||null,requirement:g.requirement||null,plan26:g.plan26||null,plan25:g.plan25||null,score25:g.score25||null,rank25:g.rank25||null,avg_score3:g.avgScore3||null,avg_rank3:g.avgRank3||null,strategy:meta.strategy||'待定',obey_adjustment:true,note:meta.note||null,source_payload:{group:g}};
+  return {form_id:null,owner_id:auth.user.id,position:index+1,group_key:key,school_name:s.name,school_code:s.schoolCode||null,province:s.province||null,city:s.city||null,batch:s.batch||null,subject:s.subject||null,group_name:g.groupName,group_code:g.groupCode||null,group_alias:groupDisplayName(s,g)||null,requirement:g.requirement||null,plan26:dbInteger(g.plan26),plan25:dbInteger(g.plan25),score25:dbNumber(g.score25),rank25:dbInteger(g.rank25),avg_score3:dbNumber(g.avgScore3),avg_rank3:dbInteger(g.avgRank3),strategy:meta.strategy||'待定',obey_adjustment:true,note:meta.note||null,source_payload:{group:g}};
 }
 function majorPayloadsForSave(groupKey,dbGroupId){
   const rec=getGroupRecord(groupKey);
@@ -2527,7 +2695,7 @@ function majorPayloadsForSave(groupKey,dbGroupId){
   return selectedMajorOrder(groupKey).map((majorKey,index)=>{
     const m=byKey.get(majorKey);
     if(!m)return null;
-    return {form_group_id:dbGroupId,owner_id:auth.user.id,position:index+1,major_key:majorKey,major_code:m.code||null,major_name:m.name,major_class:m.majorClass||null,discipline:m.discipline||null,plan26:m.plan26||null,plan25:m.plan25||null,score25:m.score25||null,rank25:m.rank25||null,avg_score3:m.avgScore3||null,avg_rank3:m.avgRank3||null,source_payload:{major:m}};
+    return {form_group_id:dbGroupId,owner_id:auth.user.id,position:index+1,major_key:majorKey,major_code:m.code||null,major_name:m.name,major_class:m.majorClass||null,discipline:m.discipline||null,plan26:dbInteger(m.plan26),plan25:dbInteger(m.plan25),score25:dbNumber(m.score25),rank25:dbInteger(m.rank25),avg_score3:dbNumber(m.avgScore3),avg_rank3:dbInteger(m.avgRank3),source_payload:{major:m}};
   }).filter(Boolean);
 }
 async function saveCurrentVolunteerForm(){
@@ -2543,20 +2711,22 @@ async function saveCurrentVolunteerForm(){
     const majorRows=savedGroups.flatMap(row=>majorPayloadsForSave(row.group_key,row.id));
     if(majorRows.length)await apiFetch('volunteer_form_majors',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(majorRows)});
     currentVolunteerForm=form;
+    saveCurrentVolunteerDraft();
     updateAccountUI();
     renderStudentPanel();
     alert(`已保存到 ${currentStudent.name}：${groupRows.length} 个专业组，${majorRows.length} 个专业。`);
   }catch(err){alert('保存志愿表失败：'+err.message);}
 }
-async function loadLatestVolunteerFormForStudent(student){
+async function loadLatestVolunteerFormForStudent(student,options={}){
   if(!student||!requireSupabase()||!requireLogin())return;
   try{
     const forms=await apiFetch(`volunteer_forms?select=*&student_id=eq.${encodeURIComponent(student.id)}&order=updated_at.desc&limit=1`);
     if(!forms.length){alert('这个学生还没有保存过志愿表。');return;}
-    await loadVolunteerForm(forms[0]);
+    await loadVolunteerForm(forms[0],options);
   }catch(err){alert('加载志愿表失败：'+err.message);}
 }
-async function loadVolunteerForm(form){
+async function loadVolunteerForm(form,options={}){
+  if(!options.skipDraftSave)saveCurrentVolunteerDraft();
   const groups=await apiFetch(`volunteer_form_groups?select=*&form_id=eq.${encodeURIComponent(form.id)}&order=position.asc`);
   const ids=groups.map(g=>g.id);
   const majors=ids.length?await apiFetch(`volunteer_form_majors?select=*&form_group_id=in.(${ids.join(',')})&order=position.asc`):[];
@@ -2575,13 +2745,12 @@ async function loadVolunteerForm(form){
     volunteerMajorKeys[g.group_key].push(m.major_key);
   });
   volunteerKeys.forEach(ensureVolunteerSelection);
-  saveVolunteerKeys();
-  saveVolunteerMajorKeys();
-  saveVolunteerMeta();
   currentVolunteerForm=form;
+  saveCurrentVolunteerDraft();
   updateVolunteerUI();
   renderVolunteerPanel();
   render();
+  renderStudentPanel();
   openPanel('volunteerPanel');
   alert(`已加载：${form.title}`);
 }
@@ -2620,6 +2789,7 @@ function init(){
   ensureAccountStyles();
   loadSavedAuth();
   loadCurrentStudent();
+  loadCurrentVolunteerDraft();
   buildGroupIndex();
   createLayout();
   initFilters();
@@ -2636,6 +2806,7 @@ function init(){
   bindEvents();
   updateVolunteerUI();
   updateAccountUI();
+  updateAuthGate();
   applyFilters();
   fetchNotes();
 }
