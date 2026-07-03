@@ -1,8 +1,8 @@
 (function(){
 'use strict';
 const VERSION='本科版｜V1.1.62 江苏院校显示城市版';
-const SUPABASE_URL='';
-const SUPABASE_ANON_KEY='';
+const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const ADMIN_EMAIL='ycxukun@gmail.com';
 const GISCUS_CONFIG={
   repo:'ycxukun/jiangsu-plan',
@@ -78,6 +78,10 @@ let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
 let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
+let currentStudent=null;
+let currentVolunteerForm=null;
+const AUTH_STORAGE_KEY='js-plan-auth-v1';
+const CURRENT_STUDENT_STORAGE_KEY='js-plan-current-student-v1';
 const VOLUNTEER_LIMIT=40;
 const MAX_MAJOR_PER_GROUP=6;
 const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
@@ -125,6 +129,11 @@ function parseMedicalCodes(raw){
 }
 function loadMedicalRestrictionCodes(){try{return parseMedicalCodes(JSON.parse(localStorage.getItem(MEDICAL_RESTRICTION_STORAGE_KEY)||'[]').join(','));}catch(e){return [];}}
 function saveMedicalRestrictionCodes(){try{localStorage.setItem(MEDICAL_RESTRICTION_STORAGE_KEY,JSON.stringify([...state.medicalCodes]));}catch(e){}}
+function loadSavedAuth(){try{const data=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'{}'); if(data&&data.accessToken&&data.user)auth={accessToken:data.accessToken,refreshToken:data.refreshToken||'',user:data.user};}catch(e){}}
+function saveAuth(){try{localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify({accessToken:auth.accessToken||'',refreshToken:auth.refreshToken||'',user:auth.user||null}));}catch(e){}}
+function clearSavedAuth(){try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(e){}}
+function loadCurrentStudent(){try{const data=JSON.parse(localStorage.getItem(CURRENT_STUDENT_STORAGE_KEY)||'null'); if(data&&data.id)currentStudent=data;}catch(e){}}
+function saveCurrentStudent(){try{currentStudent?localStorage.setItem(CURRENT_STUDENT_STORAGE_KEY,JSON.stringify(currentStudent)):localStorage.removeItem(CURRENT_STUDENT_STORAGE_KEY);}catch(e){}}
 function medicalCodesActive(){return state.medicalCodes&&state.medicalCodes.size>0;}
 const coldMajorPattern=/材料|化工|化学类|应用化学|环境|生态|生物|食品|地质|地球物理|测绘|遥感|地理空间|土木|建筑|交通运输|安全|消防|矿|采矿|资源|海洋|农业|农学|林学|水产|动物|植物|草学|轻工|纺织|服装|旅游管理|酒店管理|外国语言|翻译|俄语|日语|法语|西班牙语|朝鲜语|印地语|哲学|历史学|考古|图书馆|档案|社会学|公共管理|行政管理|戏剧影视|广播电视编导/;
 const hotMajorPattern=/计算机|软件|人工智能|智能科学|数据科学|网络空间|电子信息|通信工程|微电子|集成电路|电气工程|自动化|临床医学|口腔医学|法学|会计学|金融学|数学|统计/;
@@ -773,7 +782,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <header class="topbar">
-      <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><div class="version">${VERSION}</div><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">本科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
+      <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><div class="version">${VERSION}</div><button id="studentPanelBtn" class="header-toggle student-toggle" type="button">学生档案</button><button id="accountBtn" class="header-toggle account-toggle" type="button">登录/注册</button><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">本科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
       <div class="filters">
         <select id="batchFilter"><option value="">全部批次</option></select>
         <select id="subjectFilter"><option value="">全部科类</option></select>
@@ -796,7 +805,8 @@ function createLayout(){
     <div id="scorePanel" class="panel"><div class="panel-head"><h3>目标分区间筛选</h3><button class="close-btn" data-close="scorePanel">×</button></div><div class="panel-body"><div id="rangeSummary" class="range-summary"></div><div class="score-row"><label>目标分</label><input id="targetScoreRange" type="range" min="350" max="710" value="550"><input id="targetScoreInput" type="number" value="550"></div><div class="score-row"><label>下浮</label><input id="downRange" type="range" min="0" max="80" value="20"><input id="downInput" type="number" value="20"></div><div class="score-row"><label>上浮</label><input id="upRange" type="range" min="0" max="80" value="30"><input id="upInput" type="number" value="30"></div><div class="modal-actions"><button id="clearScoreBtn">清空分数筛选</button><button id="applyScoreBtn" class="save">应用区间</button></div></div></div>
     <div id="medicalPanel" class="panel medical-panel"><div class="panel-head"><h3>体检受限</h3><button class="close-btn" data-close="medicalPanel">×</button></div><div class="panel-body"><p class="medical-help">输入体检结论代码，例如：21、22、23、34、35。系统会在主表和志愿表中提示，并禁止受限专业被勾选。色弱/色盲按严格口径处理：化学、生物、医学、药学、食品、农林、水产、环境、材料类、建筑/风景园林、纺织服装、设计类等限报；计算机、电子信息、普通机械不按大类一刀切。</p><input id="medicalCodeInput" class="medical-code-input" placeholder="输入体检代码，如：21 35 或 23,34"><div class="medical-quick-codes">${Object.keys(MEDICAL_CODE_META).map(c=>`<button type="button" data-medical-code="${c}">${c}</button>`).join('')}</div><div id="medicalCodeSummary" class="medical-code-summary"></div><div class="modal-actions"><button id="clearMedicalBtn">清空体检代码</button><button id="applyMedicalBtn" class="save">应用体检限制</button></div></div></div>
     <div id="changePanel" class="panel change-panel"><div class="panel-head"><div><h3>专业组变迁</h3><p id="changePanelTitle" class="panel-subtitle"></p></div><button class="close-btn" data-close="changePanel">×</button></div><div id="changePanelBody" class="panel-body"></div></div>
-    <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="medicalVolunteerNotice" class="medical-active-notice" style="display:none"></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
+    <div id="studentPanel" class="panel student-panel"><div class="panel-head"><div><h3>学生档案</h3><p id="studentPanelSubtitle" class="panel-subtitle">登录后可新增学生、保存和加载志愿表。</p></div><button class="close-btn" data-close="studentPanel">×</button></div><div class="panel-body"><div id="studentPanelBody"></div></div></div>
+    <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="saveVolunteerBtn" class="save" type="button">保存到学生</button><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="medicalVolunteerNotice" class="medical-active-notice" style="display:none"></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
     <div id="annotationDrawer" class="annotation-drawer">
       <div class="annotation-head"><div><h3>批注</h3><p id="annotationObject">未选择批注对象</p></div><button id="closeAnnotationBtn" class="close-btn" type="button">×</button></div>
       <div class="annotation-body"><div id="giscusMount" class="giscus-mount"></div></div>
@@ -923,8 +933,11 @@ function bindEvents(){
   $('#classBtn').addEventListener('click',()=>{buildClassPanel();openPanel('classPanel')});
   $('#scoreBtn').addEventListener('click',()=>{updateRangeSummary();openPanel('scorePanel')});
   $('#medicalBtn').addEventListener('click',()=>{const input=$('#medicalCodeInput'); if(input)input.value=[...state.medicalCodes].join(' '); updateMedicalPanelSummary(); openPanel('medicalPanel')});
+  $('#studentPanelBtn').addEventListener('click',()=>{renderStudentPanel();openPanel('studentPanel')});
+  $('#accountBtn').addEventListener('click',showAccountModal);
   $('#volunteerPanelBtn').addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
   $('#fillVolunteerBtn').addEventListener('click',fillVolunteerFromCurrentFilters);
+  $('#saveVolunteerBtn').addEventListener('click',saveCurrentVolunteerForm);
   $('#exportVolunteerBtn').addEventListener('click',exportVolunteerXlsx);
   $('#clearVolunteerBtn').addEventListener('click',clearVolunteers);
   $('#volunteerSearchInput')?.addEventListener('input',e=>{volunteerSearchQuery=e.target.value;renderVolunteerPanel();});
@@ -948,9 +961,9 @@ function bindEvents(){
   bindMedicalInputs();
   $('#modalMask').addEventListener('click',e=>{if(e.target.id==='modalMask')closeModal();});
   $('#adminDockBtn')?.addEventListener('click',()=>$('#adminMenu').classList.toggle('open'));
-  $('#loginBtn')?.addEventListener('click',showLoginModal);
+  $('#loginBtn')?.addEventListener('click',showAccountModal);
   $('#reloadNotesBtn')?.addEventListener('click',fetchNotes);
-  $('#logoutBtn')?.addEventListener('click',()=>{auth={accessToken:'',user:null}; alert('已退出当前前端会话');});
+  $('#logoutBtn')?.addEventListener('click',logoutSupabase);
   $('#addSchoolNoteBtn')?.addEventListener('click',()=>{const s=getActiveSchool(); if(s)showNoteEditor('schools',keySchool(s),`${s.name}｜学校备注`);});
 }
 function bindScoreInputs(){
@@ -2161,6 +2174,7 @@ function exportVolunteerXlsx(){
 <Worksheet ss:Name="志愿基础表"><Table>${columns}${topRows}${body}</Table><AutoFilter x:Range="R2C1:R${lastRow}C${lastCol}" xmlns="urn:schemas-microsoft-com:office:excel"/><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>
 </Workbook>`;
   const blob=new Blob(['\ufeff',workbook],{type:'application/vnd.ms-excel;charset=utf-8'});
+  recordVolunteerExportIfPossible(rows.length);
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=`江苏志愿基础表_${date}.xls`;
@@ -2266,20 +2280,322 @@ function bindAnnotationButtons(){
   });
 }
 
+function ensureAccountStyles(){
+  if(document.getElementById('accountStudentStyles'))return;
+  const style=document.createElement('style');
+  style.id='accountStudentStyles';
+  style.textContent=`
+    .account-toggle.logged-in{border-color:#b7dfc6;background:#f0faf4;color:var(--green)}
+    .student-toggle.active-student{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
+    .student-panel{width:min(760px,94vw)}
+    .student-account-box{border:1px solid var(--line);border-radius:16px;background:#fbfdfc;padding:12px;margin-bottom:12px}
+    .student-account-box b{display:block;margin-bottom:6px}
+    .student-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+    .student-form-grid label{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:900}
+    .student-form-grid input,.student-form-grid select{height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 10px;min-width:0}
+    .student-form-grid .wide{grid-column:1/-1}
+    .student-list{display:grid;gap:10px;margin-top:12px}
+    .student-card{border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px}
+    .student-card.active{border-color:#8ed2aa;background:#f7fffa}
+    .student-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .student-card h4{margin:0;font-size:16px}
+    .student-card p{margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
+    .student-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+    .student-actions button,.student-inline-actions button,.account-tabs button{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px;font-size:12px;font-weight:900;color:#24352b}
+    .student-actions .save,.student-inline-actions .save{background:var(--green);border-color:var(--green);color:#fff}
+    .student-empty{border:1px dashed #b7dfc6;background:#fbfffc;border-radius:14px;padding:14px;color:var(--muted);line-height:1.7}
+    .account-tabs{display:flex;gap:8px;margin-bottom:12px}
+    .account-tabs button.active{border-color:#8ed2aa;background:#f0faf4;color:var(--green)}
+    .account-form{display:grid;gap:10px}
+    .account-form label{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:900}
+    .account-form input{height:40px;border:1px solid var(--line);border-radius:10px;padding:0 10px}
+    .account-notice{border:1px solid #fed7aa;background:#fff7ed;border-radius:14px;padding:12px;color:#7c2d12;line-height:1.65;font-size:13px}
+    .student-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+    @media(max-width:640px){.student-form-grid{grid-template-columns:1fr}.student-card-head{display:block}}
+  `;
+  document.head.appendChild(style);
+}
+
+function supabaseConfigured(){return Boolean(SUPABASE_URL&&SUPABASE_ANON_KEY);}
+function requireSupabase(){
+  if(supabaseConfigured())return true;
+  alert('还没有填写 Supabase 配置：请先在 app.js 里填 SUPABASE_URL 和 SUPABASE_ANON_KEY。');
+  return false;
+}
+function requireLogin(){
+  if(auth.accessToken&&auth.user)return true;
+  showAccountModal('login');
+  return false;
+}
+function authHeaders(extra={}){
+  return {apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`,'Content-Type':'application/json',...extra};
+}
+async function apiFetch(path,options={}){
+  if(!supabaseConfigured())throw new Error('Supabase 配置为空');
+  if(!auth.accessToken)throw new Error('请先登录');
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{...options,headers:authHeaders(options.headers||{})});
+  if(!res.ok)throw new Error(await res.text());
+  if(res.status===204)return null;
+  const text=await res.text();
+  return text?JSON.parse(text):null;
+}
+function updateAccountUI(){
+  const accountBtn=$('#accountBtn');
+  if(accountBtn){
+    accountBtn.textContent=auth.user?.email?`已登录：${auth.user.email.split('@')[0]}`:'登录/注册';
+    accountBtn.classList.toggle('logged-in',Boolean(auth.user));
+  }
+  const studentBtn=$('#studentPanelBtn');
+  if(studentBtn){
+    studentBtn.textContent=currentStudent?`学生：${currentStudent.name}`:'学生档案';
+    studentBtn.classList.toggle('active-student',Boolean(currentStudent));
+  }
+}
+function splitListInput(v){return String(v||'').split(/[，,、\s/]+/).map(x=>x.trim()).filter(Boolean);}
+function subjectTypeValue(v){return v==='history'||v==='历史'?'history':'physics';}
+function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergraduate';}
+function stageLabel(v){return v==='specialty'?'专科':'本科';}
+function subjectLabel(v){return v==='history'?'历史':'物理';}
+
+function showAccountModal(mode='login'){
+  const isRegister=mode==='register';
+  $('#modal').innerHTML=`<h3>${isRegister?'注册账号':'登录账号'}</h3><div class="modal-body">
+    ${supabaseConfigured()?'':'<div class="account-notice">数据库还没有配置。请先创建 Supabase 项目，执行 supabase/schema.sql，然后把 URL 和 anon key 填进 app.js。界面已经接好，配置后即可注册登录。</div>'}
+    <div class="account-tabs"><button id="loginTab" class="${isRegister?'':'active'}" type="button">登录</button><button id="registerTab" class="${isRegister?'active':''}" type="button">注册</button></div>
+    <div class="account-form">
+      ${isRegister?'<label>姓名或昵称<input id="accountName" placeholder="例如：王老师"></label>':''}
+      <label>邮箱<input id="accountEmail" type="email" value="${esc(isRegister?'':(auth.user?.email||ADMIN_EMAIL))}" placeholder="you@example.com"></label>
+      <label>密码<input id="accountPassword" type="password" placeholder="至少 6 位"></label>
+    </div>
+    <div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">取消</button><button id="accountSubmit" class="save">${isRegister?'注册':'登录'}</button></div>
+  </div>`;
+  openModal();
+  $('#loginTab').addEventListener('click',()=>showAccountModal('login'));
+  $('#registerTab').addEventListener('click',()=>showAccountModal('register'));
+  $('#accountSubmit').addEventListener('click',()=>isRegister?registerSupabase():loginSupabase());
+}
+function showLoginModal(){showAccountModal('login');}
+async function registerSupabase(){
+  if(!requireSupabase())return;
+  const email=$('#accountEmail').value.trim();
+  const password=$('#accountPassword').value;
+  const displayName=$('#accountName')?.value.trim()||'';
+  if(!email||!password){alert('请输入邮箱和密码。');return;}
+  try{
+    const res=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password,data:{display_name:displayName}})});
+    if(!res.ok)throw new Error(await res.text());
+    const data=await res.json();
+    if(data.access_token){
+      auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
+      saveAuth();
+      await ensureUserProfile(displayName);
+      closeModal();
+      updateAccountUI();
+      renderStudentPanel();
+      alert('注册并登录成功。');
+    }else{
+      alert('注册成功。若 Supabase 开启了邮箱确认，请先到邮箱完成确认后再登录。');
+      showAccountModal('login');
+    }
+  }catch(err){alert('注册失败：'+err.message);}
+}
+async function loginSupabase(){
+  if(!requireSupabase())return;
+  const email=($('#accountEmail')||$('#loginEmail')).value.trim();
+  const password=($('#accountPassword')||$('#loginPwd')).value;
+  try{
+    const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    if(!res.ok)throw new Error(await res.text());
+    const data=await res.json();
+    auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
+    saveAuth();
+    await ensureUserProfile(data.user?.user_metadata?.display_name||'');
+    closeModal();
+    updateAccountUI();
+    renderStudentPanel();
+    fetchNotes();
+    alert('登录成功。');
+  }catch(err){alert('登录失败：'+err.message);}
+}
+async function ensureUserProfile(displayName=''){
+  if(!auth.user?.id)return;
+  try{
+    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:'consultant',status:'active'})});
+  }catch(err){console.warn('创建/更新用户资料失败',err);}
+}
+function logoutSupabase(){
+  auth={accessToken:'',refreshToken:'',user:null};
+  currentStudent=null;
+  currentVolunteerForm=null;
+  clearSavedAuth();
+  saveCurrentStudent();
+  updateAccountUI();
+  renderStudentPanel();
+  alert('已退出登录。');
+}
+
+async function fetchStudents(){
+  return apiFetch('students?select=*&archived=eq.false&order=updated_at.desc');
+}
+function studentSummary(s){
+  return `${stageLabel(s.stage)}｜${subjectLabel(s.subject_type)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${(s.target_cities||[]).length?'｜城市 '+s.target_cities.join('、'):''}`;
+}
+function renderStudentPanel(){
+  const body=$('#studentPanelBody');
+  const subtitle=$('#studentPanelSubtitle');
+  if(!body)return;
+  updateAccountUI();
+  if(subtitle)subtitle.textContent=currentStudent?`当前学生：${currentStudent.name}`:'登录后可新增学生、保存和加载志愿表。';
+  if(!supabaseConfigured()){
+    body.innerHTML=`<div class="account-notice"><b>还差最后一步数据库配置。</b><br>我已经把账号、学生、志愿表的前端逻辑接好了。你需要在 Supabase 创建项目，执行 <code>supabase/schema.sql</code>，再把 URL 和 anon key 填到 app.js 顶部。</div>`;
+    return;
+  }
+  if(!auth.user){
+    body.innerHTML=`<div class="student-empty">请先登录或注册账号，然后就可以新增学生、保存志愿表。</div><div class="student-inline-actions" style="margin-top:12px"><button class="save" id="studentLoginNow">登录/注册</button></div>`;
+    $('#studentLoginNow')?.addEventListener('click',()=>showAccountModal('login'));
+    return;
+  }
+  body.innerHTML='<div class="student-empty">正在读取学生档案...</div>';
+  fetchStudents().then(students=>{
+    body.innerHTML=studentPanelHTML(students||[]);
+    bindStudentPanelControls(students||[]);
+  }).catch(err=>{
+    body.innerHTML=`<div class="account-notice">读取学生失败：${esc(err.message)}</div>`;
+  });
+}
+function studentPanelHTML(students){
+  const account=`<div class="student-account-box"><b>${esc(auth.user?.email||'已登录')}</b><span class="muted">${currentStudent?`当前学生：${esc(currentStudent.name)}`:'尚未选择学生'}</span></div>`;
+  const form=`<section class="student-account-box"><b>新增学生</b><div class="student-form-grid">
+    <label>姓名<input id="newStudentName" placeholder="学生姓名"></label>
+    <label>手机号<input id="newStudentPhone" placeholder="可选"></label>
+    <label>批次<select id="newStudentStage"><option value="undergraduate">本科</option><option value="specialty">专科</option></select></label>
+    <label>科类<select id="newStudentSubject"><option value="physics">物理</option><option value="history">历史</option></select></label>
+    <label>分数<input id="newStudentScore" type="number" placeholder="例如 586"></label>
+    <label>位次<input id="newStudentRank" type="number" placeholder="例如 39000"></label>
+    <label class="wide">目标城市<input id="newStudentCities" placeholder="南京、苏州、上海"></label>
+    <label class="wide">体检代码<input id="newStudentMedical" placeholder="如 21 35，可空"></label>
+  </div><div class="student-inline-actions"><button id="createStudentBtn" class="save" type="button">新增学生</button><button id="refreshStudentsBtn" type="button">刷新列表</button></div></section>`;
+  const list=students.length?`<div class="student-list">${students.map(s=>`<article class="student-card ${currentStudent?.id===s.id?'active':''}" data-student-id="${esc(s.id)}"><div class="student-card-head"><div><h4>${esc(s.name)}</h4><p>${esc(studentSummary(s))}</p></div><span class="badge">${esc(stageLabel(s.stage))}</span></div><div class="student-actions"><button class="save" data-select-student="${esc(s.id)}">设为当前</button><button data-save-for-student="${esc(s.id)}">保存当前志愿表</button><button data-load-latest-form="${esc(s.id)}">加载最近志愿表</button></div></article>`).join('')}</div>`:'<div class="student-empty">还没有学生。先新增一个学生，然后在志愿表里点“保存到学生”。</div>';
+  return account+form+list;
+}
+function bindStudentPanelControls(students){
+  const byId=new Map(students.map(s=>[s.id,s]));
+  $('#createStudentBtn')?.addEventListener('click',createStudentFromPanel);
+  $('#refreshStudentsBtn')?.addEventListener('click',renderStudentPanel);
+  $$('[data-select-student]').forEach(btn=>btn.addEventListener('click',()=>{
+    currentStudent=byId.get(btn.dataset.selectStudent)||null;
+    currentVolunteerForm=null;
+    saveCurrentStudent();
+    updateAccountUI();
+    renderStudentPanel();
+  }));
+  $$('[data-save-for-student]').forEach(btn=>btn.addEventListener('click',async()=>{
+    currentStudent=byId.get(btn.dataset.saveForStudent)||null;
+    saveCurrentStudent();
+    await saveCurrentVolunteerForm();
+  }));
+  $$('[data-load-latest-form]').forEach(btn=>btn.addEventListener('click',async()=>{
+    currentStudent=byId.get(btn.dataset.loadLatestForm)||null;
+    saveCurrentStudent();
+    await loadLatestVolunteerFormForStudent(currentStudent);
+  }));
+}
+async function createStudentFromPanel(){
+  if(!requireLogin())return;
+  const name=$('#newStudentName').value.trim();
+  if(!name){alert('请填写学生姓名。');return;}
+  try{
+    const rows=await apiFetch('students',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({owner_id:auth.user.id,name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),score:$('#newStudentScore').value?Number($('#newStudentScore').value):null,rank:$('#newStudentRank').value?Number($('#newStudentRank').value):null,target_cities:splitListInput($('#newStudentCities').value),medical_codes:parseMedicalCodes($('#newStudentMedical').value)})});
+    currentStudent=rows[0];
+    saveCurrentStudent();
+    updateAccountUI();
+    renderStudentPanel();
+    alert('学生已新增。');
+  }catch(err){alert('新增学生失败：'+err.message);}
+}
+function groupPayloadForSave(key,index){
+  const rec=getGroupRecord(key);
+  if(!rec)return null;
+  const {s,g}=rec;
+  const meta=volunteerMeta[key]||{};
+  return {form_id:null,owner_id:auth.user.id,position:index+1,group_key:key,school_name:s.name,school_code:s.schoolCode||null,province:s.province||null,city:s.city||null,batch:s.batch||null,subject:s.subject||null,group_name:g.groupName,group_code:g.groupCode||null,group_alias:groupDisplayName(s,g)||null,requirement:g.requirement||null,plan26:g.plan26||null,plan25:g.plan25||null,score25:g.score25||null,rank25:g.rank25||null,avg_score3:g.avgScore3||null,avg_rank3:g.avgRank3||null,strategy:meta.strategy||'待定',obey_adjustment:true,note:meta.note||null,source_payload:{group:g}};
+}
+function majorPayloadsForSave(groupKey,dbGroupId){
+  const rec=getGroupRecord(groupKey);
+  if(!rec)return [];
+  const byKey=new Map((rec.g.majors||[]).map(m=>[m.key,m]));
+  return selectedMajorOrder(groupKey).map((majorKey,index)=>{
+    const m=byKey.get(majorKey);
+    if(!m)return null;
+    return {form_group_id:dbGroupId,owner_id:auth.user.id,position:index+1,major_key:majorKey,major_code:m.code||null,major_name:m.name,major_class:m.majorClass||null,discipline:m.discipline||null,plan26:m.plan26||null,plan25:m.plan25||null,score25:m.score25||null,rank25:m.rank25||null,avg_score3:m.avgScore3||null,avg_rank3:m.avgRank3||null,source_payload:{major:m}};
+  }).filter(Boolean);
+}
+async function saveCurrentVolunteerForm(){
+  if(!requireSupabase()||!requireLogin())return;
+  if(!currentStudent){renderStudentPanel();openPanel('studentPanel');alert('请先新增或选择一个学生。');return;}
+  if(!volunteerKeys.length){alert('当前志愿表为空，先加入专业组后再保存。');return;}
+  try{
+    const title=`${currentStudent.name} ${stageLabel(currentStudent.stage)}志愿表 ${localDateStamp()}`;
+    const forms=await apiFetch('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:currentStudent.id,owner_id:auth.user.id,title,stage:currentStudent.stage,source_version:VERSION,max_group_count:VOLUNTEER_LIMIT,snapshot:{volunteerKeys,volunteerMajorKeys,volunteerMeta,medicalCodes:[...state.medicalCodes]}})});
+    const form=forms[0];
+    const groupRows=volunteerKeys.map((key,index)=>groupPayloadForSave(key,index)).filter(Boolean).map(row=>({...row,form_id:form.id}));
+    const savedGroups=groupRows.length?await apiFetch('volunteer_form_groups',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(groupRows)}):[];
+    const majorRows=savedGroups.flatMap(row=>majorPayloadsForSave(row.group_key,row.id));
+    if(majorRows.length)await apiFetch('volunteer_form_majors',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(majorRows)});
+    currentVolunteerForm=form;
+    updateAccountUI();
+    renderStudentPanel();
+    alert(`已保存到 ${currentStudent.name}：${groupRows.length} 个专业组，${majorRows.length} 个专业。`);
+  }catch(err){alert('保存志愿表失败：'+err.message);}
+}
+async function loadLatestVolunteerFormForStudent(student){
+  if(!student||!requireSupabase()||!requireLogin())return;
+  try{
+    const forms=await apiFetch(`volunteer_forms?select=*&student_id=eq.${encodeURIComponent(student.id)}&order=updated_at.desc&limit=1`);
+    if(!forms.length){alert('这个学生还没有保存过志愿表。');return;}
+    await loadVolunteerForm(forms[0]);
+  }catch(err){alert('加载志愿表失败：'+err.message);}
+}
+async function loadVolunteerForm(form){
+  const groups=await apiFetch(`volunteer_form_groups?select=*&form_id=eq.${encodeURIComponent(form.id)}&order=position.asc`);
+  const ids=groups.map(g=>g.id);
+  const majors=ids.length?await apiFetch(`volunteer_form_majors?select=*&form_group_id=in.(${ids.join(',')})&order=position.asc`):[];
+  const groupById=new Map(groups.map(g=>[g.id,g]));
+  volunteerKeys=groups.map(g=>g.group_key).filter(k=>groupIndex.has(k)).slice(0,VOLUNTEER_LIMIT);
+  volunteerMeta={};
+  volunteerMajorKeys={};
+  groups.forEach(g=>{
+    if(!groupIndex.has(g.group_key))return;
+    volunteerMeta[g.group_key]={strategy:g.strategy==='待定'?'':g.strategy,obey:g.obey_adjustment?'是':'否',note:g.note||''};
+    volunteerMajorKeys[g.group_key]=[];
+  });
+  majors.forEach(m=>{
+    const g=groupById.get(m.form_group_id);
+    if(!g||!volunteerMajorKeys[g.group_key])return;
+    volunteerMajorKeys[g.group_key].push(m.major_key);
+  });
+  volunteerKeys.forEach(ensureVolunteerSelection);
+  saveVolunteerKeys();
+  saveVolunteerMajorKeys();
+  saveVolunteerMeta();
+  currentVolunteerForm=form;
+  updateVolunteerUI();
+  renderVolunteerPanel();
+  render();
+  openPanel('volunteerPanel');
+  alert(`已加载：${form.title}`);
+}
+async function recordVolunteerExportIfPossible(rowCount){
+  if(!supabaseConfigured()||!auth.accessToken||!currentStudent||!currentVolunteerForm)return;
+  try{
+    await apiFetch('volunteer_exports',{method:'POST',body:JSON.stringify({form_id:currentVolunteerForm.id,student_id:currentStudent.id,owner_id:auth.user.id,format:'xls',file_name:`江苏志愿基础表_${localDateStamp()}.xls`,group_count:volunteerKeys.length,major_count:Object.values(volunteerMajorKeys).reduce((sum,keys)=>sum+(Array.isArray(keys)?keys.length:0),0),source_payload:{rowCount}})});
+  }catch(err){console.warn('记录导出失败',err);}
+}
+
 async function fetchNotes(){
   if(!SUPABASE_URL||!SUPABASE_ANON_KEY){return;}
   try{const res=await fetch(`${SUPABASE_URL}/rest/v1/notes?select=scope,target_key,note`,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken||SUPABASE_ANON_KEY}`}}); if(!res.ok)throw new Error(await res.text()); const rows=await res.json(); notes={schools:{},groups:{},majors:{}}; rows.forEach(r=>{if(notes[r.scope])notes[r.scope][r.target_key]=r.note;}); applyFilters();}
   catch(err){console.warn('读取备注失败',err);}
-}
-function showLoginModal(){
-  $('#modal').innerHTML=`<h3>登录 Supabase 数据库</h3><div class="modal-body"><p class="muted">需要先在 app.js 中填写 Supabase URL 与 anon key，并在 Supabase 中配置 notes / admin_users 表与 RLS。</p><div class="score-row"><label>邮箱</label><input id="loginEmail" type="email" value="${esc(ADMIN_EMAIL)}" style="grid-column:span 2;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 10px"></div><div class="score-row"><label>密码</label><input id="loginPwd" type="password" style="grid-column:span 2;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 10px"></div><div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">取消</button><button id="doLogin" class="save">登录</button></div></div>`;
-  openModal(); $('#doLogin').addEventListener('click',loginSupabase);
-}
-async function loginSupabase(){
-  if(!SUPABASE_URL||!SUPABASE_ANON_KEY){alert('请先在 app.js 中填写 Supabase 配置。');return;}
-  const email=$('#loginEmail').value, password=$('#loginPwd').value;
-  try{const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})}); if(!res.ok)throw new Error(await res.text()); const data=await res.json(); auth.accessToken=data.access_token; auth.user=data.user; closeModal(); alert('登录成功'); fetchNotes();}
-  catch(err){alert('登录失败：'+err.message);}
 }
 function showNoteEditor(scope,key,title){
   if(document.body.dataset.admin!=='1')return;
@@ -2301,6 +2617,9 @@ async function deleteNote(scope,key){
   if(SUPABASE_URL&&SUPABASE_ANON_KEY&&auth.accessToken){try{await fetch(`${SUPABASE_URL}/rest/v1/notes?scope=eq.${encodeURIComponent(scope)}&target_key=eq.${encodeURIComponent(key)}`,{method:'DELETE',headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`}});}catch(err){console.warn('删除备注失败',err);}}
 }
 function init(){
+  ensureAccountStyles();
+  loadSavedAuth();
+  loadCurrentStudent();
   buildGroupIndex();
   createLayout();
   initFilters();
@@ -2316,6 +2635,7 @@ function init(){
   updateClassButton();
   bindEvents();
   updateVolunteerUI();
+  updateAccountUI();
   applyFilters();
   fetchNotes();
 }
