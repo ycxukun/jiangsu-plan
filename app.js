@@ -74,7 +74,7 @@ let ASSASSIN_GROUP_RISKS=window.ASSASSIN_GROUP_RISKS||{};
 let ASSASSIN_MAJOR_RISKS=window.ASSASSIN_MAJOR_RISKS||{};
 let ASSASSIN_RISK_AUTHORITATIVE=Boolean(window.ASSASSIN_RISK_AUTHORITATIVE);
 let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
-let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
+let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),requirementAutoFromStudent:false,role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 let currentStudent=null;
@@ -237,6 +237,7 @@ function applyCurrentStudentProfileToFilters(options={}){
   const compatible=compatibleRequirementSetForStudent(currentStudent);
   state.selectedRequirements.clear();
   compatible.forEach(v=>state.selectedRequirements.add(v));
+  state.requirementAutoFromStudent=true;
   updateRequirementButton();
   if(setScoreFilterFromStudent(currentStudent))changed=true;
   state.medicalCodes=new Set(studentMedicalCodes(currentStudent));
@@ -1314,7 +1315,14 @@ function renderFacetPanel(opts){
   body.querySelectorAll('[data-facet-group-clear]').forEach(btn=>btn.addEventListener('click',()=>{(groupPayloads[+btn.dataset.facetGroupClear]||[]).forEach(v=>draft.delete(v));syncChecks();filterOptions();}));
   body.querySelector('[data-facet-clear]').addEventListener('click',()=>{draft.clear();syncChecks();filterOptions();});
   body.querySelector('[data-facet-cancel]').addEventListener('click',()=>closePanel(panelId));
-  body.querySelector('[data-facet-apply]').addEventListener('click',()=>{setRef.clear();draft.forEach(v=>setRef.add(v));buttonUpdater();closePanel(panelId);applyFilters();});
+  body.querySelector('[data-facet-apply]').addEventListener('click',()=>{
+    if(panelId==='requirementPanel')state.requirementAutoFromStudent=false;
+    setRef.clear();
+    draft.forEach(v=>setRef.add(v));
+    buttonUpdater();
+    closePanel(panelId);
+    applyFilters();
+  });
   body.querySelector('.facet-search').addEventListener('input',filterOptions);
   syncChecks();
 }
@@ -1543,7 +1551,17 @@ function buildClassPanel(){
 }
 function updateProvinceButton(){const p=state.selectedProvinces.size,c=state.selectedCities.size; const btn=$('#provinceBtn'); if(!btn)return; if(!p&&!c){btn.textContent='全部省份';return;} if(c&&p===1&&state.selectedProvinces.has('江苏')){const arr=[...state.selectedCities]; btn.textContent=arr.length===1?`江苏：${arr[0]}`:`江苏：${arr[0]} +${arr.length-1}`;return;} btn.textContent=`地区 ${p}省${c?`/${c}市`:''}`;}
 function updateLevelButton(){const n=state.selectedLevels.size; $('#levelBtn').textContent=selectedSummary('院校层次',state.selectedLevels,'院校层次');}
-function updateRequirementButton(){const n=state.selectedRequirements.size; $('#requirementBtn').textContent=selectedSummary('选科要求',state.selectedRequirements,'选科要求');}
+function updateRequirementButton(){
+  const btn=$('#requirementBtn');
+  if(!btn)return;
+  if(state.requirementAutoFromStudent&&currentStudent){
+    btn.textContent=`选科：${studentSubjectSummary(currentStudent)}`;
+    btn.classList.add('student-sync-active');
+    return;
+  }
+  btn.classList.remove('student-sync-active');
+  btn.textContent=selectedSummary('选科要求',state.selectedRequirements,'选科要求');
+}
 function updateClassButton(){const n=state.selectedClasses.size; $('#classBtn').textContent=selectedSummary('全部专业大类',state.selectedClasses,'专业大类');}
 function groupMatchesSearch(s,g,q){if(!q)return true; const nq=normalize(q); if(normalize(s.name+s.province+s.city+s.subject+s.batch).includes(nq))return true; if(normalize(g.groupName+groupDisplayName(s,g)+g.requirement+(g.tags||[]).join('')+(g.majorClasses||[]).join('')+g.majorSummary).includes(nq))return true; return g.majors.some(m=>normalize(m.name+m.majorClass+m.discipline+m.code).includes(nq));}
 function groupMatchesScore(s,g){
@@ -1556,7 +1574,12 @@ function groupMatchesScore(s,g){
   return scores.some(sc=>sc>=state.scoreRange.min&&sc<=state.scoreRange.max);
 }
 function groupMatchesClass(g){if(!state.selectedClasses.size)return true; return (g.majorClasses||[]).some(c=>state.selectedClasses.has(c));}
-function groupMatchesRequirement(g){if(!state.selectedRequirements.size)return true; return state.selectedRequirements.has(String(g.requirement||'').trim());}
+function groupMatchesRequirement(g){
+  const req=String(g.requirement||'').trim();
+  if(state.requirementAutoFromStudent&&currentStudent)return requirementMatchesStudent(req,currentStudent);
+  if(!state.selectedRequirements.size)return true;
+  return state.selectedRequirements.has(req);
+}
 
 function groupWeightedMajorScore(g){
   let sum=0, weight=0, count=0;
@@ -1674,7 +1697,9 @@ function majorRowHTML(s,g,m){
   const riskToneClass=riskMeta.tone?`risk-tone-${riskMeta.tone}`:'';
   const disabled=(physical.blocked||subjectBlock)?' disabled':'';
   const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  const coopDetail=DETAILS&&DETAILS[m.key]&&DETAILS[m.key].foreignCoop;
+  const coopBadge=coopDetail?'<span class="tag green">中外详情</span>':'';
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${coopBadge}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini major-detail-mini" data-major-detail="${esc(keyMajor(m))}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">专业基本信息</button><button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
@@ -1683,11 +1708,22 @@ function bindDynamic(){
   bindMainMajorChecks();
   bindGroupChangeButtons();
   bindSchoolInfoButtons();
+  bindMajorDetailButtons();
   bindAnnotationButtons();
   bindNoteHoverAndContext();
 }
 function noteBadge(scope,key){return notes[scope]&&notes[scope][key]?` <span class="note-badge">备注</span>`:'';}
-function bindMajorDetailButtons(){/* V1.1.49：专业详情点击功能已取消 */}
+function bindMajorDetailButtons(){
+  $$('[data-major-detail]').forEach(btn=>{
+    if(btn.dataset.boundMajorDetail==='1')return;
+    btn.dataset.boundMajorDetail='1';
+    btn.addEventListener('click',e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      showDetail(btn.dataset.majorDetail,btn.dataset.schoolKey,btn.dataset.groupKey);
+    });
+  });
+}
 function bindNoteHoverAndContext(){
   $$('[data-note-scope]').forEach(el=>{
     el.onmouseenter=()=>{const n=notes[el.dataset.noteScope]?.[el.dataset.noteKey]; if(n)showNotePanel(n);};
@@ -1725,6 +1761,37 @@ function groupInfoPairs(d={}){return [
 ];}
 function majorBasePairs(d={}){return [
   ['专业代码',d.code],['专业全称',d.majorFullName||d.name],['本科专业名称',d.undergraduateName],['专业备注',d.majorRemark],['专业层次',d.majorLevel],['专业类',d.majorClass],['学科门类',d.discipline],['学科专业',d.subjectMajor],['选科要求',d.subjectRequirement],['学制',d.duration||d.degreeYears],['学费',d.tuition],['是否新增',d.isNew],['专业水平标签',d.majorLevelTags],['软科评级',d.softRating],['软科专业排名',d.softRank||d.majorRank],['学科评估',d.disciplineEvaluation||d.disciplineEval4||d.disciplineEval5],['专业硕士点',d.majorMasterPrograms],['专业博士点',d.majorDoctorPrograms],['相似度/来源说明',d.similarity||d.sourceRule]
+];}
+function foreignCoopInfoPairs(d={}){return [
+  ['项目类型',d.foreignCoop?'985/211 中外合作/国际合作补充信息':''],
+  ['参加2026招生计划',d.foreignCoopPlan2026],
+  ['首届招生时间',d.foreignCoopFirstYear],
+  ['合作院校',d.foreignCoopPartner],
+  ['合作院校排名',d.foreignCoopPartnerRank],
+  ['归属学院',d.foreignCoopCollege],
+  ['授课语言',d.foreignCoopLanguage],
+  ['学制/出国模式',d.foreignCoopDurationAbroad],
+  ['是否必须出国',d.foreignCoopMustAbroad],
+  ['学费',d.foreignCoopTuition],
+  ['招生人数',d.foreignCoopEnrollment],
+  ['分流情况',d.foreignCoopStreaming],
+  ['转专业',d.foreignCoopTransfer],
+  ['证书',d.foreignCoopCertificate],
+  ['学信网/学位证标注',d.foreignCoopDegreeMark],
+  ['和本部是否同校区',d.foreignCoopSameCampus],
+  ['办学地点',d.foreignCoopCampus],
+  ['报考硬性要求',d.foreignCoopHardRequirement],
+  ['保研率',d.foreignCoopBaoyanRate],
+  ['保研/留学/就业去向',d.foreignCoopOutcome],
+  ['评价/二次审核结果',d.foreignCoopEvaluation||d.foreignCoopReviewResult],
+  ['其他信息',d.foreignCoopOtherInfo],
+  ['官方证明材料/链接',d.foreignCoopOfficialLinks],
+  ['就读体验链接',d.foreignCoopExperienceLinks],
+  ['原始资料专业文本',d.foreignCoopOriginalMajorText],
+  ['匹配到的原表专业词',d.foreignCoopMatchedToken],
+  ['匹配状态',d.foreignCoopMatchStatus],
+  ['资料来源',d.foreignCoopSourceSheet?`${d.foreignCoopSourceSheet} 表第 ${d.foreignCoopSourceRow} 行`:''],
+  ['多来源提示',d.foreignCoopMultipleSources]
 ];}
 function admissionInfoPairs(d={}){return [
   ['2026计划',d.plan26],['26预估位次',d.predictedRank26],['2025计划',d.plan25],['2025录取人数',d.admit25],['2025最高分',d.max25],['2025最高位次',d.maxRank25],['2025最低分',d.score25],['2025最低位次',d.rank25],['2025旧批次',d.oldBatch25],['2024计划',d.plan24],['2024录取人数',d.admit24],['2024最高分',d.max24],['2024最高位次',d.maxRank24],['2024最低分',d.score24],['2024最低位次',d.rank24],['2024旧批次',d.oldBatch24],['2023计划',d.plan23],['2023录取人数',d.admit23],['2023最高分',d.max23],['2023最高位次',d.maxRank23],['2023最低分',d.score23],['2023最低位次',d.rank23],['2023旧批次',d.oldBatch23],['三年平均分',d.avgScore3],['三年平均位次',d.avgRank3],['均值年份数',d.avgYears]
@@ -1805,7 +1872,7 @@ function showDetail(key,schoolKey,groupKey){
   const majorNote=notes.majors[key]||'';
   const heading=d.name||ctx?.m?.name||'专业信息';
   const riskSection=ctx?infoSectionHTML('专业风险与梯队提示',majorRiskDetailPairs(ctx.s,ctx.g,ctx.m),'major-risk-info-section'):'';
-  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">点击专业名称查看硕博点、学科评估、软科评级、招生录取数据与风险提示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">点击专业名称查看硕博点、学科评估、软科评级、招生录取数据与风险提示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('中外合作项目详情',foreignCoopInfoPairs(d),'foreign-coop-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
   openModal();
 }
 function noteBlock(title,text){return text?`<section class="metric" style="margin-top:12px"><b style="font-size:14px">${esc(title)}</b><span style="white-space:pre-wrap;color:#33443a">${esc(text)}</span></section>`:'';}
@@ -2592,6 +2659,7 @@ function ensureAccountStyles(){
     .account-form input{height:40px;border:1px solid var(--line);border-radius:10px;padding:0 10px}
     .account-notice{border:1px solid #fed7aa;background:#fff7ed;border-radius:14px;padding:12px;color:#7c2d12;line-height:1.65;font-size:13px}
     .student-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .student-sync-active{border-color:#8ed2aa!important;background:#f0faf4!important;color:var(--green)!important}
 
     .student-context-bar{border-top:1px solid rgba(10,124,66,.1);padding:10px 24px 12px;background:linear-gradient(90deg,#f2fbf6,#ffffff);display:grid;gap:5px}
     .student-context-bar[hidden]{display:none!important}

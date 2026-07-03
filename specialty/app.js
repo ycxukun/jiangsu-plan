@@ -72,7 +72,7 @@ let ASSASSIN_GROUP_RISKS=window.ASSASSIN_GROUP_RISKS||{};
 let ASSASSIN_MAJOR_RISKS=window.ASSASSIN_MAJOR_RISKS||{};
 let ASSASSIN_RISK_AUTHORITATIVE=Boolean(window.ASSASSIN_RISK_AUTHORITATIVE);
 let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
-let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
+let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),requirementAutoFromStudent:false,role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
 let currentStudent=null;
@@ -236,6 +236,7 @@ function applyCurrentStudentProfileToFilters(options={}){
   const compatible=compatibleRequirementSetForStudent(currentStudent);
   state.selectedRequirements.clear();
   compatible.forEach(v=>state.selectedRequirements.add(v));
+  state.requirementAutoFromStudent=true;
   updateRequirementButton();
   if(setScoreFilterFromStudent(currentStudent))changed=true;
   state.medicalCodes=new Set(studentMedicalCodes(currentStudent));
@@ -1313,7 +1314,14 @@ function renderFacetPanel(opts){
   body.querySelectorAll('[data-facet-group-clear]').forEach(btn=>btn.addEventListener('click',()=>{(groupPayloads[+btn.dataset.facetGroupClear]||[]).forEach(v=>draft.delete(v));syncChecks();filterOptions();}));
   body.querySelector('[data-facet-clear]').addEventListener('click',()=>{draft.clear();syncChecks();filterOptions();});
   body.querySelector('[data-facet-cancel]').addEventListener('click',()=>closePanel(panelId));
-  body.querySelector('[data-facet-apply]').addEventListener('click',()=>{setRef.clear();draft.forEach(v=>setRef.add(v));buttonUpdater();closePanel(panelId);applyFilters();});
+  body.querySelector('[data-facet-apply]').addEventListener('click',()=>{
+    if(panelId==='requirementPanel')state.requirementAutoFromStudent=false;
+    setRef.clear();
+    draft.forEach(v=>setRef.add(v));
+    buttonUpdater();
+    closePanel(panelId);
+    applyFilters();
+  });
   body.querySelector('.facet-search').addEventListener('input',filterOptions);
   syncChecks();
 }
@@ -1551,7 +1559,17 @@ function buildClassPanel(){
 }
 function updateProvinceButton(){const p=state.selectedProvinces.size,c=state.selectedCities.size; const btn=$('#provinceBtn'); if(!btn)return; if(!p&&!c){btn.textContent='全部省份';return;} if(c&&p===1&&state.selectedProvinces.has('江苏')){const arr=[...state.selectedCities]; btn.textContent=arr.length===1?`江苏：${arr[0]}`:`江苏：${arr[0]} +${arr.length-1}`;return;} btn.textContent=`地区 ${p}省${c?`/${c}市`:''}`;}
 function updateLevelButton(){const n=state.selectedLevels.size; $('#levelBtn').textContent=selectedSummary('院校层次',state.selectedLevels,'院校层次');}
-function updateRequirementButton(){const n=state.selectedRequirements.size; $('#requirementBtn').textContent=selectedSummary('选科要求',state.selectedRequirements,'选科要求');}
+function updateRequirementButton(){
+  const btn=$('#requirementBtn');
+  if(!btn)return;
+  if(state.requirementAutoFromStudent&&currentStudent){
+    btn.textContent=`选科：${studentSubjectSummary(currentStudent)}`;
+    btn.classList.add('student-sync-active');
+    return;
+  }
+  btn.classList.remove('student-sync-active');
+  btn.textContent=selectedSummary('选科要求',state.selectedRequirements,'选科要求');
+}
 function updateClassButton(){const n=state.selectedClasses.size; $('#classBtn').textContent=selectedSummary('全部专业大类',state.selectedClasses,'专业大类');}
 function groupMatchesSearch(s,g,q){if(!q)return true; const nq=normalize(q); if(normalize(s.name+s.province+s.city+s.subject+s.batch).includes(nq))return true; if(normalize(g.groupName+groupDisplayName(s,g)+g.requirement+(g.tags||[]).join('')+(g.majorClasses||[]).join('')+g.majorSummary).includes(nq))return true; return g.majors.some(m=>normalize(m.name+m.majorClass+m.discipline+m.code).includes(nq));}
 function groupMatchesScore(s,g){
@@ -1564,7 +1582,12 @@ function groupMatchesScore(s,g){
   return scores.some(sc=>sc>=state.scoreRange.min&&sc<=state.scoreRange.max);
 }
 function groupMatchesClass(g){if(!state.selectedClasses.size)return true; return (g.majorClasses||[]).some(c=>state.selectedClasses.has(c));}
-function groupMatchesRequirement(g){if(!state.selectedRequirements.size)return true; return state.selectedRequirements.has(String(g.requirement||'').trim());}
+function groupMatchesRequirement(g){
+  const req=String(g.requirement||'').trim();
+  if(state.requirementAutoFromStudent&&currentStudent)return requirementMatchesStudent(req,currentStudent);
+  if(!state.selectedRequirements.size)return true;
+  return state.selectedRequirements.has(req);
+}
 
 function groupWeightedMajorScore(g){
   let sum=0, weight=0, count=0;
@@ -2607,6 +2630,7 @@ function ensureAccountStyles(){
     .student-account-box span{display:block;margin-top:4px;font-size:12px;color:#66756d}
     .student-empty{padding:20px;text-align:center;color:#66756d;font-size:14px;border:1px dashed #dce4df;border-radius:16px}
     .student-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .student-sync-active{border-color:#8ed2aa!important;background:#f0faf4!important;color:var(--green)!important}
 
     .student-context-bar{border-top:1px solid rgba(10,124,66,.1);padding:10px 24px 12px;background:linear-gradient(90deg,#f2fbf6,#ffffff);display:grid;gap:5px}
     .student-context-bar[hidden]{display:none!important}
