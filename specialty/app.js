@@ -146,6 +146,117 @@ function studentSubjectSummary(student){
   const choices=studentSubjectChoices(student);
   return subjectLabel(student?.subject_type)+(choices.length?'+'+choices.join('+'):'+未填再选');
 }
+function studentMedicalCodes(student){
+  return parseMedicalCodes(Array.isArray(student?.medical_codes)?student.medical_codes.join(' '):(student?.medical_codes||''));
+}
+function studentMedicalSummary(student){
+  const codes=studentMedicalCodes(student);
+  return codes.length?codes.join('/'):'无体检代码';
+}
+function studentTopSummary(student){
+  if(!student)return '';
+  const parts=[];
+  parts.push(studentSubjectSummary(student));
+  if(student.score!==null&&student.score!==undefined&&student.score!=='')parts.push(`${student.score}分`);
+  if(student.rank!==null&&student.rank!==undefined&&student.rank!=='')parts.push(`位次${student.rank}`);
+  const codes=studentMedicalCodes(student);
+  parts.push(codes.length?`体检${codes.join('/')}`:'体检未填');
+  return parts.join('｜');
+}
+function medicalCodePickerHTML(scope,selected){
+  const chosen=new Set(parseMedicalCodes(Array.isArray(selected)?selected.join(' '):selected));
+  return `<div class="medical-picker-row" data-medical-picker="${esc(scope)}">${Object.keys(MEDICAL_CODE_META).map(c=>`<label title="${esc(MEDICAL_CODE_META[c]||'体检受限')}"><input type="checkbox" data-student-medical-code="${esc(scope)}" value="${esc(c)}" ${chosen.has(c)?'checked':''}>${esc(c)}</label>`).join('')}</div><div class="medical-picker-summary" data-student-medical-summary="${esc(scope)}"></div>`;
+}
+function studentMedicalCodesFromInputs(scope,inputSelector){
+  const checked=$$(`[data-student-medical-code="${scope}"]:checked`).map(el=>el.value);
+  const typed=inputSelector&&$(inputSelector)?parseMedicalCodes($(inputSelector).value):[];
+  return [...new Set([...checked,...typed])].sort((a,b)=>Number(a)-Number(b));
+}
+function syncStudentMedicalPicker(scope,inputSelector){
+  const summary=document.querySelector(`[data-student-medical-summary="${scope}"]`);
+  if(!summary)return;
+  const codes=studentMedicalCodesFromInputs(scope,inputSelector);
+  summary.innerHTML=codes.length?`已选：${codes.map(c=>`<b title="${esc(MEDICAL_CODE_META[c]||'体检受限')}">${esc(c)}</b>`).join('')}`:'未选择体检代码。可直接点选，也可手动输入。';
+}
+function bindStudentMedicalPickers(){
+  const scopes=[...new Set($$('[data-student-medical-code]').map(el=>el.dataset.studentMedicalCode).filter(Boolean))];
+  scopes.forEach(scope=>{
+    const inputSelector=scope==='newStudentMedical'?'#newStudentMedical':scope==='editStudentMedical'?'#editStudentMedical':'';
+    $$(`[data-student-medical-code="${scope}"]`).forEach(cb=>{
+      cb.addEventListener('change',()=>syncStudentMedicalPicker(scope,inputSelector));
+    });
+    if(inputSelector&&$(inputSelector))$(inputSelector).addEventListener('input',()=>syncStudentMedicalPicker(scope,inputSelector));
+    syncStudentMedicalPicker(scope,inputSelector);
+  });
+}
+function subjectOptionForStudent(student){
+  const select=$('#subjectFilter');
+  const type=subjectTypeValue(student?.subject_type);
+  if(!select)return '';
+  const options=[...select.options].map(o=>o.value).filter(Boolean);
+  return options.find(v=>type==='history'?String(v).includes('历史'):String(v).includes('物理'))||'';
+}
+function requirementMatchesStudent(req,student){
+  const required=requirementSubjects(req);
+  if(!required.length)return true;
+  const choices=studentSubjectChoices(student);
+  if(!choices.length)return false;
+  const either=/或|任选|任一/.test(String(req||''));
+  return either?required.some(x=>choices.includes(x)):required.every(x=>choices.includes(x));
+}
+function compatibleRequirementSetForStudent(student){
+  const set=new Set();
+  DB.forEach(s=>(s.groups||[]).forEach(g=>{
+    const req=String(g.requirement||'').trim();
+    if(req&&requirementMatchesStudent(req,student))set.add(req);
+  }));
+  return set;
+}
+function setScoreFilterFromStudent(student){
+  const score=dbNumber(student?.score);
+  if(score===null)return false;
+  const down=Number($('#downInput')?.value||20)||20;
+  const up=Number($('#upInput')?.value||30)||30;
+  state.scoreRange={target:score,down,up,min:score-down,max:score+up};
+  ['targetScoreRange','targetScoreInput'].forEach(id=>{const el=$('#'+id); if(el)el.value=score;});
+  ['downRange','downInput'].forEach(id=>{const el=$('#'+id); if(el)el.value=down;});
+  ['upRange','upInput'].forEach(id=>{const el=$('#'+id); if(el)el.value=up;});
+  const btn=$('#scoreBtn');
+  if(btn)btn.textContent=`分数 ${score-down}—${score+up}`;
+  updateRangeSummary();
+  return true;
+}
+function applyCurrentStudentProfileToFilters(options={}){
+  if(!currentStudent){renderStudentContextBar();return false;}
+  let changed=false;
+  const subjectValue=subjectOptionForStudent(currentStudent);
+  if(subjectValue&&state.subject!==subjectValue){state.subject=subjectValue;changed=true;}
+  const subjectSelect=$('#subjectFilter');
+  if(subjectSelect&&subjectValue)subjectSelect.value=subjectValue;
+  const compatible=compatibleRequirementSetForStudent(currentStudent);
+  state.selectedRequirements.clear();
+  compatible.forEach(v=>state.selectedRequirements.add(v));
+  updateRequirementButton();
+  if(setScoreFilterFromStudent(currentStudent))changed=true;
+  state.medicalCodes=new Set(studentMedicalCodes(currentStudent));
+  saveMedicalRestrictionCodes();
+  updateMedicalButton();
+  cleanupVolunteerForMedicalRestrictions();
+  cleanupVolunteerForSubjectRequirements();
+  renderStudentContextBar();
+  if(!options.noFilter)applyFilters();
+  return changed;
+}
+function renderStudentContextBar(){
+  const el=$('#studentContextBar');
+  if(!el)return;
+  if(!currentStudent){el.hidden=true;el.innerHTML='';return;}
+  const codes=studentMedicalCodes(currentStudent);
+  const cities=Array.isArray(currentStudent.target_cities)?currentStudent.target_cities:[];
+  el.hidden=false;
+  el.innerHTML=`<div class="student-context-main"><b>当前学生：${esc(currentStudent.name||'未命名')}</b><span>${esc(stageLabel(currentStudent.stage))}</span><span>${esc(studentSubjectSummary(currentStudent))}</span><span>${esc(currentStudent.score??'—')}分</span><span>位次 ${esc(currentStudent.rank??'—')}</span><span>${codes.length?'体检 '+esc(codes.join('/')):'体检未填'}</span>${cities.length?`<span>目标城市 ${esc(cities.join('、'))}</span>`:''}</div><div class="student-context-note">已自动同步：科类筛选、选科要求、目标分区间、体检受限。选科或体检不符合的专业/专业组将被限制选择。</div>`;
+}
+
 function requirementSubjects(req){
   const t=String(req||'').replace(/\s+/g,'');
   if(!t||/不限|无要求|任意/.test(t))return [];
@@ -905,6 +1016,7 @@ function createLayout(){
         <button id="medicalBtn" class="filter-btn">体检受限</button>
         <input id="searchInput" placeholder="搜索院校、专业组、专业、专业大类，例如：计算机类 / 南京邮电 / 中外合作" />
       </div>
+      <div id="studentContextBar" class="student-context-bar" hidden></div>
     </header>
     <div class="layout"><aside class="sidebar"><div class="side-head"><strong>院校索引</strong><span id="resultMeta">正在加载数据</span></div><div id="schoolList" class="school-list"></div></aside><main id="main" class="main"></main></div>
     <div id="provincePanel" class="panel facet-panel"><div class="panel-head"><h3>地区筛选</h3><button class="close-btn" data-close="provincePanel">×</button></div><div class="panel-body"><div id="provincePanelBody"></div></div></div>
@@ -2495,6 +2607,19 @@ function ensureAccountStyles(){
     .student-account-box span{display:block;margin-top:4px;font-size:12px;color:#66756d}
     .student-empty{padding:20px;text-align:center;color:#66756d;font-size:14px;border:1px dashed #dce4df;border-radius:16px}
     .student-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+    .student-context-bar{border-top:1px solid rgba(10,124,66,.1);padding:10px 24px 12px;background:linear-gradient(90deg,#f2fbf6,#ffffff);display:grid;gap:5px}
+    .student-context-bar[hidden]{display:none!important}
+    .student-context-main{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#24352b;font-weight:900}
+    .student-context-main b{color:var(--green);font-size:13px}
+    .student-context-main span{display:inline-flex;align-items:center;border:1px solid #cbeed9;border-radius:999px;background:#fff;padding:5px 9px;line-height:1}
+    .student-context-note{color:var(--muted);font-size:11px;line-height:1.45}
+    .medical-picker-row{display:flex;gap:7px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fbfdfc}
+    .medical-picker-row label{display:inline-flex;align-items:center;gap:4px;border:1px solid #dbe7df;border-radius:999px;background:#fff;padding:6px 9px;color:#24352b;font-size:12px;font-weight:900}
+    .medical-picker-row input{width:auto;height:auto;margin:0}
+    .medical-picker-row label:has(input:checked){border-color:#8ed2aa;background:#eaf7ef;color:var(--green)}
+    .medical-picker-summary{font-size:12px;color:var(--muted);line-height:1.55}
+    .medical-picker-summary b{display:inline-flex;align-items:center;border:1px solid #cbeed9;border-radius:999px;background:#f0faf4;color:var(--green);padding:2px 7px;margin:0 3px;font-size:11px}
     .student-inline-actions button{height:38px;border:1px solid #e5ebe7;border-radius:10px;background:#fff;padding:0 14px;font-weight:700;font-size:13px}
     .student-inline-actions button.save{background:#0a7c42;color:#fff;border-color:#0a7c42}
     .student-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
@@ -2576,9 +2701,11 @@ function updateAccountUI(){
   if(logoutBtn)logoutBtn.hidden=!auth.user;
   const studentBtn=$('#studentPanelBtn');
   if(studentBtn){
-    studentBtn.textContent=currentStudent?'学生：'+currentStudent.name:'学生档案';
+    studentBtn.textContent=currentStudent?'学生：'+currentStudent.name+'｜'+studentTopSummary(currentStudent):'学生档案';
+    studentBtn.title=currentStudent?studentTopSummary(currentStudent):'学生档案';
     studentBtn.classList.toggle('active-student',Boolean(currentStudent));
   }
+  renderStudentContextBar();
 }
 function updateAuthGate(){
   const locked=!(auth.accessToken&&auth.user);
@@ -2753,7 +2880,8 @@ async function fetchVolunteerFormSummaries(){
   return apiFetch('volunteer_forms?select=id,student_id,title,status,stage,created_at,updated_at&stage=eq.specialty&order=updated_at.desc');
 }
 function studentSummary(s){
-  return stageLabel(s.stage)+'｜'+studentSubjectSummary(s)+'｜'+(s.score||'—')+'分｜位次 '+(s.rank||'—')+((s.target_cities||[]).length?'｜城市 '+s.target_cities.join('、'):'');
+  const medical=studentMedicalCodes(s);
+  return stageLabel(s.stage)+'｜'+studentSubjectSummary(s)+'｜'+(s.score||'—')+'分｜位次 '+(s.rank||'—')+(medical.length?'｜体检 '+medical.join('/'):'')+((s.target_cities||[]).length?'｜城市 '+s.target_cities.join('、'):'');
 }
 function shortDateTime(v){
   if(!v)return '';
@@ -2782,6 +2910,7 @@ function renderStudentPanel(){
     const forms=results[1]||[];
     syncCurrentStudentWithList(students);
     body.innerHTML=studentPanelHTML(students,forms);
+    bindStudentMedicalPickers();
     bindStudentPanelControls(students,forms);
   }).catch(function(err){
     body.innerHTML='<div class="account-notice">读取学生失败：'+esc(err.message)+'</div>';
@@ -2790,7 +2919,7 @@ function renderStudentPanel(){
 function syncCurrentStudentWithList(students){
   if(!currentStudent?.id)return;
   const fresh=students.find(function(s){return s.id===currentStudent.id;});
-  if(fresh){currentStudent=fresh;saveCurrentStudent();return;}
+  if(fresh){currentStudent=fresh;saveCurrentStudent();applyCurrentStudentProfileToFilters({noFilter:true});return;}
   currentStudent=null;
   currentVolunteerForm=null;
   saveCurrentStudent();
@@ -2815,7 +2944,7 @@ function studentPanelHTML(students,forms){
     '<label>分数<input id="newStudentScore" type="number" placeholder="例如 586"></label>'+
     '<label>位次<input id="newStudentRank" type="number" placeholder="例如 39000"></label>'+
     '<label class="wide">目标城市<input id="newStudentCities" placeholder="南京、苏州、上海"></label>'+
-    '<label class="wide">体检代码<input id="newStudentMedical" placeholder="如 21 35，可空"></label>'+
+    '<div class="wide student-choice-field"><span>体检代码</span>'+medicalCodePickerHTML('newStudentMedical',[])+'<input id="newStudentMedical" placeholder="也可手动输入，如 21 35，可空"></div>'+
     '</div><div class="student-inline-actions"><button id="createStudentBtn" class="save" type="button">新增学生</button><button id="refreshStudentsBtn" type="button">刷新列表</button></div></section>';
   const list=students.length?'<div class="student-list">'+students.map(function(s){
     const savedForms=formsByStudent.get(s.id)||[];
@@ -2838,6 +2967,7 @@ function bindStudentPanelControls(students,forms){
   $$('[data-save-for-student]').forEach(function(btn){btn.addEventListener('click',async function(){
     currentStudent=byId.get(btn.dataset.saveForStudent)||null;
     saveCurrentStudent();
+    applyCurrentStudentProfileToFilters({noFilter:true});
     saveCurrentVolunteerDraft();
     await saveCurrentVolunteerForm();
   });});
@@ -2845,6 +2975,7 @@ function bindStudentPanelControls(students,forms){
     saveCurrentVolunteerDraft();
     currentStudent=byId.get(btn.dataset.loadLatestForm)||null;
     saveCurrentStudent();
+    applyCurrentStudentProfileToFilters({noFilter:true});
     await loadLatestVolunteerFormForStudent(currentStudent,{skipDraftSave:true});
   });});
   $$('[data-load-form]').forEach(function(btn){btn.addEventListener('click',async function(){
@@ -2853,6 +2984,7 @@ function bindStudentPanelControls(students,forms){
     saveCurrentVolunteerDraft();
     currentStudent=byId.get(form.student_id)||currentStudent;
     saveCurrentStudent();
+    applyCurrentStudentProfileToFilters({noFilter:true});
     await loadVolunteerForm(form,{skipDraftSave:true});
   });});
   $$('[data-new-draft-for-student]').forEach(function(btn){btn.addEventListener('click',function(){
@@ -2871,9 +3003,10 @@ function showStudentEditor(student){
     '<label>分数<input id="editStudentScore" type="number" value="'+esc(student.score??'')+'" placeholder="例如 586"></label>'+
     '<label>位次<input id="editStudentRank" type="number" value="'+esc(student.rank??'')+'" placeholder="例如 39000"></label>'+
     '<label class="wide">目标城市<input id="editStudentCities" value="'+esc((student.target_cities||[]).join('、'))+'" placeholder="南京、苏州、上海"></label>'+
-    '<label class="wide">体检代码<input id="editStudentMedical" value="'+esc((student.medical_codes||[]).join(' '))+'" placeholder="如 21 35，可空"></label>'+
+    '<div class="wide student-choice-field"><span>体检代码</span>'+medicalCodePickerHTML('editStudentMedical',student.medical_codes||[])+'<input id="editStudentMedical" value="'+esc((student.medical_codes||[]).join(' '))+'" placeholder="也可手动输入，如 21 35，可空"></div>'+
     '</div><div class="modal-actions"><button type="button" onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')">取消</button><button id="updateStudentBtn" class="save" type="button">保存修改</button></div></div>';
   openModal();
+  bindStudentMedicalPickers();
   $('#updateStudentBtn')?.addEventListener('click',function(){updateStudentFromModal(student.id);});
 }
 async function updateStudentFromModal(studentId){
@@ -2881,7 +3014,7 @@ async function updateStudentFromModal(studentId){
   const name=$('#editStudentName').value.trim();
   if(!name){alert('请填写学生姓名。');return;}
   const subjectChoices=subjectChoicesFromInputs('editStudentSubjects');
-  const payload={name:name,phone:$('#editStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#editStudentStage').value),subject_type:subjectTypeValue($('#editStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#editStudentScore').value),rank:dbInteger($('#editStudentRank').value),target_cities:splitListInput($('#editStudentCities').value),medical_codes:parseMedicalCodes($('#editStudentMedical').value)};
+  const payload={name:name,phone:$('#editStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#editStudentStage').value),subject_type:subjectTypeValue($('#editStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#editStudentScore').value),rank:dbInteger($('#editStudentRank').value),target_cities:splitListInput($('#editStudentCities').value),medical_codes:studentMedicalCodesFromInputs('editStudentMedical','#editStudentMedical')};
   try{
     const rows=await writeStudentRecord('students?id=eq.'+encodeURIComponent(studentId),'PATCH',payload);
     const updated={...(rows?.[0]||payload),id:studentId,owner_id:auth.user.id,subject_choices:subjectChoices};
@@ -2889,6 +3022,7 @@ async function updateStudentFromModal(studentId){
     if(currentStudent?.id===studentId){
       currentStudent=updated;
       saveCurrentStudent();
+      applyCurrentStudentProfileToFilters({noFilter:true});
       cleanupVolunteerForSubjectRequirements();
     }
     closeModal();
@@ -2914,6 +3048,7 @@ function setCurrentStudent(student,options){
   }else if(options.loadDraft!==false){
     loadCurrentVolunteerDraft();
   }
+  applyCurrentStudentProfileToFilters({noFilter:true});
   cleanupVolunteerForSubjectRequirements();
   updateAccountUI();
   updateVolunteerUI();
@@ -2927,13 +3062,14 @@ async function createStudentFromPanel(){
   if(!name){alert('请填写学生姓名。');return;}
   const subjectChoices=subjectChoicesFromInputs('newStudentSubjects');
   try{
-    const rows=await writeStudentRecord('students','POST',{owner_id:auth.user.id,name:name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:parseMedicalCodes($('#newStudentMedical').value)});
+    const rows=await writeStudentRecord('students','POST',{owner_id:auth.user.id,name:name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:studentMedicalCodesFromInputs('newStudentMedical','#newStudentMedical')});
     currentStudent={...rows[0],subject_choices:subjectChoices};
     saveLocalStudentSubjectChoices(currentStudent.id,subjectChoices);
     volunteerKeys=[];
     volunteerMajorKeys={};
     volunteerMeta={};
     saveCurrentStudent();
+    applyCurrentStudentProfileToFilters({noFilter:true});
     saveCurrentVolunteerDraft();
     updateAccountUI();
     updateVolunteerUI();
@@ -3043,6 +3179,7 @@ function init(){
   updateRequirementButton();
   updateClassButton();
   bindEvents();
+  applyCurrentStudentProfileToFilters({noFilter:true});
   updateVolunteerUI();
   updateAccountUI();
   updateAuthGate();

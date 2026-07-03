@@ -6,6 +6,12 @@ const AUTH_STORAGE_KEY='js-plan-auth-v1';
 const CURRENT_STUDENT_STORAGE_KEY='js-plan-current-student-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
+
+const MEDICAL_CODE_META={
+  '11':'严重心脏病等疾病：学校可不予录取','12':'重症支气管扩张、哮喘等：学校可不予录取','13':'严重血液、内分泌及代谢系统疾病：学校可不予录取','14':'重症或难治性癫痫等神经精神疾病：学校可不予录取','15':'慢性肝炎病人且肝功能不正常：学校可不予录取','16':'结核病相关情况：部分情形学校可不予录取',
+  '21':'轻度色觉异常（色弱）：化学、化工、药学、生物、医学、公安技术、食品、农林等限报','22':'色觉异常Ⅱ度（色盲）：同21，并扩展到美术、设计、物理、天文、地理、材料、交通等','23':'不能准确识别单色：同21/22，并扩展到经济、管理、计算机等依赖颜色识别专业','24':'裸眼视力任一眼低于5.0：飞行技术、航海技术、消防工程、刑事科学技术等不宜就读','25':'裸眼视力任一眼低于4.8：轮机工程、运动训练、烹饪等不宜就读','26':'公安类院校相关视力、身高等要求：需按公安院校体检标准另行核对',
+  '31':'主要脏器手术史或功能恢复情况：部分地矿、水利、交通、农林、医学等不宜就读','32':'先天性心脏病术后或轻微缺损：不宜就读同31类专业','33':'肢体残疾不继续恶化：不宜就读同31类专业','34':'矫正到4.8且镜片度数>400：海洋、测控、核工、生医工、服装、飞行器制造等不宜就读','35':'矫正到4.8且镜片度数>800：地矿、水利、土建、材料、能动、化工、医学、电子信息科学、测绘、交通、船舶、生物工程等不宜就读','36':'一眼失明且另一眼矫正到4.8镜片度数>400：工学、农学、医学、法学及部分理学专业不宜就读','37':'双耳听力均3米以内或一耳5米另一耳全聋：法学、外语、新闻、学前、音乐、土木、交通、动物、医学等不宜就读','38':'嗅觉迟钝、口吃、步态异常、驼背、面部疤痕等：教育、公安、外交、法学、新闻、音乐表演、表演等不宜就读','39':'斜视、嗅觉迟钝、口吃：医学类专业不宜就读'
+};
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -45,10 +51,46 @@ function subjectChoicesInputsHTML(scope,selected){
   return `<div class="subject-choice-row">${SUBJECT_CHOICE_OPTIONS.map(v=>`<label><input type="checkbox" data-subject-choice="${esc(scope)}" value="${esc(v)}" ${chosen.has(v)?'checked':''}>${esc(v)}</label>`).join('')}</div>`;
 }
 function subjectChoicesFromInputs(scope){return normalizeSubjectChoices($$(`[data-subject-choice="${scope}"]:checked`).map(el=>el.value));}
+
+function studentMedicalCodes(student){return parseMedicalCodes(Array.isArray(student?.medical_codes)?student.medical_codes.join(' '):(student?.medical_codes||''));}
+function medicalCodePickerHTML(scope,selected){
+  const chosen=new Set(parseMedicalCodes(Array.isArray(selected)?selected.join(' '):selected));
+  return `<div class="medical-picker-row" data-medical-picker="${esc(scope)}">${Object.keys(MEDICAL_CODE_META).map(c=>`<label title="${esc(MEDICAL_CODE_META[c]||'体检受限')}"><input type="checkbox" data-student-medical-code="${esc(scope)}" value="${esc(c)}" ${chosen.has(c)?'checked':''}>${esc(c)}</label>`).join('')}</div><div class="medical-picker-summary" data-student-medical-summary="${esc(scope)}"></div>`;
+}
+function studentMedicalCodesFromInputs(scope,inputSelector){
+  const checked=$$(`[data-student-medical-code="${scope}"]:checked`).map(el=>el.value);
+  const typed=inputSelector&&$(inputSelector)?parseMedicalCodes($(inputSelector).value):[];
+  return [...new Set([...checked,...typed])].sort((a,b)=>Number(a)-Number(b));
+}
+function syncStudentMedicalPicker(scope,inputSelector){
+  const summary=document.querySelector(`[data-student-medical-summary="${scope}"]`);
+  if(!summary)return;
+  const codes=studentMedicalCodesFromInputs(scope,inputSelector);
+  summary.innerHTML=codes.length?`已选：${codes.map(c=>`<b title="${esc(MEDICAL_CODE_META[c]||'体检受限')}">${esc(c)}</b>`).join('')}`:'未选择体检代码。可直接点选，也可手动输入。';
+}
+function bindStudentMedicalPickers(){
+  const scopes=[...new Set($$('[data-student-medical-code]').map(el=>el.dataset.studentMedicalCode).filter(Boolean))];
+  scopes.forEach(scope=>{
+    const inputSelector=scope==='newStudentMedical'?'#newStudentMedical':scope==='editStudentMedical'?'#editStudentMedical':'';
+    $$(`[data-student-medical-code="${scope}"]`).forEach(cb=>cb.addEventListener('change',()=>syncStudentMedicalPicker(scope,inputSelector)));
+    if(inputSelector&&$(inputSelector))$(inputSelector).addEventListener('input',()=>syncStudentMedicalPicker(scope,inputSelector));
+    syncStudentMedicalPicker(scope,inputSelector);
+  });
+}
+function hydrateNewStudentMedicalPicker(){
+  const input=$('#newStudentMedical');
+  if(!input||$('#newStudentMedicalPickerHost'))return;
+  const host=document.createElement('div');
+  host.id='newStudentMedicalPickerHost';
+  host.className='wide student-choice-field medical-picker-host';
+  host.innerHTML='<span>体检代码快捷选择</span>'+medicalCodePickerHTML('newStudentMedical',[]);
+  input.closest('label')?.insertAdjacentElement('beforebegin',host);
+  bindStudentMedicalPickers();
+}
 function splitListInput(v){return String(v||'').split(/[，,、\s/]+/).map(x=>x.trim()).filter(Boolean);}
 function dbNumber(v){if(v===null||v===undefined||v==='')return null; const n=Number(String(v).replace(/,/g,'').trim()); return Number.isFinite(n)?n:null;}
 function dbInteger(v){const n=dbNumber(v); return n===null?null:Math.round(n);}
-function parseMedicalCodes(raw){return String(raw||'').split(/[^0-9]+/).map(x=>x.trim()).filter(Boolean);}
+function parseMedicalCodes(raw){const valid=new Set(Object.keys(MEDICAL_CODE_META));return String(raw||'').split(/[^0-9]+/).map(x=>x.trim()).filter(Boolean).filter(x=>valid.has(x));}
 function shortDateTime(v){if(!v)return ''; const d=new Date(v); if(Number.isNaN(d.getTime()))return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
 function authHeaders(extra={}){return {apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`,'Content-Type':'application/json',...extra};}
 async function apiFetch(path,options={}){
@@ -114,7 +156,8 @@ function formGroups(){
 }
 function studentSummary(s){
   const cities=(s.target_cities||[]).length?`｜城市 ${(s.target_cities||[]).join('、')}`:'';
-  return `${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${cities}`;
+  const medical=studentMedicalCodes(s);
+  return `${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${medical.length?'｜体检 '+medical.join('/'):''}${cities}`;
 }
 function searchText(s,savedForms=[]){
   return [s.name,s.phone,stageLabel(s.stage),subjectLabel(s.subject_type),studentSubjectChoices(s).join(' '),s.score,s.rank,(s.target_cities||[]).join(' '),(s.medical_codes||[]).join(' '),savedForms.map(f=>f.title).join(' ')].join(' ').toLowerCase();
@@ -189,13 +232,15 @@ function resetNewForm(){
   $('#newStudentCities').value='';
   $('#newStudentMedical').value='';
   $('#newSubjectChoices').innerHTML=subjectChoicesInputsHTML('newStudentSubjects',[]);
+  $$('[data-student-medical-code="newStudentMedical"]').forEach(cb=>{cb.checked=false;});
+  syncStudentMedicalPicker('newStudentMedical','#newStudentMedical');
 }
 async function createStudent(){
   if(!auth.user){alert('请先登录。');return;}
   const name=$('#newStudentName').value.trim();
   if(!name){alert('请填写学生姓名。');return;}
   const subjectChoices=subjectChoicesFromInputs('newStudentSubjects');
-  const payload={owner_id:auth.user.id,name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:parseMedicalCodes($('#newStudentMedical').value)};
+  const payload={owner_id:auth.user.id,name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:studentMedicalCodesFromInputs('newStudentMedical','#newStudentMedical')};
   try{
     const rows=await writeStudentRecord('students','POST',payload);
     const created={...rows[0],subject_choices:subjectChoices};
@@ -217,9 +262,10 @@ function showEditor(student){
     <label>分数<input id="editStudentScore" type="number" value="${esc(student.score??'')}" placeholder="例如 586"></label>
     <label>位次<input id="editStudentRank" type="number" value="${esc(student.rank??'')}" placeholder="例如 39000"></label>
     <label class="wide">目标城市<input id="editStudentCities" value="${esc((student.target_cities||[]).join('、'))}" placeholder="南京、苏州、上海"></label>
-    <label class="wide">体检代码<input id="editStudentMedical" value="${esc((student.medical_codes||[]).join(' '))}" placeholder="如 21 35，可空"></label>
+    <div class="wide student-choice-field"><span>体检代码</span>${medicalCodePickerHTML('editStudentMedical',student.medical_codes||[])}<input id="editStudentMedical" value="${esc((student.medical_codes||[]).join(' '))}" placeholder="也可手动输入，如 21 35，可空"></div>
   </div><div class="modal-actions"><button id="cancelEditBtn" type="button">取消</button><button id="saveEditBtn" class="save" type="button">保存修改</button></div></div>`;
   $('#modalMask').classList.add('open');
+  bindStudentMedicalPickers();
   $('#cancelEditBtn').addEventListener('click',closeModal);
   $('#saveEditBtn').addEventListener('click',()=>updateStudent(student.id));
 }
@@ -228,7 +274,7 @@ async function updateStudent(studentId){
   const name=$('#editStudentName').value.trim();
   if(!name){alert('请填写学生姓名。');return;}
   const subjectChoices=subjectChoicesFromInputs('editStudentSubjects');
-  const payload={name,phone:$('#editStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#editStudentStage').value),subject_type:subjectTypeValue($('#editStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#editStudentScore').value),rank:dbInteger($('#editStudentRank').value),target_cities:splitListInput($('#editStudentCities').value),medical_codes:parseMedicalCodes($('#editStudentMedical').value)};
+  const payload={name,phone:$('#editStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#editStudentStage').value),subject_type:subjectTypeValue($('#editStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#editStudentScore').value),rank:dbInteger($('#editStudentRank').value),target_cities:splitListInput($('#editStudentCities').value),medical_codes:studentMedicalCodesFromInputs('editStudentMedical','#editStudentMedical')};
   try{
     const rows=await writeStudentRecord(`students?id=eq.${encodeURIComponent(studentId)}`,'PATCH',payload);
     const updated={...(rows?.[0]||payload),id:studentId,owner_id:auth.user.id,subject_choices:subjectChoices};
@@ -253,6 +299,7 @@ function init(){
   loadSavedAuth();
   loadCurrentStudent();
   $('#newSubjectChoices').innerHTML=subjectChoicesInputsHTML('newStudentSubjects',[]);
+  hydrateNewStudentMedicalPicker();
   resetNewForm();
   bindEvents();
   render();
