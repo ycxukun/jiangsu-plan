@@ -831,27 +831,10 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <div id="authCover" class="auth-cover" hidden>
-      <section class="auth-cover-panel">
-        <div class="auth-cover-copy">
-          <span class="auth-cover-eyebrow">升学规划工作台</span>
-          <h1>江苏志愿填报系统</h1>
-          <p>登录后进入院校筛选、学生档案、志愿表保存与导出。</p>
-          <div class="auth-cover-actions">
-            <button id="coverLoginBtn" class="save" type="button">登录进入</button>
-            <button id="coverRegisterBtn" type="button">注册账号</button>
-          </div>
-        </div>
-        <div class="auth-cover-preview" aria-hidden="true">
-          <div class="cover-preview-head"><span></span><span></span><span></span></div>
-          <div class="cover-preview-row strong"><b>学生 A</b><em>本科｜物理｜志愿表 3 份</em></div>
-          <div class="cover-preview-row"><b>冲</b><em>南京 · 计算机类 · 已选 6/6</em></div>
-          <div class="cover-preview-row"><b>稳</b><em>苏州 · 电子信息类 · 已保存</em></div>
-          <div class="cover-preview-row"><b>保</b><em>志愿表可导出 Excel</em></div>
-        </div>
-      </section>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="./haoshengya_login_landing.html" title="好生涯早规划登录页"></iframe>
     </div>
     <header class="topbar">
-      <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><div class="version">${VERSION}</div><button id="studentPanelBtn" class="header-toggle student-toggle" type="button">学生档案</button><button id="accountBtn" class="header-toggle account-toggle" type="button">登录/注册</button><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">本科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
+      <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><div class="version">${VERSION}</div><button id="studentPanelBtn" class="header-toggle student-toggle" type="button">学生档案</button><button id="accountBtn" class="header-toggle account-toggle" type="button">登录/注册</button><button id="logoutHeaderBtn" class="header-toggle logout-toggle" type="button" hidden>退出登录</button><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">本科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
       <div class="filters">
         <select id="batchFilter"><option value="">全部批次</option></select>
         <select id="subjectFilter"><option value="">全部科类</option></select>
@@ -993,8 +976,7 @@ function schoolFacetCounts(){const m=new Map(); DB.forEach(s=>schoolFacetValues(
 function schoolMatchesLevelFacet(s){if(!state.selectedLevels.size)return true; const vals=schoolFacetValues(s); return [...state.selectedLevels].some(v=>vals.has(v));}
 function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g=>{const key=String(g[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);})); return m;}
 function bindEvents(){
-  $('#coverLoginBtn')?.addEventListener('click',()=>showAccountModal('login'));
-  $('#coverRegisterBtn')?.addEventListener('click',()=>showAccountModal('register'));
+  window.addEventListener('message',handleLandingAuthMessage);
   ['batchFilter','subjectFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; applyFilters();}));
   $('#searchInput').addEventListener('input',e=>{state.q=e.target.value; applyFilters();});
   $('#provinceBtn').addEventListener('click',()=>{buildProvincePanel();openPanel('provincePanel')});
@@ -1006,6 +988,7 @@ function bindEvents(){
   $('#medicalBtn').addEventListener('click',()=>{const input=$('#medicalCodeInput'); if(input)input.value=[...state.medicalCodes].join(' '); updateMedicalPanelSummary(); openPanel('medicalPanel')});
   $('#studentPanelBtn').addEventListener('click',()=>{renderStudentPanel();openPanel('studentPanel')});
   $('#accountBtn').addEventListener('click',showAccountModal);
+  $('#logoutHeaderBtn')?.addEventListener('click',()=>logoutSupabase());
   $('#volunteerPanelBtn').addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
   $('#fillVolunteerBtn').addEventListener('click',fillVolunteerFromCurrentFilters);
   $('#saveVolunteerBtn').addEventListener('click',saveCurrentVolunteerForm);
@@ -2355,8 +2338,9 @@ function ensureAccountStyles(){
   style.textContent=`
     body.auth-locked{overflow:hidden;background:#f6f8f7}
     body.auth-locked .topbar,body.auth-locked .layout,body.auth-locked .footer,body.auth-locked .admin-dock,body.auth-locked .admin-menu,body.auth-locked .back-top,body.auth-locked .panel,body.auth-locked .annotation-drawer,body.auth-locked .note-panel{display:none!important}
-    .auth-cover{position:fixed;inset:0;z-index:1000;background:#f6f8f7;display:grid;place-items:center;padding:24px}
+    .auth-cover{position:fixed;inset:0;z-index:1000;background:#f6f8f7;display:block;padding:0}
     .auth-cover[hidden]{display:none}
+    .auth-cover-frame{width:100%;height:100%;border:0;display:block;background:#f6f8f7}
     .auth-cover-panel{width:min(920px,100%);min-height:430px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 20px 70px rgba(11,42,26,.10);display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);gap:28px;padding:34px}
     .auth-cover-copy{display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
     .auth-cover-eyebrow{display:inline-flex;border:1px solid #cfe6d8;background:#f0faf4;color:var(--green);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900}
@@ -2374,6 +2358,8 @@ function ensureAccountStyles(){
     .cover-preview-row em{font-style:normal;color:var(--muted);font-size:12px;line-height:1.5}
     body.auth-locked .modal-mask{z-index:1200}
     .account-toggle.logged-in{border-color:#b7dfc6;background:#f0faf4;color:var(--green)}
+    .logout-toggle{border-color:#fecaca;background:#fff7f7;color:#b91c1c}
+    .logout-toggle:hover{border-color:#fca5a5;background:#fee2e2;color:#991b1b}
     .student-toggle.active-student{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
     .student-panel{width:min(760px,94vw)}
     .student-account-box{border:1px solid var(--line);border-radius:16px;background:#fbfdfc;padding:12px;margin-bottom:12px}
@@ -2437,9 +2423,11 @@ async function apiFetch(path,options={}){
 function updateAccountUI(){
   const accountBtn=$('#accountBtn');
   if(accountBtn){
-    accountBtn.textContent=auth.user?.email?`已登录：${auth.user.email.split('@')[0]}`:'登录/注册';
+    accountBtn.textContent=auth.user?.email?`账号中心：${auth.user.email.split('@')[0]}`:'登录/注册';
     accountBtn.classList.toggle('logged-in',Boolean(auth.user));
   }
+  const logoutBtn=$('#logoutHeaderBtn');
+  if(logoutBtn)logoutBtn.hidden=!auth.user;
   const studentBtn=$('#studentPanelBtn');
   if(studentBtn){
     studentBtn.textContent=currentStudent?`学生：${currentStudent.name}`:'学生档案';
@@ -2538,7 +2526,11 @@ async function loginSupabase(){
   if(!requireSupabase())return;
   const email=($('#accountEmail')||$('#loginEmail')).value.trim();
   const password=($('#accountPassword')||$('#loginPwd')).value;
+  try{await loginSupabaseWithCredentials(email,password,{notify:true});}catch(err){}
+}
+async function loginSupabaseWithCredentials(email,password,options={}){
   try{
+    if(!email||!password)throw new Error('请输入邮箱和密码。');
     const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     if(!res.ok)throw new Error(await res.text());
     const data=await res.json();
@@ -2554,8 +2546,28 @@ async function loginSupabase(){
     render();
     renderStudentPanel();
     fetchNotes();
-    alert('登录成功。');
-  }catch(err){alert('登录失败：'+err.message);}
+    if(options.notify!==false)alert('登录成功。');
+    return true;
+  }catch(err){
+    if(options.notify!==false)alert('登录失败：'+err.message);
+    throw err;
+  }
+}
+async function handleLandingAuthMessage(event){
+  if(event.origin!==window.location.origin||event.data?.source!=='haoshengya-login')return;
+  const frame=$('#authLandingFrame')?.contentWindow;
+  try{
+    if(event.data.action==='register'){
+      showAccountModal('register');
+      return;
+    }
+    if(event.data.action==='login'){
+      await loginSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false});
+      frame?.postMessage({source:'jiangsu-plan-auth',status:'ok'},event.origin);
+    }
+  }catch(err){
+    frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:'登录失败：'+err.message},event.origin);
+  }
 }
 async function ensureUserProfile(displayName=''){
   if(!auth.user?.id)return;

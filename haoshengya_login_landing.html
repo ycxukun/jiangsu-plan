@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>好生涯早规划｜志愿填报系统登录页</title>
+  <style>
+    :root {
+      --brand: rgb(10,124,66);
+      --brand-dark: #075b32;
+      --brand-soft: rgba(10,124,66,.10);
+      --blue: #4285f4;
+      --yellow: #fbbc05;
+      --red: #ea4335;
+      --green: #34a853;
+      --ink: #17231c;
+      --muted: #647067;
+      --line: rgba(23,35,28,.10);
+      --panel: rgba(255,255,255,.76);
+      --shadow: 0 24px 70px rgba(7, 91, 50, .16);
+      --shadow-soft: 0 12px 32px rgba(23,35,28,.08);
+      --radius-lg: 30px;
+      --radius-md: 20px;
+      --radius-sm: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 9% 18%, rgba(66,133,244,.18), transparent 28%),
+        radial-gradient(circle at 86% 12%, rgba(251,188,5,.18), transparent 24%),
+        radial-gradient(circle at 76% 78%, rgba(52,168,83,.18), transparent 28%),
+        linear-gradient(135deg, #f7fbf8 0%, #f5f8fb 45%, #fffaf0 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "好生涯早规划";
+      position: fixed;
+      right: -4rem;
+      bottom: 4rem;
+      z-index: 0;
+      font-size: clamp(4rem, 11vw, 12rem);
+      font-weight: 900;
+      letter-spacing: .14em;
+      color: rgba(10,124,66,.035);
+      pointer-events: none;
+      transform: rotate(-8deg);
+      white-space: nowrap;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1220px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 34px;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px 16px;
+      margin-bottom: 28px;
+      border: 1px solid rgba(255,255,255,.75);
+      border-radius: 999px;
+      background: rgba(255,255,255,.66);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 36px rgba(23,35,28,.06);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: max-content;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+      background: conic-gradient(from 160deg, var(--brand), var(--blue), var(--yellow), var(--green), var(--brand));
+      box-shadow: 0 12px 24px rgba(10,124,66,.24);
+    }
+
+    .brand-name {
+      display: grid;
+      gap: 2px;
+      line-height: 1.1;
+    }
+
+    .brand-name strong {
+      font-size: 16px;
+      letter-spacing: .03em;
+    }
+
+    .brand-name span {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .nav-links a {
+      color: inherit;
+      text-decoration: none;
+      padding: 10px 13px;
+      border-radius: 999px;
+      transition: .2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--brand-dark);
+      background: var(--brand-soft);
+    }
+
+    .nav-action {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: max-content;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--brand-dark);
+      background: rgba(10,124,66,.08);
+      border: 1px solid rgba(10,124,66,.12);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(52,168,83,.14);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(360px, .82fr);
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .hero-left {
+      min-height: 640px;
+      padding: 48px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(138deg, rgba(255,255,255,.76), rgba(255,255,255,.48));
+      border: 1px solid rgba(255,255,255,.78);
+      backdrop-filter: blur(26px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-left::after {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -130px;
+      top: -120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(10,124,66,.14), transparent 66%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 13px;
+      border-radius: 999px;
+      color: var(--brand-dark);
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(10,124,66,.14);
+      box-shadow: 0 10px 24px rgba(10,124,66,.08);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .eyebrow i {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--brand);
+      box-shadow: 0 0 0 5px rgba(10,124,66,.12);
+    }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      margin: 26px 0 18px;
+      max-width: 780px;
+      font-size: clamp(38px, 5.2vw, 72px);
+      line-height: .98;
+      letter-spacing: -.055em;
+      color: #102017;
+    }
+
+    .hero-title-accent {
+      display: block;
+      color: var(--brand);
+    }
+
+    .lead {
+      position: relative;
+      z-index: 1;
+      width: min(690px, 100%);
+      margin: 0;
+      color: #4f5e54;
+      font-size: 18px;
+      line-height: 1.9;
+      letter-spacing: .01em;
+    }
+
+    .hero-actions {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .btn {
+      border: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 14px 18px;
+      min-height: 48px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 750;
+      text-decoration: none;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .btn:active { transform: translateY(1px); }
+
+    .btn-primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), #13a361);
+      box-shadow: 0 18px 34px rgba(10,124,66,.26);
+    }
+
+    .btn-primary:hover { box-shadow: 0 24px 46px rgba(10,124,66,.34); }
+
+    .btn-secondary {
+      color: var(--brand-dark);
+      background: rgba(255,255,255,.76);
+      border: 1px solid rgba(10,124,66,.14);
+      box-shadow: 0 12px 24px rgba(23,35,28,.07);
+    }
+
+    .feature-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 38px;
+    }
+
+    .feature-card {
+      min-height: 138px;
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.66);
+      border: 1px solid rgba(255,255,255,.78);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+      font-size: 18px;
+      background: var(--brand-soft);
+    }
+
+    .feature-card:nth-child(2) .feature-icon { background: rgba(66,133,244,.12); }
+    .feature-card:nth-child(3) .feature-icon { background: rgba(251,188,5,.16); }
+    .feature-card:nth-child(4) .feature-icon { background: rgba(234,67,53,.10); }
+    .feature-card:nth-child(5) .feature-icon { background: rgba(52,168,83,.13); }
+    .feature-card:nth-child(6) .feature-icon { background: rgba(10,124,66,.10); }
+
+    .feature-card h3 {
+      margin: 0 0 7px;
+      font-size: 15px;
+      letter-spacing: -.01em;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .preview-board {
+      position: relative;
+      z-index: 1;
+      margin-top: 28px;
+      padding: 18px;
+      border-radius: 28px;
+      background: #14251b;
+      box-shadow: 0 22px 50px rgba(20,37,27,.20);
+      overflow: hidden;
+    }
+
+    .preview-board::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(66,133,244,.24), transparent 22%),
+        radial-gradient(circle at 82% 18%, rgba(251,188,5,.18), transparent 24%),
+        linear-gradient(135deg, rgba(255,255,255,.08), transparent);
+      pointer-events: none;
+    }
+
+    .preview-top {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: rgba(255,255,255,.88);
+      margin-bottom: 14px;
+    }
+
+    .traffic {
+      display: flex;
+      gap: 7px;
+    }
+
+    .traffic span {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.3);
+    }
+
+    .traffic span:nth-child(1) { background: var(--red); }
+    .traffic span:nth-child(2) { background: var(--yellow); }
+    .traffic span:nth-child(3) { background: var(--green); }
+
+    .preview-top small {
+      font-size: 12px;
+      color: rgba(255,255,255,.62);
+    }
+
+    .preview-content {
+      position: relative;
+      display: grid;
+      grid-template-columns: .92fr 1.08fr;
+      gap: 14px;
+    }
+
+    .rank-card, .student-card {
+      border-radius: 20px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 16px;
+      color: #fff;
+    }
+
+    .rank-card h3, .student-card h3 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      color: rgba(255,255,255,.86);
+    }
+
+    .score-ring {
+      width: 142px;
+      height: 142px;
+      margin: 8px auto 10px;
+      border-radius: 50%;
+      background: conic-gradient(var(--green) 0 74%, rgba(255,255,255,.12) 74% 100%);
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .score-ring::after {
+      content: "";
+      position: absolute;
+      inset: 13px;
+      border-radius: 50%;
+      background: #14251b;
+    }
+
+    .score-ring strong {
+      position: relative;
+      z-index: 1;
+      font-size: 32px;
+      letter-spacing: -.05em;
+    }
+
+    .score-ring span {
+      position: absolute;
+      z-index: 1;
+      margin-top: 45px;
+      color: rgba(255,255,255,.55);
+      font-size: 12px;
+    }
+
+    .mini-note {
+      color: rgba(255,255,255,.58);
+      font-size: 12px;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .student-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .student-row:last-child { border-bottom: 0; }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+      background: rgba(255,255,255,.13);
+    }
+
+    .student-row strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .student-row span {
+      display: block;
+      font-size: 11px;
+      color: rgba(255,255,255,.55);
+    }
+
+    .tag {
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 750;
+      color: #ddffe8;
+      background: rgba(52,168,83,.16);
+    }
+
+    .login-wrap {
+      display: grid;
+      gap: 18px;
+    }
+
+    .login-card {
+      padding: 26px;
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,.78);
+      border: 1px solid rgba(255,255,255,.86);
+      backdrop-filter: blur(24px);
+      box-shadow: var(--shadow);
+    }
+
+    .login-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 22px;
+    }
+
+    .login-head h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: -.04em;
+    }
+
+    .login-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .secure-badge {
+      min-width: max-content;
+      padding: 8px 10px;
+      border-radius: 999px;
+      color: var(--brand-dark);
+      font-size: 12px;
+      font-weight: 800;
+      background: var(--brand-soft);
+      border: 1px solid rgba(10,124,66,.12);
+    }
+
+    .role-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 6px;
+      border-radius: 18px;
+      background: rgba(23,35,28,.05);
+      margin-bottom: 18px;
+    }
+
+    .role-tabs button {
+      height: 42px;
+      border: 0;
+      border-radius: 14px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 800;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+
+    .role-tabs button.active {
+      color: var(--brand-dark);
+      background: #fff;
+      box-shadow: 0 10px 20px rgba(23,35,28,.08);
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      color: #314139;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .field input {
+      width: 100%;
+      height: 52px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      outline: none;
+      padding: 0 15px;
+      background: rgba(255,255,255,.82);
+      font-size: 15px;
+      color: var(--ink);
+      transition: .18s ease;
+    }
+
+    .field input:focus {
+      border-color: rgba(10,124,66,.38);
+      box-shadow: 0 0 0 5px rgba(10,124,66,.08);
+    }
+
+    .login-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 4px 0 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .login-options label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .login-options a {
+      color: var(--brand-dark);
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .login-btn {
+      width: 100%;
+      height: 54px;
+      font-size: 16px;
+    }
+
+    .login-tip {
+      margin: 14px 0 0;
+      padding: 13px 14px;
+      border-radius: 16px;
+      color: #506056;
+      background: rgba(10,124,66,.07);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .system-card {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,.66);
+      border: 1px solid rgba(255,255,255,.78);
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .system-card h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+      letter-spacing: -.03em;
+    }
+
+    .system-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .system-list li {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 13px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.62);
+      border: 1px solid rgba(23,35,28,.06);
+    }
+
+    .system-list b {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 14px;
+    }
+
+    .system-list p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .list-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: #eef7f1;
+      color: var(--brand-dark);
+      font-weight: 900;
+    }
+
+    .bottom-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .metric {
+      padding: 18px 18px 16px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.62);
+      border: 1px solid rgba(255,255,255,.75);
+      box-shadow: 0 10px 28px rgba(23,35,28,.06);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 26px;
+      letter-spacing: -.04em;
+      color: var(--brand-dark);
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 22px 8px 0;
+      color: rgba(23,35,28,.55);
+      font-size: 12px;
+    }
+
+    @media (max-width: 980px) {
+      .page { width: min(100% - 24px, 760px); padding-top: 16px; }
+      .nav { border-radius: 24px; align-items: flex-start; }
+      .nav-links { display: none; }
+      .hero { grid-template-columns: 1fr; }
+      .hero-left { min-height: auto; padding: 34px 24px; }
+      .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .bottom-strip { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 620px) {
+      .page { width: min(100% - 18px, 480px); }
+      .nav { padding: 12px; gap: 12px; }
+      .brand-name span, .status-pill { display: none; }
+      .hero-left { padding: 26px 18px; border-radius: 24px; }
+      .lead { font-size: 15px; line-height: 1.75; }
+      .hero-actions { flex-direction: column; }
+      .btn { width: 100%; }
+      .feature-grid, .preview-content, .bottom-strip { grid-template-columns: 1fr; }
+      .login-card, .system-card { padding: 20px; border-radius: 24px; }
+      .login-head { display: grid; }
+      .role-tabs { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <nav class="nav" aria-label="系统导航">
+      <div class="brand">
+        <div class="brand-mark">好</div>
+        <div class="brand-name">
+          <strong>好生涯早规划</strong>
+          <span>Higher Education Planning</span>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="#module">系统能力</a>
+        <a href="#login">登录入口</a>
+        <a href="#security">数据规范</a>
+        <a href="#preview">工作台预览</a>
+      </div>
+      <div class="nav-action">
+        <span class="status-pill"><i class="status-dot"></i>内测版</span>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-left">
+        <span class="eyebrow"><i></i>江苏新高考志愿填报 · 规划师工作台</span>
+        <h1>把学生档案、服务工单与志愿方案，<span class="hero-title-accent">沉淀到一个系统里。</span></h1>
+        <p class="lead">面向升学规划团队的内部系统入口。登录后可进入学生档案、志愿填报工具、服务交付记录、AI 报告生成、政策资料库与院校专业认知库，减少散表、散文件、散沟通带来的管理损耗。</p>
+
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#login">进入登录入口 →</a>
+          <a class="btn btn-secondary" href="#preview">查看工作台预览</a>
+        </div>
+
+        <div class="feature-grid" id="module">
+          <article class="feature-card">
+            <div class="feature-icon">档</div>
+            <h3>学生档案</h3>
+            <p>统一沉淀分数、位次、选科、体检受限、诉求、预算与服务记录。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">表</div>
+            <h3>志愿方案</h3>
+            <p>支持方案归档、历史版本对比、专业组风险提示与家长版输出。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">单</div>
+            <h3>服务工单</h3>
+            <p>记录项目金额、负责老师、交付物、截止时间与跟进状态。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">AI</div>
+            <h3>AI 报告</h3>
+            <p>面向会议纪要、志愿说明、学生画像与方案解释的辅助生成。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">策</div>
+            <h3>政策更新</h3>
+            <p>沉淀江苏考试院公告、提前批安排、综评强基时间线等高时效内容。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">库</div>
+            <h3>院校专业库</h3>
+            <p>形成院校分析、专业认知、就业风险与专业组前世今生资料库。</p>
+          </article>
+        </div>
+
+        <div class="preview-board" id="preview">
+          <div class="preview-top">
+            <div class="traffic"><span></span><span></span><span></span></div>
+            <small>Dashboard Preview · 2026 江苏志愿填报</small>
+          </div>
+          <div class="preview-content">
+            <div class="rank-card">
+              <h3>方案完成度</h3>
+              <div class="score-ring"><strong>74%</strong><span>待核对项 6</span></div>
+              <p class="mini-note">专业组风险、调剂风险、体检受限、预算限制统一进入核对清单。</p>
+            </div>
+            <div class="student-card">
+              <h3>近期学生服务</h3>
+              <div class="student-row">
+                <div class="avatar">姜</div>
+                <div><strong>姜同学 · 物化生</strong><span>本科普通批方案核对中</span></div>
+                <b class="tag">进行中</b>
+              </div>
+              <div class="student-row">
+                <div class="avatar">夏</div>
+                <div><strong>夏同学 · 物化生</strong><span>综评材料与普通批路径</span></div>
+                <b class="tag">待交付</b>
+              </div>
+              <div class="student-row">
+                <div class="avatar">祁</div>
+                <div><strong>祁同学 · 农村应届</strong><span>档案导出与材料归档</span></div>
+                <b class="tag">已归档</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="login-wrap" id="login">
+        <section class="login-card">
+          <div class="login-head">
+            <div>
+              <h2>系统登录</h2>
+              <p>请选择身份入口。正式版可接入手机号、账号密码、一次性链接或企业微信登录。</p>
+            </div>
+            <span class="secure-badge">SSL · 权限分级</span>
+          </div>
+
+          <div class="role-tabs" role="tablist" aria-label="登录身份">
+            <button class="active" type="button">规划师端</button>
+            <button type="button">家长端</button>
+            <button type="button">学生端</button>
+          </div>
+
+          <form id="landingLoginForm">
+            <div class="field">
+              <label for="account">账号 / 手机号</label>
+              <input id="account" name="account" placeholder="请输入规划师账号" autocomplete="off" autocapitalize="none" spellcheck="false" />
+            </div>
+            <div class="field">
+              <label for="password">登录密码</label>
+              <input id="password" name="password" type="password" placeholder="请输入密码" autocomplete="new-password" />
+            </div>
+            <div class="login-options">
+              <label><input type="checkbox" /> 保持登录状态</label>
+              <a href="#">忘记密码</a>
+            </div>
+            <button class="btn btn-primary login-btn" type="submit">登录工作台</button>
+            <button class="btn btn-secondary login-btn" id="landingRegisterBtn" type="button">注册账号</button>
+          </form>
+
+          <p class="login-tip">内测阶段建议先做“规划师端”登录；家长端、学生端可用专属链接进入对应学生档案。</p>
+        </section>
+
+        <section class="system-card" id="security">
+          <h2>登录前需要传达的三件事</h2>
+          <ul class="system-list">
+            <li>
+              <div class="list-icon">1</div>
+              <div><b>这是内部工作台，不是公开网页</b><p>适合放学生档案、服务跟进、志愿方案与交付记录，强调权限控制。</p></div>
+            </li>
+            <li>
+              <div class="list-icon">2</div>
+              <div><b>家长/学生只看自己的内容</b><p>后续通过账号或链接进入对应学生页面，不暴露团队整体数据。</p></div>
+            </li>
+            <li>
+              <div class="list-icon">3</div>
+              <div><b>所有关键结论保留核对标记</b><p>对专业组、招生计划、体检限制、提前批规则等保留“待核对”机制。</p></div>
+            </li>
+          </ul>
+        </section>
+      </aside>
+    </section>
+
+    <section class="bottom-strip" aria-label="系统指标">
+      <div class="metric"><strong>6</strong><span>核心模块：档案、工单、AI、志愿、政策、知识库</span></div>
+      <div class="metric"><strong>3</strong><span>身份入口：规划师、家长、学生分权限进入</span></div>
+      <div class="metric"><strong>1</strong><span>统一工作台：把散表、散文件、散沟通归档</span></div>
+      <div class="metric"><strong>0</strong><span>不强行承诺零风险，关键招生信息保留核对机制</span></div>
+    </section>
+
+    <footer>
+      <span>© 2026 好生涯早规划 · 志愿填报系统内测入口</span>
+      <span>Designed for 江苏新高考规划服务流程</span>
+    </footer>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll('.role-tabs button');
+    const account = document.getElementById('account');
+    const tip = document.querySelector('.login-tip');
+    const roleTips = {
+      '规划师端': ['请输入规划师账号', '内测阶段建议先做“规划师端”登录；家长端、学生端可用专属链接进入对应学生档案。'],
+      '家长端': ['请输入家长手机号或专属账号', '家长端建议只开放：学生画像、服务进度、志愿方案说明、文件下载。'],
+      '学生端': ['请输入学生账号或访问码', '学生端建议只开放：基础信息确认、专业兴趣反馈、志愿方案查看。']
+    };
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(item => item.classList.remove('active'));
+        btn.classList.add('active');
+        const label = btn.textContent.trim();
+        account.placeholder = roleTips[label][0];
+        tip.textContent = roleTips[label][1];
+      });
+    });
+    const password = document.getElementById('password');
+    const loginForm = document.getElementById('landingLoginForm');
+    const registerBtn = document.getElementById('landingRegisterBtn');
+    function sendAuthMessage(payload) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ source: 'haoshengya-login', ...payload }, window.location.origin);
+      }
+    }
+    [account, password].forEach(input => {
+      [0, 120, 500].forEach(delay => setTimeout(() => {
+        if (input && !input.dataset.userEdited) input.value = '';
+      }, delay));
+      ['keydown', 'paste'].forEach(type => input.addEventListener(type, () => {
+        input.dataset.userEdited = '1';
+      }, { once: true }));
+    });
+    loginForm.addEventListener('submit', event => {
+      event.preventDefault();
+      const email = account.value.trim();
+      const pwd = password.value;
+      if (!email || !pwd) {
+        tip.textContent = '请先输入账号和密码。';
+        return;
+      }
+      tip.textContent = '正在登录，请稍候...';
+      sendAuthMessage({ action: 'login', email, password: pwd });
+    });
+    registerBtn.addEventListener('click', () => {
+      sendAuthMessage({ action: 'register' });
+    });
+    window.addEventListener('message', event => {
+      if (event.origin !== window.location.origin || event.data?.source !== 'jiangsu-plan-auth') return;
+      if (event.data.status === 'error') tip.textContent = event.data.message || '登录失败，请检查账号密码。';
+    });
+  </script>
+</body>
+</html>
