@@ -85,6 +85,7 @@ const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
 const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v2';
 const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
 const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
+const VOLUNTEER_STAGE_STORAGE_SCOPE='specialty';
 let volunteerKeys=loadVolunteerKeys();
 let volunteerMajorKeys=loadVolunteerMajorKeys();
 let volunteerMeta=loadVolunteerMeta();
@@ -118,7 +119,7 @@ function storageJSON(key,fallback){try{const raw=localStorage.getItem(key); retu
 function volunteerStorageSuffix(){
   const userId=auth.user?.id||'guest';
   const studentId=currentStudent?.id||'no-student';
-  return `${userId}:${studentId}`;
+  return `${VOLUNTEER_STAGE_STORAGE_SCOPE}:${userId}:${studentId}`;
 }
 function scopedVolunteerKey(base){return `${base}:${volunteerStorageSuffix()}`;}
 function currentStudentStorageKey(){return auth.user?.id?`${CURRENT_STUDENT_STORAGE_KEY}:${auth.user.id}`:CURRENT_STUDENT_STORAGE_KEY;}
@@ -858,7 +859,9 @@ function createLayout(){
       <div class="annotation-body"><div id="giscusMount" class="giscus-mount"></div></div>
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
-    <div id="authCover" hidden><div class="auth-cover-card"><h2>请先登录</h2><p>登录后可以使用学生档案、保存志愿表到数据库等功能。重新加载页面后系统会保留已登录状态。</p><button type="button" onclick="showAccountModal('login')">登录/注册</button></div></div>
+    <div id="authCover" class="auth-cover" hidden>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="../haoshengya_login_landing.html" title="好生涯早规划登录页"></iframe>
+    </div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
     <button id="backTopBtn" class="back-top" type="button" title="" aria-label="向上">↑</button>
@@ -971,6 +974,7 @@ function schoolFacetCounts(){const m=new Map(); DB.forEach(s=>schoolFacetValues(
 function schoolMatchesLevelFacet(s){if(!state.selectedLevels.size)return true; const vals=schoolFacetValues(s); return [...state.selectedLevels].some(v=>vals.has(v));}
 function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g=>{const key=String(g[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);})); return m;}
 function bindEvents(){
+  window.addEventListener('message',handleLandingAuthMessage);
   ['batchFilter','subjectFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; applyFilters();}));
   $('#searchInput').addEventListener('input',e=>{state.q=e.target.value; applyFilters();});
   $('#provinceBtn').addEventListener('click',()=>{buildProvincePanel();openPanel('provincePanel')});
@@ -1011,7 +1015,7 @@ function bindEvents(){
   $('#adminDockBtn')?.addEventListener('click',()=>$('#adminMenu').classList.toggle('open'));
   $('#loginBtn')?.addEventListener('click',showLoginModal);
   $('#reloadNotesBtn')?.addEventListener('click',fetchNotes);
-  $('#logoutBtn')?.addEventListener('click',()=>{auth={accessToken:'',user:null}; alert('已退出当前前端会话');});
+  $('#logoutBtn')?.addEventListener('click',logoutSupabase);
   $('#addSchoolNoteBtn')?.addEventListener('click',()=>{const s=getActiveSchool(); if(s)showNoteEditor('schools',keySchool(s),`${s.name}｜学校备注`);});
 }
 function bindScoreInputs(){
@@ -2380,14 +2384,12 @@ function ensureAccountStyles(){
   const style=document.createElement('style');
   style.id=id;
   style.textContent=`
-    .auth-locked .layout,.auth-locked .hero,.auth-locked .sidebar,.auth-locked .filters{filter:blur(2px);pointer-events:none;user-select:none}
-    .auth-locked .topbar{filter:blur(2px);pointer-events:none;user-select:none}
-    #authCover{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center}
-    #authCover:not([hidden])~.layout .sidebar{z-index:1}
-    #authCover .auth-cover-card{background:#fff;border:1px solid #e5ebe7;border-radius:24px;padding:36px 40px;box-shadow:0 30px 80px rgba(0,0,0,.15);text-align:center;max-width:400px}
-    #authCover .auth-cover-card h2{margin:0;font-size:22px;letter-spacing:-.02em}
-    #authCover .auth-cover-card p{margin:12px 0 20px;color:#66756d;line-height:1.6}
-    #authCover .auth-cover-card button{height:44px;border:0;border-radius:12px;background:#0a7c42;color:#fff;padding:0 24px;font-weight:800;font-size:15px}
+    body.auth-locked{overflow:hidden;background:#f6f8f7}
+    body.auth-locked .topbar,body.auth-locked .layout,body.auth-locked .footer,body.auth-locked .admin-dock,body.auth-locked .admin-menu,body.auth-locked .back-top,body.auth-locked .panel,body.auth-locked .annotation-drawer,body.auth-locked .note-panel{display:none!important}
+    .auth-cover{position:fixed;inset:0;z-index:1000;background:#f6f8f7;display:block;padding:0}
+    .auth-cover[hidden]{display:none}
+    .auth-cover-frame{width:100%;height:100%;border:0;display:block;background:#f6f8f7}
+    body.auth-locked .modal-mask{z-index:1200}
     .student-toggle,.account-toggle,.logout-toggle{display:none}
     .student-toggle.logged-in,.account-toggle.logged-in{display:inline-flex}
     :not(.auth-locked) .student-toggle,:not(.auth-locked) .account-toggle{display:inline-flex}
@@ -2494,7 +2496,7 @@ function showAccountModal(mode='login'){
     '<label>邮箱<input id="accountEmail" type="email" value="" placeholder="you@example.com" autocomplete="off" autocapitalize="none" spellcheck="false"></label>'+
     '<label>密码<input id="accountPassword" type="password" placeholder="至少 6 位" autocomplete="new-password"></label>'+
     '</div>'+
-    '<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">取消</button><button id="accountSubmit" class="save">'+(isRegister?'注册':'登录')+'</button></div>'+
+    '<div class="modal-actions"><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')">取消</button><button id="accountSubmit" class="save">'+(isRegister?'注册':'登录')+'</button></div>'+
     '</div>';
   openModal();
   markAccountFieldsUserEditing();
@@ -2523,7 +2525,7 @@ function showAccountCenter(){
   $('#modal').innerHTML='<h3>账号中心</h3><div class="modal-body">'+
     '<div class="student-account-box"><b>'+esc(auth.user?.email||'已登录')+'</b><span class="muted">'+(currentStudent?'当前学生：'+esc(currentStudent.name):'尚未选择学生')+'</span></div>'+
     '<div class="account-notice">退出登录前，请先确认当前志愿表已经"保存到学生"。系统会保留这个账号自己的本地草稿，但不会自动把未保存内容上传到数据库。</div>'+
-    '<div class="modal-actions"><button id="accountOpenStudents" type="button">学生档案</button><button id="accountLogout" class="delete" type="button">退出登录</button><button onclick="document.getElementById('modalMask').classList.remove('open')" type="button">关闭</button></div>'+
+    '<div class="modal-actions"><button id="accountOpenStudents" type="button">学生档案</button><button id="accountLogout" class="delete" type="button">退出登录</button><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')" type="button">关闭</button></div>'+
     '</div>';
   openModal();
   $('#accountOpenStudents')?.addEventListener('click',function(){closeModal();renderStudentPanel();openPanel('studentPanel');});
@@ -2641,7 +2643,7 @@ async function fetchStudents(){
   return apiFetch('students?select=*&archived=eq.false&order=updated_at.desc');
 }
 async function fetchVolunteerFormSummaries(){
-  return apiFetch('volunteer_forms?select=id,student_id,title,status,stage,created_at,updated_at&order=updated_at.desc');
+  return apiFetch('volunteer_forms?select=id,student_id,title,status,stage,created_at,updated_at&stage=eq.specialty&order=updated_at.desc');
 }
 function studentSummary(s){
   return stageLabel(s.stage)+'｜'+subjectLabel(s.subject_type)+'｜'+(s.score||'—')+'分｜位次 '+(s.rank||'—')+((s.target_cities||[]).length?'｜城市 '+s.target_cities.join('、'):'');
@@ -2700,7 +2702,7 @@ function studentPanelHTML(students,forms){
   const form='<section class="student-account-box"><b>新增学生</b><div class="student-form-grid">'+
     '<label>姓名<input id="newStudentName" placeholder="学生姓名"></label>'+
     '<label>手机号<input id="newStudentPhone" placeholder="可选"></label>'+
-    '<label>批次<select id="newStudentStage"><option value="undergraduate">本科</option><option value="specialty">专科</option></select></label>'+
+    '<label>批次<select id="newStudentStage"><option value="specialty" selected>专科</option><option value="undergraduate">本科</option></select></label>'+
     '<label>科类<select id="newStudentSubject"><option value="physics">物理</option><option value="history">历史</option></select></label>'+
     '<label>分数<input id="newStudentScore" type="number" placeholder="例如 586"></label>'+
     '<label>位次<input id="newStudentRank" type="number" placeholder="例如 39000"></label>'+
@@ -2807,8 +2809,8 @@ async function saveCurrentVolunteerForm(){
   if(!currentStudent){renderStudentPanel();openPanel('studentPanel');alert('请先新增或选择一个学生。');return;}
   if(!volunteerKeys.length){alert('当前志愿表为空，先加入专业组后再保存。');return;}
   try{
-    const title=currentStudent.name+' '+stageLabel(currentStudent.stage)+'志愿表 '+localDateStamp();
-    const forms=await apiFetch('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:currentStudent.id,owner_id:auth.user.id,title,stage:currentStudent.stage,source_version:VERSION,max_group_count:VOLUNTEER_LIMIT,snapshot:{volunteerKeys,volunteerMajorKeys,volunteerMeta,medicalCodes:[...state.medicalCodes]}})});
+    const title=currentStudent.name+' 专科志愿表 '+localDateStamp();
+    const forms=await apiFetch('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:currentStudent.id,owner_id:auth.user.id,title,stage:'specialty',source_version:VERSION,max_group_count:VOLUNTEER_LIMIT,snapshot:{volunteerKeys,volunteerMajorKeys,volunteerMeta,medicalCodes:[...state.medicalCodes]}})});
     const form=forms[0];
     const groupRows=volunteerKeys.map(function(key,index){return groupPayloadForSave(key,index);}).filter(Boolean).map(function(row){return {...row,form_id:form.id};});
     const savedGroups=groupRows.length?await apiFetch('volunteer_form_groups',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(groupRows)}):[];
