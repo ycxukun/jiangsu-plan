@@ -1189,6 +1189,10 @@ function bindEvents(){
   $$('[data-close]').forEach(b=>b.addEventListener('click',()=>closePanel(b.dataset.close)));
   bindScoreInputs();
   bindMedicalInputs();
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest?.('[data-major-detail]');
+    if(btn)openMajorDetailFromButton(btn,e);
+  });
   $('#modalMask').addEventListener('click',e=>{if(e.target.id==='modalMask')closeModal();});
   $('#adminDockBtn')?.addEventListener('click',()=>$('#adminMenu').classList.toggle('open'));
   $('#loginBtn')?.addEventListener('click',showAccountModal);
@@ -1649,7 +1653,13 @@ function foreignCoopDetailForMajor(m){
 function hasForeignCoopDetail(m){return Boolean(foreignCoopDetailForMajor(m));}
 function foreignCoopCountForGroup(g){return (g?.majors||[]).filter(hasForeignCoopDetail).length;}
 function foreignCoopCountForGroups(groups){return (groups||[]).reduce((sum,g)=>sum+foreignCoopCountForGroup(g),0);}
-function foreignCoopCountBadgeHTML(g){const count=foreignCoopCountForGroup(g);return count?`<span class="tag green foreign-coop-count">中外详情 ${count}</span>`:'';}
+function foreignCoopCountBadgeHTML(s,g){
+  const count=foreignCoopCountForGroup(g);
+  if(!count)return '';
+  const first=(g?.majors||[]).find(hasForeignCoopDetail);
+  const detailAttrs=first?`data-major-detail="${esc(keyMajor(first))}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(keyGroup(s,g))}"`:'';
+  return `<button class="tag green foreign-coop-count" type="button" ${detailAttrs}>中外详情 ${count}</button>`;
+}
 function foreignCoopSchoolAlertHTML(groups){
   const count=foreignCoopCountForGroups(groups);
   if(!count)return '';
@@ -1705,13 +1715,13 @@ function groupCardHTML(s,g){
   const topTags=[...(g.tags||[]).slice(0,3),...(g.majorClasses||[]).slice(0,3)];
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${foreignCoopCountBadgeHTML(g)}${groupMedicalBadge(g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
+  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${foreignCoopCountBadgeHTML(s,g)}${groupMedicalBadge(g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${foreignCoopCountBadgeHTML(g)}${groupMedicalBadge(g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${foreignCoopCountBadgeHTML(s,g)}${groupMedicalBadge(g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?`<br><span class="muted">${m.avgYears}年均值</span>`:'';
@@ -1725,8 +1735,9 @@ function majorRowHTML(s,g,m){
   const disabled=(physical.blocked||subjectBlock)?' disabled':'';
   const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
   const coopDetail=foreignCoopDetailForMajor(m);
-  const coopBadge=coopDetail?'<span class="tag green foreign-coop-major-badge">中外合作详情已收录</span>':'';
-  const coopDetailButton=coopDetail?`<button class="anno-mini foreign-coop-detail-btn" data-major-detail="${esc(keyMajor(m))}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">中外合作详情</button>`:'';
+  const coopDetailAttrs=coopDetail?`data-major-detail="${esc(keyMajor(m))}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}"`:'';
+  const coopBadge=coopDetail?`<button class="tag green foreign-coop-major-badge" type="button" ${coopDetailAttrs}>中外合作详情已收录</button>`:'';
+  const coopDetailButton=coopDetail?`<button class="anno-mini foreign-coop-detail-btn" type="button" ${coopDetailAttrs}>中外合作详情</button>`:'';
   return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${coopBadge}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${coopDetailButton}<button class="anno-mini major-detail-mini" data-major-detail="${esc(keyMajor(m))}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">专业基本信息</button><button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
@@ -1745,12 +1756,20 @@ function bindMajorDetailButtons(){
   $$('[data-major-detail]').forEach(btn=>{
     if(btn.dataset.boundMajorDetail==='1')return;
     btn.dataset.boundMajorDetail='1';
-    btn.addEventListener('click',e=>{
-      e.preventDefault();
-      e.stopPropagation();
-      showDetail(btn.dataset.majorDetail,btn.dataset.schoolKey,btn.dataset.groupKey);
-    });
+    btn.addEventListener('click',e=>openMajorDetailFromButton(btn,e));
   });
+}
+function openMajorDetailFromButton(btn,e){
+  if(e){
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  try{
+    showDetail(btn.dataset.majorDetail,btn.dataset.schoolKey,btn.dataset.groupKey);
+  }catch(err){
+    console.error('打开专业详情失败',err);
+    alert('专业详情打开失败，请刷新后重试。');
+  }
 }
 function bindNoteHoverAndContext(){
   $$('[data-note-scope]').forEach(el=>{
