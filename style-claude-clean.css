@@ -1012,3 +1012,138 @@ body.compact-mode .stage-switch a.active{
 .pill.green{
   color:#087342!important;
 }
+
+/*
+  Background theme tokens. Default is eye-protection; users can switch in-page.
+*/
+:root,
+body[data-bg-theme="eye"]{
+  --page-bg:
+    radial-gradient(circle at 10% 12%,rgba(255,255,255,.88),transparent 24%),
+    radial-gradient(circle at 16% 82%,rgba(196,229,204,.46),transparent 32%),
+    radial-gradient(circle at 82% 76%,rgba(226,212,174,.30),transparent 34%),
+    linear-gradient(180deg,#dbeadf 0%,#edf4e9 48%,#f3ead8 100%);
+  --page-orb:
+    radial-gradient(circle at 35% 38%,rgba(255,255,255,.66) 0 10%,transparent 11%),
+    radial-gradient(circle at 52% 54%,rgba(255,255,255,.28) 0 19%,transparent 20%),
+    radial-gradient(circle at 56% 56%,rgba(117,176,139,.34),rgba(215,202,161,.18) 52%,transparent 70%);
+  --surface-tint:rgba(255,255,255,.86);
+}
+
+body[data-bg-theme="paper"]{
+  --page-bg:
+    radial-gradient(circle at 8% 10%,rgba(255,255,255,.82),transparent 24%),
+    radial-gradient(circle at 18% 80%,rgba(230,207,166,.42),transparent 32%),
+    radial-gradient(circle at 82% 80%,rgba(210,172,122,.28),transparent 34%),
+    linear-gradient(180deg,#efe5d2 0%,#f8f0df 52%,#ead8bc 100%);
+  --page-orb:
+    radial-gradient(circle at 35% 38%,rgba(255,255,255,.62) 0 10%,transparent 11%),
+    radial-gradient(circle at 52% 54%,rgba(255,255,255,.24) 0 19%,transparent 20%),
+    radial-gradient(circle at 56% 56%,rgba(187,145,82,.30),rgba(224,199,154,.18) 52%,transparent 70%);
+  --surface-tint:rgba(255,252,245,.88);
+}
+
+body[data-bg-theme="glass"]{
+  --page-bg:
+    radial-gradient(circle at 9% 12%,rgba(255,255,255,.88),transparent 24%),
+    radial-gradient(circle at 15% 80%,rgba(180,205,237,.36),transparent 34%),
+    radial-gradient(circle at 78% 82%,rgba(235,207,214,.28),transparent 34%),
+    linear-gradient(180deg,#d9e7f7 0%,#eef3f8 50%,#f4e7ea 100%);
+  --page-orb:
+    radial-gradient(circle at 35% 38%,rgba(255,255,255,.66) 0 10%,transparent 11%),
+    radial-gradient(circle at 52% 54%,rgba(255,255,255,.28) 0 19%,transparent 20%),
+    radial-gradient(circle at 56% 56%,rgba(88,137,194,.24),rgba(212,154,173,.16) 52%,transparent 70%);
+  --surface-tint:rgba(255,255,255,.86);
+}
+
+body[data-bg-theme="warm"]{
+  --page-bg:
+    radial-gradient(circle at 9% 12%,rgba(255,255,255,.86),transparent 24%),
+    radial-gradient(circle at 15% 80%,rgba(226,145,132,.34),transparent 34%),
+    radial-gradient(circle at 78% 82%,rgba(228,164,101,.26),transparent 34%),
+    linear-gradient(180deg,#e7edf4 0%,#f7e6dc 54%,#edc6a7 100%);
+  --page-orb:
+    radial-gradient(circle at 35% 38%,rgba(255,255,255,.64) 0 10%,transparent 11%),
+    radial-gradient(circle at 52% 54%,rgba(255,255,255,.26) 0 19%,transparent 20%),
+    radial-gradient(circle at 56% 56%,rgba(198,93,69,.28),rgba(228,164,101,.16) 52%,transparent 70%);
+  --surface-tint:rgba(255,250,244,.88);
+}
+
+body{
+  background:var(--page-bg)!important;
+}
+
+body::after{
+  background:var(--page-orb)!important;
+}
+
+.topbar,
+.nav,
+.sidebar,
+.login-card,
+.system-card,
+.school-header,
+.group-section,
+.group-card,
+.metric,
+.modal,
+#modal,
+.note-panel,
+.student-card,
+.rank-card,
+.preview-board,
+.list-panel,
+.viewer,
+.upload-row,
+.module-card,
+.school-item,
+.panel,
+.volunteer-panel,
+.annotation-drawer,
+.student-shell,
+.admin-menu{
+  background:var(--surface-tint)!important;
+}
+
+.theme-switcher{
+  position:fixed!important;
+  right:22px!important;
+  bottom:22px!important;
+  z-index:80!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-height:42px!important;
+  padding:7px 10px 7px 13px!important;
+  border:1px solid rgba(255,255,255,.78)!important;
+  border-radius:999px!important;
+  background:rgba(255,255,255,.78)!important;
+  backdrop-filter:blur(18px) saturate(140%)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(140%)!important;
+  box-shadow:0 14px 34px rgba(15,23,42,.12)!important;
+  color:var(--text-primary)!important;
+  font-size:12px!important;
+  font-weight:900!important;
+}
+
+.theme-switcher select{
+  min-height:30px!important;
+  height:30px!important;
+  padding:0 28px 0 10px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(148,163,184,.28)!important;
+  background:rgba(255,255,255,.86)!important;
+  color:var(--text-primary)!important;
+  box-shadow:none!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+
+@media(max-width:760px){
+  .theme-switcher{
+    right:12px!important;
+    bottom:12px!important;
+    transform:scale(.92)!important;
+    transform-origin:right bottom!important;
+  }
+}
