@@ -1744,6 +1744,79 @@ function infoSectionHTML(title,pairs,extraClass=''){
   if(!body)return '';
   return `<section class="info-section ${extraClass}"><h4>${esc(title)}</h4><dl class="kv info-kv">${body}</dl></section>`;
 }
+function normSchoolName(name){return String(name||'').replace(/[（）()\s]/g,'').replace(/学院$/,'').replace(/大学$/,'').toLowerCase();}
+function parentSchoolRows(){return window.JIANGSU_COLLEGE_PARENT_CLEAN_DATA?.schools||[];}
+function parentSchoolInfo(name){
+  const target=normSchoolName(name);
+  if(!target)return null;
+  const rows=parentSchoolRows();
+  return rows.find(x=>normSchoolName(x.name)===target)||rows.find(x=>{
+    const n=normSchoolName(x.name);
+    return n&&target&&(n.includes(target)||target.includes(n));
+  })||null;
+}
+function mapSearchUrls(name,address,city){
+  const keyword=[name,address||city].filter(Boolean).join(' ');
+  const q=encodeURIComponent(keyword);
+  return {
+    amap:`https://uri.amap.com/search?keyword=${q}`,
+    baidu:`https://map.baidu.com/search/${q}`,
+    tencent:`https://apis.map.qq.com/uri/v1/search?keyword=${q}`
+  };
+}
+function linkActionsHTML(links){
+  return `<div class="location-actions">${links.map(x=>`<a href="${esc(x.href)}" target="_blank" rel="noreferrer">${esc(x.label)}</a>`).join('')}</div>`;
+}
+function parentKV(title,pairs){
+  return infoSectionHTML(title,pairs,'parent-info-section');
+}
+function parentSchoolInfoHTML(name,fallback={}){
+  const info=parentSchoolInfo(name);
+  const basic=info?.basicInfo||{};
+  const address=basic.address||fallback.address||'';
+  const urls=mapSearchUrls(name,address,fallback.city);
+  const mapLinks=linkActionsHTML([
+    {label:'高德地图',href:urls.amap},
+    {label:'百度地图',href:urls.baidu},
+    {label:'腾讯地图',href:urls.tencent}
+  ]);
+  if(!info){
+    const fallbackPairs=[
+      ['院校名称',name],
+      ['所在城市',fallback.city],
+      ['院校层次',fallback.level||fallback.schoolLevel],
+      ['公私性质',fallback.publicPrivate],
+      ['地址',address]
+    ];
+    return `<section class="info-section parent-info-section"><h4>位置与家长端信息</h4><div class="parent-school-card"><p class="muted">家长端信息库暂未匹配到该校，已保留招生库基础信息和地图检索入口。地图按“院校名 + 城市/地址”搜索，不使用未核验坐标。</p><dl class="kv info-kv">${fallbackPairs.map(infoPairHTML).join('')}</dl>${mapLinks}</div></section>`;
+  }
+  const evalInfo=info.evaluation||{};
+  const dorm=info.dormitory||{};
+  const net=info.networkAndElectricity||{};
+  const daily=info.dailyManagement||{};
+  const life=info.campusLife||{};
+  const notes=Array.isArray(evalInfo.attentionNotes)&&evalInfo.attentionNotes.length?`<ul class="parent-note-list">${evalInfo.attentionNotes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:'';
+  return `<section class="info-section parent-info-section"><h4>位置与家长端信息</h4><div class="parent-school-card"><p>${esc(basic.overview||'')}</p><dl class="kv info-kv">${[
+    ['地址',address],
+    ['办学层次',info.educationLevel],
+    ['办学性质',info.ownership],
+    ['城市层级',info.cityLevel],
+    ['学校方向',evalInfo.schoolOrientation],
+    ['住宿判断',evalInfo.dormitoryLevel],
+    ['交通便利度',evalInfo.transportLevel],
+    ['管理强度',evalInfo.managementLevel]
+  ].map(infoPairHTML).join('')}</dl>${mapLinks}</div></section>${parentKV('住宿条件',[
+    ['床桌情况',dorm.bunkDesk],['宿舍人数',dorm.roomCapacity],['宿舍空调',dorm.dormAirConditioning],['教室空调',dorm.classroomAirConditioning],['独立卫浴',dorm.privateBathroom],['热水时间',dorm.hotWaterTime],['洗衣机',dorm.washingMachine],['通宵自习室',dorm.studyRoomOvernight]
+  ])}${parentKV('网络与用电',[
+    ['功率限制',net.powerLimit],['夜间断电',net.nightPowerOff],['夜间断网',net.nightNetworkOff],['校园网速度',net.campusNetworkSpeed],['校园网价格',net.campusNetworkPrice]
+  ])}${parentKV('日常管理',[
+    ['新生带电脑',daily.freshmanCanBringComputer],['查寝',daily.dormCheck],['门禁时间',daily.curfewTime],['早晚自习',daily.morningEveningStudy],['晨跑',daily.morningRun],['跑步打卡',daily.runningCheckIn]
+  ])}${parentKV('交通与生活',[
+    ['地铁',life.metro],['到市中心',life.distanceToDowntown],['交通便利度',life.transportConvenience],['外卖',life.takeout],['食堂价格',life.canteenPrice],['超市价格',life.supermarketPrice],['快递',life.parcelService],['共享单车',life.sharedBike]
+  ])}${parentKV('综合评价',[
+    ['适合学生',evalInfo.suitableFor]
+  ])}${notes?`<section class="info-section parent-info-section"><h4>注意事项</h4>${notes}</section>`:''}`;
+}
 function findSchoolByKey(key){return DB.find(s=>keySchool(s)===key)||state.filtered.find(s=>keySchool(s)===key)||null;}
 function representativeDetailForSchool(s){
   for(const g of (s?.groups||[])){
@@ -1802,7 +1875,7 @@ function bindSchoolInfoButtons(){
 function showSchoolInfo(s){
   const d=representativeDetailForSchool(s);
   const subtitle=[s.province,s.city,s.subject,s.batch].filter(Boolean).join('｜');
-  $('#modal').innerHTML=`<h3>${esc(s.name)}｜院校基础信息</h3><div class="modal-body"><div class="info-subtitle">${esc(subtitle)}｜本弹层只放学校层面的信息。</div>${infoSectionHTML('院校基础信息',schoolInfoPairs(s,d),'school-info-section')}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+  $('#modal').innerHTML=`<h3>${esc(s.name)}｜院校基础信息</h3><div class="modal-body"><div class="info-subtitle">${esc(subtitle)}｜本弹层只放学校层面的信息。</div>${infoSectionHTML('院校基础信息',schoolInfoPairs(s,d),'school-info-section')}${parentSchoolInfoHTML(s.name,{city:s.city,address:d.address,level:s.level,schoolLevel:d.schoolLevel,publicPrivate:d.publicPrivate})}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
   openModal();
 }
 function fallbackMajorDetail(ctx,schoolKey,groupKey){
@@ -1842,7 +1915,7 @@ function showDetail(key,schoolKey,groupKey){
   const majorNote=notes.majors[key]||'';
   const heading=d.name||ctx?.m?.name||'专业信息';
   const riskSection=ctx?infoSectionHTML('专业风险与梯队提示',majorRiskDetailPairs(ctx.s,ctx.g,ctx.m),'major-risk-info-section'):'';
-  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">点击专业名称查看硕博点、学科评估、软科评级、招生录取数据与风险提示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">点击专业名称查看硕博点、学科评估、软科评级、招生录取数据与风险提示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${parentSchoolInfoHTML(d.school||ctx?.s?.name,{city:d.city||ctx?.s?.city,address:d.address,level:ctx?.s?.level,schoolLevel:d.schoolLevel,publicPrivate:d.publicPrivate})}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
   openModal();
 }
 function noteBlock(title,text){return text?`<section class="metric" style="margin-top:12px"><b style="font-size:14px">${esc(title)}</b><span style="white-space:pre-wrap;color:#33443a">${esc(text)}</span></section>`:'';}
