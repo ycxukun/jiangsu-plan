@@ -371,3 +371,7 @@ body.header-collapsed .sidebar{top:112px!important;}
   .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
   .group-cards{grid-template-columns:1fr!important;}
 }
+
+/* V1.1.67 retry: make loaded state unambiguous */
+.version::after{content:" · UI";font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif!important;font-size:11px!important;color:#9b4e3d!important;}
+.brand h1::first-letter{color:#d77a5f!important;}

@@ -1,0 +1,266 @@
+/*
+  好生涯 · Claude-like Typography System r1
+  目标：统一全站字体规范。参考 Claude/Anthropic 的“编辑出版物 + 克制 UI”气质：
+  - 页面标题、院校标题、专业组标题、长文内容：衬线字体；
+  - 按钮、筛选、胶囊标签、表头、数字辅助信息：克制无衬线；
+  - 所有数字使用 tabular-nums，表格更整齐；
+  - 不内置、不分发任何第三方商业字体，只使用系统字体栈模拟。
+*/
+:root{
+  --claude-serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,"Times New Roman","Songti SC","STSong","Noto Serif CJK SC",serif;
+  --claude-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --claude-mono:"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+  --claude-letter-tight:-0.045em;
+  --claude-letter-normal:-0.012em;
+  --claude-line:1.58;
+}
+
+html,
+body{
+  font-family:var(--claude-serif)!important;
+  font-variant-numeric:tabular-nums!important;
+  -webkit-font-smoothing:antialiased!important;
+  text-rendering:optimizeLegibility!important;
+}
+
+/* 文字主体：统一为 Claude 式衬线阅读感 */
+p,
+li,
+dl,
+dt,
+dd,
+blockquote,
+.article-body,
+.article-content,
+.markdown,
+.modal-body,
+.panel-body,
+.viewer,
+.viewer-body,
+.school-header,
+.school-item,
+.school-item .name,
+.school-item .meta,
+.school-title,
+.group-card,
+.group-section,
+.group-head,
+.group-head p,
+.major-name,
+.kv,
+.metric,
+.mini,
+.empty,
+.notice,
+.context-hint,
+.file-note,
+.status,
+.upload-panel,
+.module-card,
+.article-card,
+.student-context-bar,
+.side-head,
+.footer{
+  font-family:var(--claude-serif)!important;
+  letter-spacing:var(--claude-letter-normal)!important;
+  line-height:var(--claude-line)!important;
+}
+
+/* 标题系统：出版物标题，不再混用原绿色系统字体 */
+h1,h2,h3,h4,h5,h6,
+.brand h1,
+.school-title h2,
+.group-card h3,
+.group-head h3,
+.panel-head h3,
+.modal h3,
+.upload-panel h2,
+.landing .panel h2,
+.viewer-head h3,
+.article-card h3,
+.annotation-head h3,
+.side-head strong,
+.module-card h3,
+.current-title,
+.page-title{
+  font-family:var(--claude-serif)!important;
+  font-weight:760!important;
+  letter-spacing:var(--claude-letter-tight)!important;
+  line-height:1.08!important;
+  color:#17130f!important;
+}
+
+.brand h1{
+  font-size:clamp(30px,2.2vw,42px)!important;
+}
+.school-title h2{
+  font-size:clamp(30px,2.05vw,40px)!important;
+}
+.group-head h3,
+.group-card h3{
+  font-size:20px!important;
+}
+
+/* UI 控件：保留 Claude 顶部导航那种克制无衬线 */
+button,
+input,
+select,
+textarea,
+label,
+option,
+.header-toggle,
+.stage-switch,
+.version,
+.top-actions,
+.filters,
+.filters select,
+.filters input,
+.filters button,
+.filter-btn,
+.tag,
+.badge,
+.pill,
+.note-badge,
+.class-chip,
+.score-pill,
+.change-pill,
+.detail-btn,
+.change-btn,
+.anno-btn,
+.anno-mini,
+.volunteer-add-btn,
+.modal-actions button,
+.back-top,
+.backtop,
+[data-backtop],
+.admin-menu,
+.admin-menu button,
+.admin-dock button,
+.progress,
+.range-summary,
+.selected-major-item,
+.major-check,
+.risk-label{
+  font-family:var(--claude-sans)!important;
+  letter-spacing:-0.018em!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
+/* 表格：全文统一，但表头/数字区保持规整 */
+table,
+tbody,
+tr,
+td,
+.table-wrap{
+  font-family:var(--claude-serif)!important;
+  letter-spacing:-0.01em!important;
+  font-variant-numeric:tabular-nums!important;
+}
+th,
+thead,
+.table-head,
+td small,
+td .muted,
+.major-code,
+.score-cell,
+.rank-cell,
+.plan-cell{
+  font-family:var(--claude-sans)!important;
+  letter-spacing:-0.015em!important;
+  font-variant-numeric:tabular-nums!important;
+}
+th{
+  font-weight:820!important;
+  text-transform:none!important;
+}
+td{
+  line-height:1.56!important;
+}
+.major-name,
+.clickable-row .major-name{
+  font-family:var(--claude-serif)!important;
+  font-weight:760!important;
+  color:#17130f!important;
+}
+
+/* 数字和指标：统一为规整的 UI 数字 */
+.metric b,
+.mini b,
+.score,
+.score-pill,
+.rank,
+.plan,
+.change-pos,
+.change-neg,
+.version,
+.student-toggle,
+.account-toggle,
+.volunteer-toggle{
+  font-family:var(--claude-sans)!important;
+  font-variant-numeric:tabular-nums!important;
+  letter-spacing:-0.035em!important;
+}
+.metric b,
+.mini b{
+  font-weight:880!important;
+}
+
+/* 中文长文本：更接近 Claude 中文截图里的阅读行距 */
+.brand p,
+.group-head p,
+.upload-panel p,
+.module-card p,
+.article-card p,
+.viewer p,
+.modal-body p,
+.panel-body p,
+.notice,
+.context-hint{
+  line-height:1.78!important;
+}
+
+/* 强化版已加载标识：避免再出现“我看不出有没有更新”的情况 */
+.version::after{
+  content:" · TYPO"!important;
+  font-family:var(--claude-sans)!important;
+  margin-left:2px!important;
+  color:#9b4e3d!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  letter-spacing:-0.02em!important;
+}
+.brand h1::after{
+  content:"";
+  display:inline-block;
+  width:.42em;
+  height:.42em;
+  margin-left:.18em;
+  border-radius:50%;
+  background:#d77a5f;
+  vertical-align:.05em;
+  opacity:.9;
+}
+
+/* 输入框 placeholder 和系统小字，避免宋体/微软雅黑残留 */
+::placeholder,
+::-webkit-input-placeholder{
+  font-family:var(--claude-sans)!important;
+  color:#9c9184!important;
+}
+small,
+.muted,
+.meta,
+.help,
+.hint{
+  font-family:var(--claude-sans)!important;
+  letter-spacing:-0.012em!important;
+}
+
+/* 代码/路径/文件名 */
+code,
+pre,
+.file-name,
+.file-path{
+  font-family:var(--claude-mono)!important;
+  font-variant-numeric:tabular-nums!important;
+}
