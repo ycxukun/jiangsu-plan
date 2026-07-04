@@ -1,0 +1,365 @@
+/*
+ * Student Account Hub
+ * 顶部学生账号中心聚合样式
+ */
+.student-hub-source-hidden{
+  display:none!important;
+}
+
+.student-account-hub{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  flex:0 1 auto;
+  min-width:280px;
+  max-width:min(560px,42vw);
+  z-index:160;
+}
+
+.student-account-trigger{
+  width:100%;
+  min-height:46px;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) 18px;
+  align-items:center;
+  gap:10px;
+  border:1px solid var(--line,#e1d3c1);
+  border-radius:999px;
+  background:linear-gradient(135deg,#fffaf2,#fbf7ef);
+  color:var(--ink,#1b1712);
+  padding:6px 12px 6px 8px;
+  box-shadow:0 8px 24px rgba(62,40,23,.08);
+  cursor:pointer;
+  text-align:left;
+}
+
+.student-account-trigger:hover,
+.student-account-trigger.active{
+  border-color:#d7b99f;
+  background:linear-gradient(135deg,#fffaf2,#f6eadc);
+  box-shadow:0 14px 36px rgba(62,40,23,.14);
+}
+
+.student-avatar-badge{
+  width:34px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:linear-gradient(145deg,#0a7c42,#17a866);
+  color:#fff;
+  font-weight:1000;
+  font-size:15px;
+  box-shadow:0 8px 18px rgba(10,124,66,.20);
+}
+
+.student-avatar-badge.empty{
+  background:linear-gradient(145deg,#d79b4b,#f3b34e);
+}
+
+.student-account-text{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+
+.student-account-text b{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#1b1712;
+  font-size:14px;
+  font-weight:1000;
+  line-height:1.15;
+}
+
+.student-account-text small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#71665b;
+  font-size:11px;
+  line-height:1.15;
+  font-weight:800;
+}
+
+.student-account-arrow{
+  color:#806f5f;
+  font-weight:1000;
+  transform:translateY(-1px);
+}
+
+.student-account-trigger.active .student-account-arrow{
+  transform:rotate(180deg);
+}
+
+.student-hover-card{
+  position:absolute;
+  top:calc(100% + 10px);
+  right:0;
+  width:360px;
+  border:1px solid rgba(126,83,51,.18);
+  border-radius:20px;
+  background:#fff;
+  box-shadow:0 22px 60px rgba(31,23,17,.18);
+  padding:14px;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transform:translateY(-4px);
+  transition:opacity .14s ease,transform .14s ease,visibility .14s ease;
+}
+
+.student-account-hub:hover .student-hover-card{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0);
+}
+
+.student-account-menu-open .student-account-hub:hover .student-hover-card{
+  opacity:0;
+  visibility:hidden;
+}
+
+.student-hover-profile{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  padding:6px 4px 12px;
+  border-bottom:1px solid #eee6dc;
+}
+
+.student-hover-avatar,
+.student-menu-avatar{
+  width:56px;
+  height:56px;
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:linear-gradient(145deg,#e7f4ed,#cbe8d7);
+  color:#0a7c42;
+  font-size:22px;
+  font-weight:1000;
+  border:1px solid #b7dfc6;
+}
+
+.student-hover-profile b{
+  display:block;
+  color:#1b1712;
+  font-size:20px;
+  line-height:1.2;
+  margin-bottom:3px;
+}
+
+.student-hover-profile span{
+  display:block;
+  color:#8a8178;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.student-hover-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+
+.student-hover-grid div{
+  border:1px solid #eadfD3;
+  border-radius:13px;
+  background:#fffaf2;
+  padding:9px 10px;
+  min-width:0;
+}
+
+.student-hover-grid b{
+  display:block;
+  color:#7a6b5c;
+  font-size:11px;
+  margin-bottom:4px;
+}
+
+.student-hover-grid span{
+  display:block;
+  color:#1f1711;
+  font-size:13px;
+  font-weight:900;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.student-account-menu{
+  position:absolute;
+  top:calc(100% + 10px);
+  right:0;
+  width:380px;
+  max-width:calc(100vw - 24px);
+  border:1px solid rgba(126,83,51,.18);
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 26px 72px rgba(31,23,17,.22);
+  overflow:hidden;
+  z-index:180;
+}
+
+.student-menu-profile{
+  position:relative;
+  display:grid;
+  grid-template-columns:56px minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+  padding:18px 18px 14px;
+  background:linear-gradient(180deg,#fffaf2,#ffffff);
+  border-bottom:1px solid #eee6dc;
+}
+
+.student-menu-name{
+  min-width:0;
+}
+
+.student-menu-name b{
+  display:block;
+  color:#1b1712;
+  font-size:21px;
+  line-height:1.2;
+  margin-bottom:4px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.student-menu-name span{
+  display:block;
+  color:#8a8178;
+  font-size:12px;
+  line-height:1.55;
+}
+
+.student-menu-edit{
+  border:0;
+  background:transparent;
+  color:#0a7c42;
+  font-weight:1000;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.student-menu-card{
+  margin:12px 14px;
+  border:1px solid #f0d7ad;
+  border-radius:14px;
+  background:#fff1ce;
+  color:#6d4c20;
+  padding:11px 12px;
+  display:grid;
+  gap:3px;
+}
+
+.student-menu-card b{
+  font-size:12px;
+}
+
+.student-menu-card span{
+  font-size:13px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.student-menu-list{
+  display:grid;
+  gap:0;
+  padding:0 14px 14px;
+}
+
+.student-menu-item{
+  width:100%;
+  min-height:54px;
+  display:grid;
+  grid-template-columns:1fr;
+  gap:3px;
+  justify-items:start;
+  border:0;
+  border-bottom:1px solid #eee6dc;
+  background:#fff;
+  color:#26211d;
+  padding:11px 6px;
+  text-align:left;
+  cursor:pointer;
+}
+
+.student-menu-item:last-child{
+  border-bottom:0;
+}
+
+.student-menu-item:hover{
+  background:#fbf7ef;
+}
+
+.student-menu-item span{
+  font-size:15px;
+  font-weight:1000;
+}
+
+.student-menu-item small{
+  color:#82776c;
+  font-size:12px;
+  line-height:1.35;
+}
+
+.student-menu-item.primary{
+  border:1px solid #b7dfc6;
+  border-radius:14px;
+  background:#f0faf4;
+  color:#0a7c42;
+  padding:14px;
+  margin-top:12px;
+}
+
+.student-menu-item.danger span{
+  color:#b42318;
+}
+
+.student-menu-item.danger:hover{
+  background:#fff7f7;
+}
+
+.student-menu-item.disabled{
+  cursor:not-allowed;
+  opacity:.55;
+  background:#fafafa;
+}
+
+@media(max-width:1100px){
+  .student-account-hub{
+    min-width:240px;
+    max-width:100%;
+  }
+}
+
+@media(max-width:760px){
+  .student-account-hub{
+    width:100%;
+    min-width:100%;
+    order:10;
+  }
+
+  .student-account-trigger{
+    border-radius:18px;
+  }
+
+  .student-hover-card{
+    display:none;
+  }
+
+  .student-account-menu{
+    left:0;
+    right:auto;
+    width:calc(100vw - 24px);
+  }
+}
