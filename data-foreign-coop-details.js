@@ -4,5 +4,5 @@ window.FOREIGN_COOP_DETAILS_BY_MAJOR_KEY={"m_210307_31":{"foreignCoop":true,"for
 window.MAJOR_DETAILS=Object.assign({},window.MAJOR_DETAILS||{},window.FOREIGN_COOP_DETAILS_BY_MAJOR_KEY||{});
 
 
-window.FOREIGN_COOP_DETAILS_VERSION='20260703-r2-visible';
+window.FOREIGN_COOP_DETAILS_VERSION='20260704-coop-hardfix-r1';
 window.FOREIGN_COOP_DETAILS_COUNT=Object.keys(window.FOREIGN_COOP_DETAILS_BY_MAJOR_KEY||{}).length;

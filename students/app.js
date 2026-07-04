@@ -5,6 +5,7 @@ const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const AUTH_STORAGE_KEY='js-plan-auth-v1';
 const CURRENT_STUDENT_STORAGE_KEY='js-plan-current-student-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
+const STUDENT_CACHE_STORAGE_KEY='js-plan-student-cache-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
 
 const MEDICAL_CODE_META={
@@ -22,6 +23,7 @@ let currentStudent=null;
 let query='';
 let stageFilter='';
 let subjectFilter='';
+let readonlyNotice='';
 function params(){return new URLSearchParams(location.search);}
 function defaultStage(){return params().get('from')==='specialty'?'specialty':'undergraduate';}
 function stageLabel(v){return v==='specialty'?'专科':'本科';}
@@ -31,7 +33,17 @@ function subjectTypeValue(v){return v==='history'||v==='历史'?'history':'physi
 function storageJSON(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){return fallback;}}
 function loadSavedAuth(){const data=storageJSON(AUTH_STORAGE_KEY,{}); if(data?.accessToken&&data?.user)auth={accessToken:data.accessToken,refreshToken:data.refreshToken||'',user:data.user};}
 function saveAuth(){try{localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify({accessToken:auth.accessToken||'',refreshToken:auth.refreshToken||'',user:auth.user||null}));}catch(e){}}
-function clearAuth(){try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(e){} auth={accessToken:'',refreshToken:'',user:null};}
+function clearAuth(keepUser=false){const user=keepUser?auth.user:null;try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(e){} auth={accessToken:'',refreshToken:'',user};}
+function authCacheId(user=auth.user){return user?.id||user?.email||'guest';}
+function studentCacheKey(user=auth.user){return `${STUDENT_CACHE_STORAGE_KEY}:${authCacheId(user)}`;}
+function saveStudentCache(){
+  if(!auth.user)return;
+  try{localStorage.setItem(studentCacheKey(),JSON.stringify({students,forms,saved_at:new Date().toISOString(),user:auth.user}));}catch(e){}
+}
+function loadStudentCache(user=auth.user){
+  const data=storageJSON(studentCacheKey(user),null);
+  return data&&Array.isArray(data.students)&&Array.isArray(data.forms)?data:null;
+}
 function decodeJwtPayload(token){try{const part=String(token||'').split('.')[1]; if(!part)return null; const json=atob(part.replace(/-/g,'+').replace(/_/g,'/')); return JSON.parse(decodeURIComponent(Array.from(json).map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join('')));}catch(e){return null;}}
 function tokenExpiresSoon(token){const payload=decodeJwtPayload(token); if(!payload?.exp)return true; return payload.exp*1000-Date.now()<120000;}
 function isJwtExpiredErrorText(text){return /JWT expired|exp.*claim|timestamp check failed|invalid jwt|unauthorized/i.test(String(text||''));}
@@ -44,7 +56,7 @@ async function refreshSessionIfNeeded(force=false){
     headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
     body:JSON.stringify({refresh_token:auth.refreshToken})
   });
-  if(!res.ok){clearAuth();throw new Error('登录状态已过期，请返回首页重新登录。');}
+  if(!res.ok){clearAuth(true);throw new Error('登录状态已过期，请返回首页重新登录。');}
   const data=await res.json();
   auth={accessToken:data.access_token||'',refreshToken:data.refresh_token||auth.refreshToken,user:data.user||auth.user};
   saveAuth();
@@ -158,7 +170,9 @@ async function fetchAll(){
     return;
   }
   $('#studentList').innerHTML='<div class="empty">正在读取学生档案...</div>';
+  const userBeforeRequest=auth.user;
   try{
+    readonlyNotice='';
     const results=await Promise.all([
       apiFetch('students?select=*&archived=eq.false&order=updated_at.desc'),
       apiFetch('volunteer_forms?select=id,student_id,title,status,stage,created_at,updated_at&order=updated_at.desc')
@@ -167,11 +181,23 @@ async function fetchAll(){
     forms=results[1]||[];
     const fresh=students.find(s=>s.id===currentStudent?.id);
     if(fresh){currentStudent={...fresh,subject_choices:studentSubjectChoices(fresh)};saveCurrentStudent(currentStudent);}
+    saveStudentCache();
     render();
   }catch(err){
     const msg=String(err.message||err);
     if(isJwtExpiredErrorText(msg)||/登录状态已过期/.test(msg)){
-      $('#studentList').innerHTML=`<div class="notice">登录状态已过期。请点击右上角返回本科或专科，退出后重新登录，再回到学生档案。</div>`;
+      const cached=loadStudentCache(userBeforeRequest);
+      if(cached){
+        auth.user=userBeforeRequest;
+        students=cached.students||[];
+        forms=cached.forms||[];
+        readonlyNotice=`登录状态已过期，当前显示 ${esc(shortDateTime(cached.saved_at)||'最近一次')} 的本机缓存。请返回本科或专科首页重新登录后再刷新同步。`;
+        render();
+        return;
+      }
+      auth.user=userBeforeRequest;
+      readonlyNotice='登录状态已过期，且本机没有可用学生缓存。请返回本科或专科首页重新登录后再刷新。';
+      render();
       return;
     }
     $('#studentList').innerHTML=`<div class="notice">读取学生失败：${esc(msg)}</div>`;
@@ -218,7 +244,7 @@ function render(){
     $('#studentCount').textContent='0 人';
     return;
   }
-  setLoginNotice('');
+  setLoginNotice(readonlyNotice?`<b>${readonlyNotice}</b>`:'');
   const grouped=formGroups();
   const list=filteredStudents();
   $('#studentCount').textContent=`${list.length} / ${students.length} 人`;

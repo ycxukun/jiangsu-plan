@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='本科版｜V1.1.67 强制暖纸 UI 版';
+const VERSION='本科版｜V1.1.69 阿里云迁移准备版';
 const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const GISCUS_CONFIG={
@@ -1646,10 +1646,18 @@ function schoolSort(a,b){
   const ar=Math.min(...a.visibleGroups.map(g=>g.rank25||1e9)),br=Math.min(...b.visibleGroups.map(g=>g.rank25||1e9)); if(ar!==br)return ar-br;
   return a.name.localeCompare(b.name,'zh-Hans-CN');
 }
+function foreignCoopStore(){return window.FOREIGN_COOP_DETAILS_BY_MAJOR_KEY||{};}
+function foreignCoopDetailByKey(key){
+  if(!key)return null;
+  const byKey=foreignCoopStore();
+  if(byKey[key])return byKey[key];
+  const hit=Object.values(byKey).find(d=>d&&d.foreignCoopMatchedMajorKey===key);
+  return hit||null;
+}
 function foreignCoopDetailForMajor(m){
   if(!m)return null;
-  const byKey=window.FOREIGN_COOP_DETAILS_BY_MAJOR_KEY||{};
-  const detail=byKey[m.key]||(DETAILS&&DETAILS[m.key])||null;
+  DETAILS=window.MAJOR_DETAILS||DETAILS||{};
+  const detail=foreignCoopDetailByKey(m.key)||(DETAILS&&DETAILS[m.key])||null;
   return detail&&detail.foreignCoop?detail:null;
 }
 function hasForeignCoopDetail(m){return Boolean(foreignCoopDetailForMajor(m));}
@@ -1682,9 +1690,10 @@ function majorActionButtonsHTML(s,g,m,coopDetail,groupKey){
   const key=keyMajor(m);
   const buttons=[];
   if(coopDetail){
-    buttons.push(`<button class="anno-mini foreign-coop-detail-btn" data-major-detail="${esc(key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">中外详情</button>`);
+    buttons.push(`<button class="anno-mini foreign-coop-detail-btn" data-major-detail="${esc(key)}" data-detail-mode="foreign-coop" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">中外合作详情</button>`);
+  }else{
+    buttons.push(`<button class="anno-mini major-detail-mini" data-major-detail="${esc(key)}" data-detail-mode="major" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">专业信息</button>`);
   }
-  buttons.push(`<button class="anno-mini major-detail-mini" data-major-detail="${esc(key)}" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">专业信息</button>`);
   buttons.push(`<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(key)}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button>`);
   return `<div class="major-actions-clean">${buttons.join('')}</div>`;
 }
@@ -1780,7 +1789,7 @@ function bindMajorDetailButtons(){
     btn.addEventListener('click',e=>{
       e.preventDefault();
       e.stopPropagation();
-      showDetail(btn.dataset.majorDetail,btn.dataset.schoolKey,btn.dataset.groupKey);
+      showDetail(btn.dataset.majorDetail,btn.dataset.schoolKey,btn.dataset.groupKey,btn.dataset.detailMode||'major');
     });
   });
 }
@@ -1853,6 +1862,32 @@ function foreignCoopInfoPairs(d={}){return [
   ['资料来源',d.foreignCoopSourceSheet?`${d.foreignCoopSourceSheet} 表第 ${d.foreignCoopSourceRow} 行`:''],
   ['多来源提示',d.foreignCoopMultipleSources]
 ];}
+function foreignCoopConcisePairs(d={}){return [
+  ['合作院校',d.foreignCoopPartner],
+  ['学制/出国模式',d.foreignCoopDurationAbroad],
+  ['是否必须出国',d.foreignCoopMustAbroad],
+  ['学费',d.foreignCoopTuition],
+  ['招生人数',d.foreignCoopEnrollment],
+  ['分流情况',d.foreignCoopStreaming],
+  ['转专业',d.foreignCoopTransfer],
+  ['证书',d.foreignCoopCertificate],
+  ['学信网/学位证标注',d.foreignCoopDegreeMark],
+  ['办学地点',d.foreignCoopCampus],
+  ['保研率',d.foreignCoopBaoyanRate],
+  ['保研/留学/就业去向',d.foreignCoopOutcome],
+  ['评价',d.foreignCoopEvaluation||d.foreignCoopReviewResult],
+  ['官方证明材料/链接',d.foreignCoopOfficialLinks],
+  ['就读体验链接',d.foreignCoopExperienceLinks],
+  ['其他信息',d.foreignCoopOtherInfo]
+];}
+function foreignCoopGroupDetailSections(ctx,d){
+  const majors=(ctx?.g?.majors||[]).map(m=>({m,d:foreignCoopDetailForMajor(m)})).filter(x=>x.d);
+  const rows=majors.length?majors:[{m:ctx?.m||{},d}];
+  return rows.map(({m,d:detail})=>{
+    const title=m?.name||detail?.majorFullName||detail?.name||'中外合作专业';
+    return infoSectionHTML(title,foreignCoopConcisePairs(detail),'foreign-coop-info-section');
+  }).join('');
+}
 function admissionInfoPairs(d={}){return [
   ['2026计划',d.plan26],['26预估位次',d.predictedRank26],['2025计划',d.plan25],['2025录取人数',d.admit25],['2025最高分',d.max25],['2025最高位次',d.maxRank25],['2025最低分',d.score25],['2025最低位次',d.rank25],['2025旧批次',d.oldBatch25],['2024计划',d.plan24],['2024录取人数',d.admit24],['2024最高分',d.max24],['2024最高位次',d.maxRank24],['2024最低分',d.score24],['2024最低位次',d.rank24],['2024旧批次',d.oldBatch24],['2023计划',d.plan23],['2023录取人数',d.admit23],['2023最高分',d.max23],['2023最高位次',d.maxRank23],['2023最低分',d.score23],['2023最低位次',d.rank23],['2023旧批次',d.oldBatch23],['三年平均分',d.avgScore3],['三年平均位次',d.avgRank3],['均值年份数',d.avgYears]
 ];}
@@ -1922,12 +1957,19 @@ function fallbackMajorDetail(ctx,schoolKey,groupKey){
 }
 function mergedMajorDetail(key,ctx){
   DETAILS=window.MAJOR_DETAILS||DETAILS||{};
-  const coop=(window.FOREIGN_COOP_DETAILS_BY_MAJOR_KEY||{})[key]||{};
+  const coop=foreignCoopDetailByKey(key)||{};
   return Object.assign({}, fallbackMajorDetail(ctx), DETAILS[key]||{}, coop);
 }
-function showDetail(key,schoolKey,groupKey){
+function showDetail(key,schoolKey,groupKey,mode='major'){
   const ctx=findMajorContext(key,groupKey);
   const d=mergedMajorDetail(key,ctx);
+  if(mode==='foreign-coop'){
+    const title=ctx?.g?`${groupDisplayTitleText(ctx.s,ctx.g)}｜中外合作详情`:`${d.name||ctx?.m?.name||'中外合作专业'}｜中外合作详情`;
+    const sections=foreignCoopGroupDetailSections(ctx,d);
+    $('#modal').innerHTML=`<h3>${esc(title)}</h3><div class="modal-body"><div class="info-subtitle">只显示中外合作项目字段；同一专业组内已匹配到的中外合作专业会合并展示。</div>${sections||'<div class="student-empty">当前专业暂未匹配到中外合作详情。</div>'}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+    openModal();
+    return;
+  }
   const schoolNote=notes.schools[schoolKey]||'';
   const groupNote=notes.groups[groupKey]||'';
   const majorNote=notes.majors[key]||'';
@@ -2761,11 +2803,36 @@ function requireLogin(){
 function authHeaders(extra={}){
   return {apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`,'Content-Type':'application/json',...extra};
 }
-async function apiFetch(path,options={}){
+function decodeJwtPayload(token){try{const part=String(token||'').split('.')[1]; if(!part)return null; const json=atob(part.replace(/-/g,'+').replace(/_/g,'/')); return JSON.parse(decodeURIComponent(Array.from(json).map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join('')));}catch(e){return null;}}
+function tokenExpiresSoon(token){const payload=decodeJwtPayload(token); if(!payload?.exp)return true; return payload.exp*1000-Date.now()<120000;}
+function isJwtExpiredErrorText(text){return /JWT expired|exp.*claim|timestamp check failed|invalid jwt|unauthorized|PGRST303/i.test(String(text||''));}
+async function refreshSessionIfNeeded(force=false){
+  if(!auth.accessToken)throw new Error('请先登录');
+  if(!force&&!tokenExpiresSoon(auth.accessToken))return;
+  if(!auth.refreshToken)throw new Error('登录状态已过期，请重新登录。');
+  const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{
+    method:'POST',
+    headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({refresh_token:auth.refreshToken})
+  });
+  if(!res.ok)throw new Error('登录状态已过期，请重新登录。');
+  const data=await res.json();
+  auth={accessToken:data.access_token||'',refreshToken:data.refresh_token||auth.refreshToken,user:data.user||auth.user};
+  saveAuth();
+}
+async function apiFetch(path,options={},retried=false){
   if(!supabaseConfigured())throw new Error('Supabase 配置为空');
   if(!auth.accessToken)throw new Error('请先登录');
+  await refreshSessionIfNeeded();
   const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{...options,headers:authHeaders(options.headers||{})});
-  if(!res.ok)throw new Error(await res.text());
+  if(!res.ok){
+    const text=await res.text();
+    if(!retried&&(res.status===401||res.status===403||isJwtExpiredErrorText(text))){
+      await refreshSessionIfNeeded(true);
+      return apiFetch(path,options,true);
+    }
+    throw new Error(text);
+  }
   if(res.status===204)return null;
   const text=await res.text();
   return text?JSON.parse(text):null;
@@ -3019,7 +3086,12 @@ function renderStudentPanel(){
     bindStudentMedicalPickers();
     bindStudentPanelControls(students||[],forms||[]);
   }).catch(err=>{
-    body.innerHTML=`<div class="account-notice">读取学生失败：${esc(err.message)}</div>`;
+    const msg=String(err.message||err);
+    if(isJwtExpiredErrorText(msg)||/登录状态已过期/.test(msg)){
+      body.innerHTML=`<div class="account-notice"><b>登录状态已过期。</b><br>请点右上角“退出登录”，然后重新登录。重新登录后学生档案和已保存志愿表会恢复同步。</div>`;
+      return;
+    }
+    body.innerHTML=`<div class="account-notice">读取学生失败：${esc(msg)}</div>`;
   });
 }
 function syncCurrentStudentWithList(students){
