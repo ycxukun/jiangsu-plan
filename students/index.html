@@ -56,6 +56,13 @@ h1{margin:0;font-size:24px;letter-spacing:0}
 .form-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #f2f5f3}
 .form-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#33443a}
 .form-row small{display:block;margin-top:2px;color:var(--muted)}
+.form-title-btn{display:block;width:100%;min-width:0;border:0;background:transparent;padding:0;text-align:left;color:#33443a;font-weight:900;line-height:1.35}
+.form-title-btn span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.form-title-btn small{display:block;margin-top:2px;color:var(--muted);font-size:11px;font-weight:700}
+.form-row-actions{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.form-row-actions button{height:28px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:0 9px;color:#24352b;font-size:11px;font-weight:900}
+.form-row-actions button.danger{border-color:#f1c8c2;background:#fff8f7;color:var(--red)}
+.form-row.more span{color:var(--muted);font-size:11px}
 .empty{border:1px dashed #b7dfc6;border-radius:14px;background:#fbfffc;color:var(--muted);padding:18px;text-align:center;line-height:1.7}
 .notice{border:1px solid #fed7aa;border-radius:14px;background:#fff7ed;color:#7c2d12;padding:12px;line-height:1.65}
 .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;padding:20px;z-index:30}
@@ -140,6 +147,6 @@ h1{margin:0;font-size:24px;letter-spacing:0}
   </div>
 </main>
 <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
-<script src="./app.js?v=student-auth-refresh-20260704"></script>
+<script src="./app.js?v=student-form-actions-20260704"></script>
 </body>
 </html>

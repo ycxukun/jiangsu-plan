@@ -4,6 +4,11 @@ const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const AUTH_STORAGE_KEY='js-plan-auth-v1';
 const CURRENT_STUDENT_STORAGE_KEY='js-plan-current-student-v1';
+const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
+const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v2';
+const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
+const VOLUNTEER_EDIT_FORM_STORAGE_KEY='js-plan-volunteer-edit-form-v1';
+const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
 const STUDENT_CACHE_STORAGE_KEY='js-plan-student-cache-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
@@ -64,6 +69,30 @@ async function refreshSessionIfNeeded(force=false){
 function currentStudentStorageKey(){return auth.user?.id?`${CURRENT_STUDENT_STORAGE_KEY}:${auth.user.id}`:CURRENT_STUDENT_STORAGE_KEY;}
 function loadCurrentStudent(){currentStudent=storageJSON(currentStudentStorageKey(),null);}
 function saveCurrentStudent(student){currentStudent=student||null; try{currentStudent?localStorage.setItem(currentStudentStorageKey(),JSON.stringify(currentStudent)):localStorage.removeItem(currentStudentStorageKey());}catch(e){}}
+function volunteerStorageSuffix(student){
+  const base=`${auth.user?.id||'guest'}:${student?.id||'no-student'}`;
+  return stageValue(student?.stage)==='specialty'?`specialty:${base}`:base;
+}
+function scopedVolunteerKeyForStudent(base,student){return `${base}:${volunteerStorageSuffix(student)}`;}
+function saveVolunteerDraftForStudent(student,draft){
+  if(!student||!draft)return;
+  try{
+    localStorage.setItem(scopedVolunteerKeyForStudent(VOLUNTEER_STORAGE_KEY,student),JSON.stringify(draft.volunteerKeys||[]));
+    localStorage.setItem(scopedVolunteerKeyForStudent(VOLUNTEER_MAJOR_STORAGE_KEY,student),JSON.stringify(draft.volunteerMajorKeys||{}));
+    localStorage.setItem(scopedVolunteerKeyForStudent(VOLUNTEER_META_STORAGE_KEY,student),JSON.stringify(draft.volunteerMeta||{}));
+  }catch(e){}
+}
+function saveVolunteerEditFormForStudent(student,form){
+  if(!student||!form?.id)return;
+  try{
+    localStorage.setItem(scopedVolunteerKeyForStudent(VOLUNTEER_EDIT_FORM_STORAGE_KEY,student),JSON.stringify({id:form.id,title:form.title||'',stage:form.stage||student.stage}));
+  }catch(e){}
+}
+function saveMedicalCodesForMain(student,form){
+  const rawCodes=(form?.snapshot||{}).medicalCodes||student?.medical_codes||[];
+  const codes=parseMedicalCodes(Array.isArray(rawCodes)?rawCodes.join(' '):rawCodes);
+  try{localStorage.setItem(MEDICAL_RESTRICTION_STORAGE_KEY,JSON.stringify(codes));}catch(e){}
+}
 function normalizeSubjectChoices(values){
   const alias={'化':'化学','化学':'化学','生':'生物','生物':'生物','政':'政治','政治':'政治','思想政治':'政治','地':'地理','地理':'地理'};
   const raw=Array.isArray(values)?values:String(values||'').split(/[，,、\s/+]+/);
@@ -212,6 +241,57 @@ function formGroups(){
   });
   return map;
 }
+async function fetchVolunteerFormDetail(formId){
+  const rows=await apiFetch(`volunteer_forms?select=*&id=eq.${encodeURIComponent(formId)}&limit=1`);
+  const form=rows?.[0]||forms.find(f=>f.id===formId);
+  if(!form)throw new Error('没有找到这份志愿表。');
+  const groups=await apiFetch(`volunteer_form_groups?select=*&form_id=eq.${encodeURIComponent(form.id)}&order=position.asc`);
+  const ids=(groups||[]).map(g=>g.id).filter(Boolean);
+  const majors=ids.length?await apiFetch(`volunteer_form_majors?select=*&form_group_id=in.(${ids.join(',')})&order=position.asc`):[];
+  return {form,groups:groups||[],majors:majors||[]};
+}
+function volunteerDraftFromDetail(groups,majors){
+  const groupById=new Map(groups.map(g=>[g.id,g]));
+  const volunteerKeys=groups.map(g=>g.group_key).filter(Boolean);
+  const volunteerMeta={};
+  const volunteerMajorKeys={};
+  groups.forEach(g=>{
+    if(!g.group_key)return;
+    volunteerMeta[g.group_key]={strategy:g.strategy==='待定'?'':(g.strategy||''),obey:g.obey_adjustment?'是':'否',note:g.note||''};
+    volunteerMajorKeys[g.group_key]=[];
+  });
+  majors.forEach(m=>{
+    const group=groupById.get(m.form_group_id);
+    if(group?.group_key&&volunteerMajorKeys[group.group_key]&&m.major_key)volunteerMajorKeys[group.group_key].push(m.major_key);
+  });
+  return {volunteerKeys,volunteerMajorKeys,volunteerMeta};
+}
+async function openVolunteerFormForEdit(formId){
+  const summary=forms.find(f=>f.id===formId);
+  const student=students.find(s=>s.id===summary?.student_id);
+  if(!student){alert('没有找到这份志愿表对应的学生。请先刷新学生档案。');return;}
+  try{
+    const detail=await fetchVolunteerFormDetail(formId);
+    const chosen={...student,stage:detail.form.stage||student.stage,subject_choices:studentSubjectChoices(student)};
+    saveLocalStudentSubjectChoices(chosen.id,chosen.subject_choices);
+    saveCurrentStudent(chosen);
+    saveVolunteerDraftForStudent(chosen,volunteerDraftFromDetail(detail.groups,detail.majors));
+    saveVolunteerEditFormForStudent(chosen,detail.form);
+    saveMedicalCodesForMain(chosen,detail.form);
+    location.href=backUrlForStudent(chosen);
+  }catch(err){alert('打开志愿表失败：'+err.message);}
+}
+async function deleteVolunteerForm(formId){
+  const form=forms.find(f=>f.id===formId);
+  if(!form){alert('没有找到这份志愿表。请刷新后再试。');return;}
+  if(!confirm(`确定删除“${form.title||'未命名志愿表'}”吗？删除后不能恢复。`))return;
+  try{
+    await apiFetch(`volunteer_forms?id=eq.${encodeURIComponent(formId)}`,{method:'DELETE'});
+    forms=forms.filter(f=>f.id!==formId);
+    saveStudentCache();
+    render();
+  }catch(err){alert('删除志愿表失败：'+err.message);}
+}
 function studentSummary(s){
   const cities=(s.target_cities||[]).length?`｜城市 ${(s.target_cities||[]).join('、')}`:'';
   const medical=studentMedicalCodes(s);
@@ -254,7 +334,7 @@ function render(){
 function studentCardHTML(s,savedForms){
   const active=currentStudent?.id===s.id;
   const recent=savedForms.slice(0,3);
-  const formList=recent.length?`<div class="form-list">${recent.map(f=>`<div class="form-row"><span>${esc(f.title||'未命名志愿表')}<small>${esc(shortDateTime(f.updated_at||f.created_at))}</small></span><span class="badge">${esc(stageLabel(f.stage||s.stage))}</span></div>`).join('')}${savedForms.length>3?`<div class="form-row"><span>还有 ${savedForms.length-3} 份未显示</span><span></span></div>`:''}</div>`:'<div class="form-list">还没有保存过志愿表。</div>';
+  const formList=recent.length?`<div class="form-list">${recent.map(f=>`<div class="form-row"><button class="form-title-btn" type="button" data-open-volunteer-form="${esc(f.id)}"><span>${esc(f.title||'未命名志愿表')}</span><small>${esc(shortDateTime(f.updated_at||f.created_at))}</small></button><div class="form-row-actions"><span class="badge">${esc(stageLabel(f.stage||s.stage))}</span><button type="button" data-open-volunteer-form="${esc(f.id)}">修改</button><button class="danger" type="button" data-delete-volunteer-form="${esc(f.id)}">删除</button></div></div>`).join('')}${savedForms.length>3?`<div class="form-row more"><span>还有 ${savedForms.length-3} 份未显示，可刷新后查看最近 3 份</span><span></span></div>`:''}</div>`:'<div class="form-list">还没有保存过志愿表。</div>';
   return `<article class="student-card ${active?'active':''}">
     <div class="student-card-head"><div><h3>${esc(s.name)}</h3><p>${esc(studentSummary(s))}</p></div><span class="badge">${esc(stageLabel(s.stage))}</span></div>
     <div class="card-actions">
@@ -279,6 +359,8 @@ function bindCardActions(){
     const s=students.find(x=>x.id===btn.dataset.editStudent);
     if(s)showEditor(s);
   }));
+  $$('[data-open-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>openVolunteerFormForEdit(btn.dataset.openVolunteerForm)));
+  $$('[data-delete-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>deleteVolunteerForm(btn.dataset.deleteVolunteerForm)));
 }
 function resetNewForm(){
   $('#newStudentName').value='';

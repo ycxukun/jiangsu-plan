@@ -87,6 +87,7 @@ const MAX_MAJOR_PER_GROUP=6;
 const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
 const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v2';
 const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
+const VOLUNTEER_EDIT_FORM_STORAGE_KEY='js-plan-volunteer-edit-form-v1';
 const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
@@ -310,12 +311,18 @@ function loadVolunteerMajorKeys(){const data=storageJSON(scopedVolunteerKey(VOLU
 function saveVolunteerMajorKeys(){try{localStorage.setItem(scopedVolunteerKey(VOLUNTEER_MAJOR_STORAGE_KEY),JSON.stringify(volunteerMajorKeys));}catch(e){}}
 function loadVolunteerMeta(){const data=storageJSON(scopedVolunteerKey(VOLUNTEER_META_STORAGE_KEY),{}); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}
 function saveVolunteerMeta(){try{localStorage.setItem(scopedVolunteerKey(VOLUNTEER_META_STORAGE_KEY),JSON.stringify(volunteerMeta));}catch(e){}}
+function consumeVolunteerEditFormRef(){
+  const key=scopedVolunteerKey(VOLUNTEER_EDIT_FORM_STORAGE_KEY);
+  const data=storageJSON(key,null);
+  try{localStorage.removeItem(key);}catch(e){}
+  return data?.id?data:null;
+}
 function saveCurrentVolunteerDraft(){saveVolunteerKeys();saveVolunteerMajorKeys();saveVolunteerMeta();}
 function loadCurrentVolunteerDraft(){
   volunteerKeys=loadVolunteerKeys();
   volunteerMajorKeys=loadVolunteerMajorKeys();
   volunteerMeta=loadVolunteerMeta();
-  currentVolunteerForm=null;
+  currentVolunteerForm=consumeVolunteerEditFormRef();
   if(groupIndex.size)normalizeCurrentVolunteerDraft();
 }
 function normalizeCurrentVolunteerDraft(){
@@ -3418,14 +3425,26 @@ function majorPayloadsForSave(groupKey,dbGroupId){
     return {form_group_id:dbGroupId,owner_id:auth.user.id,position:index+1,major_key:majorKey,major_code:m.code||null,major_name:m.name,major_class:m.majorClass||null,discipline:m.discipline||null,plan26:dbInteger(m.plan26),plan25:dbInteger(m.plan25),score25:dbNumber(m.score25),rank25:dbInteger(m.rank25),avg_score3:dbNumber(m.avgScore3),avg_rank3:dbInteger(m.avgRank3),source_payload:{major:m}};
   }).filter(Boolean);
 }
+async function replaceVolunteerFormGroups(formId){
+  const oldGroups=await apiFetch(`volunteer_form_groups?select=id&form_id=eq.${encodeURIComponent(formId)}`);
+  const oldIds=(oldGroups||[]).map(g=>g.id).filter(Boolean);
+  if(oldIds.length)await apiFetch(`volunteer_form_majors?form_group_id=in.(${oldIds.join(',')})`,{method:'DELETE'});
+  await apiFetch(`volunteer_form_groups?form_id=eq.${encodeURIComponent(formId)}`,{method:'DELETE'});
+}
 async function saveCurrentVolunteerForm(){
   if(!requireSupabase()||!requireLogin())return;
   if(!currentStudent){alert('请先到学生档案新增或选择一个学生。');openStudentDirectory();return;}
   if(!volunteerKeys.length){alert('当前志愿表为空，先加入专业组后再保存。');return;}
   try{
     const title=`${currentStudent.name} ${stageLabel(currentStudent.stage)}志愿表 ${localDateStamp()}`;
-    const forms=await apiFetch('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:currentStudent.id,owner_id:auth.user.id,title,stage:currentStudent.stage,source_version:VERSION,max_group_count:VOLUNTEER_LIMIT,snapshot:{volunteerKeys,volunteerMajorKeys,volunteerMeta,medicalCodes:[...state.medicalCodes]}})});
-    const form=forms[0];
+    const payload={student_id:currentStudent.id,owner_id:auth.user.id,title:currentVolunteerForm?.title||title,stage:currentStudent.stage,source_version:VERSION,max_group_count:VOLUNTEER_LIMIT,snapshot:{volunteerKeys,volunteerMajorKeys,volunteerMeta,medicalCodes:[...state.medicalCodes]}};
+    const editingId=currentVolunteerForm?.id;
+    const forms=editingId
+      ? await apiFetch(`volunteer_forms?id=eq.${encodeURIComponent(editingId)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)})
+      : await apiFetch('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)});
+    if(editingId&&!forms?.length)throw new Error('没有权限更新这份志愿表，或记录已不存在。');
+    const form=forms?.[0]||{...payload,id:editingId};
+    if(editingId)await replaceVolunteerFormGroups(editingId);
     const groupRows=volunteerKeys.map((key,index)=>groupPayloadForSave(key,index)).filter(Boolean).map(row=>({...row,form_id:form.id}));
     const savedGroups=groupRows.length?await apiFetch('volunteer_form_groups',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(groupRows)}):[];
     const majorRows=savedGroups.flatMap(row=>majorPayloadsForSave(row.group_key,row.id));
@@ -3434,7 +3453,7 @@ async function saveCurrentVolunteerForm(){
     saveCurrentVolunteerDraft();
     updateAccountUI();
     renderStudentPanel();
-    alert(`已保存到 ${currentStudent.name}：${groupRows.length} 个专业组，${majorRows.length} 个专业。`);
+    alert(`${editingId?'已更新':'已保存'}到 ${currentStudent.name}：${groupRows.length} 个专业组，${majorRows.length} 个专业。`);
   }catch(err){alert('保存志愿表失败：'+err.message);}
 }
 async function loadLatestVolunteerFormForStudent(student,options={}){
