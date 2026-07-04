@@ -1,0 +1,373 @@
+/*
+  好生涯 · Claude-inspired FORCE UI r2
+  目标：不是轻微换色，而是把数据工作台套进“暖纸张 + 陶土背景 + 黑白克制按钮 + 编辑出版物”视觉系统。
+  不使用第三方品牌标识，仅参考温暖、纸质、留白、插画感的视觉语言。
+*/
+:root{
+  --green:#1b1713!important;
+  --green2:#1b1713!important;
+  --brand:#d77a5f!important;
+  --brand-dark:#9b4e3d!important;
+  --ink:#17130f!important;
+  --muted:#786d60!important;
+  --line:#e4d8c8!important;
+  --bg:#d96f52!important;
+  --card:#fffaf2!important;
+  --red:#b94132!important;
+  --redbg:#fff0ea!important;
+  --blue:#3f4d75!important;
+  --bluebg:#eff1f7!important;
+  --shadow:0 18px 70px rgba(38,28,20,.12)!important;
+  --paper:#fffaf2!important;
+  --paper-soft:#f6eddc!important;
+  --sand:#ded3c2!important;
+  --clay:#d77a5f!important;
+  --clay-dark:#9b4e3d!important;
+  --charcoal:#17130f!important;
+}
+html,body{min-height:100%;background:#d6795d!important;}
+body{
+  margin:0!important;
+  color:var(--charcoal)!important;
+  background:
+    radial-gradient(circle at 17% 12%, rgba(255,231,208,.22), transparent 30%),
+    radial-gradient(circle at 86% 4%, rgba(255,247,232,.18), transparent 26%),
+    linear-gradient(180deg,#d9795e 0%,#d36f55 48%,#ead9b7 100%)!important;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif!important;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:-1;
+  background-image:radial-gradient(rgba(255,250,242,.20) 1px, transparent 1px);
+  background-size:22px 22px;
+  opacity:.35;
+}
+body::after{
+  content:"✳";
+  position:fixed;
+  left:56px;
+  bottom:42px;
+  color:#fff1df;
+  font-size:72px;
+  font-family:Georgia,serif;
+  opacity:.64;
+  transform:rotate(-10deg);
+  pointer-events:none;
+  z-index:0;
+}
+.app-shell{
+  position:relative!important;
+  z-index:1!important;
+  width:min(1540px,calc(100vw - 88px))!important;
+  min-height:calc(100vh - 92px)!important;
+  margin:46px auto!important;
+  background:var(--paper)!important;
+  border:1px solid rgba(36,27,20,.10)!important;
+  box-shadow:0 36px 110px rgba(54,34,24,.20)!important;
+  overflow:hidden!important;
+  border-radius:2px!important;
+}
+.topbar,
+header.topbar{
+  position:sticky!important;
+  top:0!important;
+  z-index:30!important;
+  background:rgba(255,250,242,.92)!important;
+  border-bottom:1px solid rgba(36,27,20,.10)!important;
+  backdrop-filter:blur(20px) saturate(1.08)!important;
+  box-shadow:none!important;
+}
+.hero{
+  padding:34px 42px 18px!important;
+  gap:34px!important;
+  align-items:flex-start!important;
+  background:
+    linear-gradient(90deg,rgba(255,250,242,.98),rgba(255,247,235,.92))!important;
+}
+.brand h1{
+  font-family:"Iowan Old Style",Georgia,"Times New Roman","Songti SC","STSong",serif!important;
+  font-size:34px!important;
+  line-height:1!important;
+  letter-spacing:-.06em!important;
+  color:#17130f!important;
+  font-weight:800!important;
+}
+.brand p{
+  margin-top:12px!important;
+  max-width:720px!important;
+  color:#6f655a!important;
+  font-size:14px!important;
+  line-height:1.78!important;
+}
+.top-actions{gap:12px!important;align-items:center!important;}
+.stage-switch,
+.version,
+.header-toggle,
+.top-actions a,
+.top-actions button{
+  height:38px!important;
+  min-height:38px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:999px!important;
+  border:1px solid #ded2c2!important;
+  background:#fffaf2!important;
+  color:#17130f!important;
+  box-shadow:none!important;
+  font-weight:850!important;
+}
+.stage-switch{padding:4px!important;gap:4px!important;background:#f4eadb!important;}
+.stage-switch a{height:30px!important;border-radius:999px!important;color:#17130f!important;background:transparent!important;padding:0 14px!important;}
+.stage-switch a.active,
+.primary-btn,
+.btn.primary,
+.modal-actions .save{
+  background:#17130f!important;
+  color:#fffaf2!important;
+  border-color:#17130f!important;
+}
+.version{background:#f4eadb!important;color:#9b4e3d!important;border-color:#ead5c4!important;}
+.header-toggle.logout-toggle{color:#9b3026!important;border-color:#efc9bd!important;background:#fff4ef!important;}
+.header-toggle.student-toggle,.header-toggle.account-toggle,.header-toggle.volunteer-toggle{background:#fffaf2!important;color:#17130f!important;border-color:#ded2c2!important;}
+.filters{
+  padding:20px 42px 28px!important;
+  gap:14px!important;
+  grid-template-columns:repeat(8,minmax(124px,1fr))!important;
+  background:#fffaf2!important;
+  border-top:1px solid rgba(36,27,20,.06)!important;
+}
+.filters select,.filters input,.filters button,
+.toolbar input,.toolbar select,.form input,.form select,.form textarea{
+  height:46px!important;
+  border-radius:7px!important;
+  background:#fffdf8!important;
+  border:1px solid #d9ccbb!important;
+  box-shadow:none!important;
+  color:#17130f!important;
+  font-size:13px!important;
+}
+.filters input{grid-column:span 2!important;}
+.filters .filter-btn{
+  min-height:46px!important;
+  padding:6px 36px 6px 14px!important;
+  white-space:normal!important;
+  line-height:1.22!important;
+  border-radius:7px!important;
+  color:#17130f!important;
+}
+.filters .filter-btn:after{right:14px!important;color:#786d60!important;}
+.student-context-bar{
+  margin:0!important;
+  padding:16px 42px!important;
+  background:#f6eddc!important;
+  border-top:1px solid rgba(36,27,20,.08)!important;
+  border-bottom:1px solid rgba(36,27,20,.08)!important;
+}
+.student-context-bar .pill,
+.student-context-bar .badge,
+.student-context-bar span{
+  border-radius:999px!important;
+  background:#fffaf2!important;
+  color:#17130f!important;
+  border-color:#ded2c2!important;
+}
+.layout{
+  grid-template-columns:300px 1fr!important;
+  gap:24px!important;
+  padding:28px 42px 46px!important;
+  background:#f2eadf!important;
+}
+.sidebar,
+.school-header,
+.group-card,
+.group-section,
+.panel,
+.modal,
+.note-panel,
+.volunteer-panel,
+.viewer,
+.article-card,
+.module-card,
+.upload-panel,
+.empty,
+.change-side,
+.change-metric,
+.annotation-drawer{
+  background:#fffaf2!important;
+  border:1px solid rgba(36,27,20,.12)!important;
+  box-shadow:0 20px 60px rgba(42,30,20,.08)!important;
+}
+.sidebar{
+  border-radius:8px!important;
+  top:186px!important;
+  background:#fffdf8!important;
+}
+.side-head{border-bottom-color:#e5d9c8!important;padding:18px!important;}
+.side-head strong,
+.panel-head h3,
+.group-head h3,
+.annotation-head h3,
+.viewer-head h3,
+.article-card h3,
+.school-title h2{
+  font-family:"Iowan Old Style",Georgia,"Times New Roman","Songti SC","STSong",serif!important;
+  color:#17130f!important;
+  font-weight:800!important;
+  letter-spacing:-.045em!important;
+}
+.school-item{
+  background:transparent!important;
+  border-radius:6px!important;
+  border:1px solid transparent!important;
+  padding:14px!important;
+}
+.school-item:hover{background:#f7eedf!important;border-color:#e0cdbc!important;}
+.school-item.active{background:#f3e2d2!important;border-color:#d77a5f!important;}
+.score-pill{background:#f2eadf!important;color:#4f463d!important;border-radius:999px!important;}
+.school-header{
+  position:relative!important;
+  border-radius:8px!important;
+  padding:30px 34px!important;
+  background:#fffdf8!important;
+  overflow:hidden!important;
+}
+.school-header::before{
+  content:"";
+  position:absolute;
+  right:34px;
+  top:30px;
+  width:152px;
+  height:118px;
+  border-radius:28px;
+  background:#d77a5f!important;
+  opacity:.10;
+  transform:rotate(3deg);
+}
+.school-header::after{
+  content:"✳";
+  position:absolute;
+  right:74px;
+  top:48px;
+  font-size:58px;
+  font-family:Georgia,serif;
+  color:#17130f;
+  opacity:.16;
+  transform:rotate(-6deg);
+}
+.school-title,.summary-grid,.badges{position:relative!important;z-index:1!important;}
+.school-title h2{font-size:32px!important;}
+.badge,
+.pill,
+.tag,
+.note-badge,
+.class-chip,
+.score-pill,
+.change-pill,
+.selected-major-item,
+.major-check,
+.selected-major-empty,
+.range-summary{
+  background:#fffdf8!important;
+  border:1px solid #e0d2c0!important;
+  color:#3b332b!important;
+  border-radius:999px!important;
+}
+.badge.green,.pill.green,.tag.green,.range-summary,.change-pos{
+  background:#f7e7dc!important;
+  border-color:#e2b59f!important;
+  color:#9b4e3d!important;
+}
+.badge.red,.tag.red,.risk-label,.change-neg{
+  background:#fff0ea!important;
+  border-color:#efbdad!important;
+  color:#a33b2e!important;
+}
+.summary-grid{gap:16px!important;margin-top:22px!important;}
+.metric,.mini{
+  background:#fffaf2!important;
+  border:1px solid #e6d8c8!important;
+  border-radius:8px!important;
+}
+.metric{padding:18px!important;}
+.metric b,.mini b{
+  font-family:"Iowan Old Style",Georgia,"Times New Roman","Songti SC",serif!important;
+  color:#17130f!important;
+  font-size:26px!important;
+}
+.metric span,.mini span,.muted,.school-item .meta,.group-head p,.article-card p,.panel p,.file-note,.status{color:#74695e!important;}
+.group-cards{gap:18px!important;grid-template-columns:repeat(auto-fill,minmax(272px,1fr))!important;}
+.group-card,
+.group-section{
+  border-radius:8px!important;
+  background:#fffdf8!important;
+  box-shadow:0 18px 54px rgba(42,30,20,.07)!important;
+}
+.group-card{padding:18px!important;}
+.group-card:hover{transform:translateY(-2px)!important;border-color:#d77a5f!important;box-shadow:0 24px 70px rgba(42,30,20,.12)!important;}
+.group-card.group-quality-red,.group-section.group-quality-red{border-color:#d77a5f!important;}
+.group-card.group-quality-green,.group-section.group-quality-green{border-color:#17130f!important;}
+.group-card.group-quality-yellow,.group-section.group-quality-yellow{border-color:#d0a56f!important;}
+.group-card h3,.group-head h3{font-family:"Iowan Old Style",Georgia,"Songti SC",serif!important;font-size:18px!important;}
+.group-head{padding:22px 24px!important;background:#fffdf8!important;border-bottom-color:#e5d8c7!important;}
+table{background:#fffdf8!important;}
+th{background:#f1e8dc!important;color:#695e53!important;border-bottom:1px solid #e2d3c2!important;}
+td,th{border-bottom-color:#eadfce!important;}
+tr:hover td{background:#fff4e8!important;}
+.detail-btn,.change-btn,.anno-btn,.anno-mini,.volunteer-add-btn{
+  border-radius:999px!important;
+  background:#fffdf8!important;
+  border:1px solid #ded2c2!important;
+  color:#17130f!important;
+}
+.note-badge{background:#17130f!important;color:#fffaf2!important;border-color:#17130f!important;}
+.backtop,.back-to-top,[data-backtop],button[aria-label*="顶部"]{background:#17130f!important;color:#fffaf2!important;}
+/* Content center and landing get more editorial cards */
+.landing .panel,.upload-panel,.module-card,.article-card,.viewer{
+  border-radius:8px!important;
+  background:#fffdf8!important;
+}
+.upload-panel h2,.landing .panel h2,.viewer-head h3,.article-card h3{
+  font-family:"Iowan Old Style",Georgia,"Songti SC",serif!important;
+  letter-spacing:-.045em!important;
+}
+.progress{background:#eee1d1!important;border-radius:999px!important;}
+.progress i{background:linear-gradient(90deg,#17130f,#d77a5f)!important;}
+.notice{background:#fff0e8!important;border-color:#e8baa4!important;color:#7e3f31!important;}
+/* Override repeated legacy rules and compact mode */
+body.compact-mode .hero{padding:24px 36px 16px!important;}
+body.compact-mode .filters{grid-template-columns:repeat(8,minmax(116px,1fr))!important;gap:12px!important;padding:16px 36px 24px!important;}
+body.compact-mode .filters select,
+body.compact-mode .filters input,
+body.compact-mode .filters button{height:42px!important;border-radius:7px!important;font-size:13px!important;}
+body.compact-mode .layout{grid-template-columns:300px 1fr!important;gap:22px!important;padding:26px 36px 42px!important;}
+body.compact-mode .sidebar{top:168px!important;}
+body.compact-mode .brand h1{font-size:30px!important;}
+body.compact-mode .school-header{border-radius:8px!important;padding:26px 30px!important;}
+body.compact-mode .group-card{border-radius:8px!important;padding:16px!important;}
+body.compact-mode .group-card h3{font-size:17px!important;}
+/* When header is collapsed, keep the same editorial container */
+body.header-collapsed .app-shell{margin-top:28px!important;}
+body.header-collapsed .hero{padding:18px 36px!important;}
+body.header-collapsed .sidebar{top:112px!important;}
+@media(max-width:1100px){
+  .app-shell{width:calc(100vw - 30px)!important;margin:15px auto!important;}
+  .hero{padding:24px!important;display:block!important;}
+  .top-actions{justify-content:flex-start!important;margin-top:16px!important;}
+  .filters,body.compact-mode .filters{grid-template-columns:repeat(3,minmax(0,1fr))!important;padding:18px 24px!important;}
+  .filters input{grid-column:span 3!important;}
+  .layout,body.compact-mode .layout{grid-template-columns:1fr!important;padding:20px 24px 32px!important;}
+  .sidebar{position:relative!important;top:0!important;height:auto!important;max-height:340px!important;}
+}
+@media(max-width:640px){
+  .app-shell{width:100%!important;margin:0!important;min-height:100vh!important;}
+  body::after{display:none!important;}
+  .brand h1{font-size:26px!important;}
+  .filters,body.compact-mode .filters{grid-template-columns:1fr!important;}
+  .filters input{grid-column:auto!important;}
+  .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .group-cards{grid-template-columns:1fr!important;}
+}
