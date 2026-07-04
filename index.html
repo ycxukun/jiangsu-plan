@@ -465,9 +465,10 @@ body.compact-mode .back-top{width:46px!important;height:46px!important;right:18p
 .location-actions a{display:inline-flex;align-items:center;justify-content:center;border:1px solid #cbeed9;background:#fff;color:var(--green);border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;text-decoration:none}
 .location-actions a:hover{background:#f0faf4;border-color:var(--green)}
 .parent-note-list{margin:0;padding-left:20px;color:#33443a;line-height:1.7}
-.major-basic-line{display:block;width:min(100%,520px);height:14px;margin:5px 0 2px;border:0;border-radius:999px;background:var(--green);box-shadow:none;cursor:pointer;padding:0}
-.major-basic-line:hover{background:#075f33;box-shadow:0 0 0 3px rgba(10,124,66,.12)}
-.major-basic-line:focus-visible{outline:2px solid #075f33;outline-offset:2px}
+.major-basic-line{appearance:none;display:block;width:120px;height:10px;margin:2px 0 2px;border:0;background:transparent;box-shadow:none;cursor:pointer;padding:0;position:relative}
+.major-basic-line::after{content:"";position:absolute;left:0;top:4px;width:100%;height:2px;border-radius:999px;background:#0a7c42}
+.major-basic-line:hover::after{background:#075f33}
+.major-basic-line:focus-visible{outline:2px solid #0a7c42;outline-offset:2px}
 .major-title-line+.major-basic-line{margin-top:6px}
 .facet-panel,body.compact-mode .facet-panel{width:min(720px,94vw)!important;max-width:720px!important}
 .facet-panel .panel-body{padding:0!important;display:flex;flex-direction:column;min-height:0;background:#fff}
