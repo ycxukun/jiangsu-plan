@@ -1,0 +1,5 @@
+# Netlify fallback routing for the static site
+/students      /students/index.html    200
+/specialty     /specialty/index.html   200
+/content       /content/index.html     200
+/*             /index.html             200

@@ -1,0 +1,51 @@
+# Netlify configuration for 好生涯江苏志愿填报系统
+# This is a static HTML/CSS/JS project. There is no build step.
+
+[build]
+  publish = "."
+  command = ""
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Keep versioned/static assets available and let subpages work when opened directly.
+[[redirects]]
+  from = "/students"
+  to = "/students/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/students/*"
+  to = "/students/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/specialty"
+  to = "/specialty/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/specialty/*"
+  to = "/specialty/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/content"
+  to = "/content/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/content/*"
+  to = "/content/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/articles/*"
+  to = "/articles/:splat"
+  status = 200
+
+# Fallback for unexpected front-end routes.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
