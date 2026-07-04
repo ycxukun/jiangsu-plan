@@ -77,6 +77,7 @@ let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
 let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),requirementAutoFromStudent:false,role:'',mode:'schools',q:'',selectedClasses:new Set(),scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
+let accountModalRole='consultant';
 let currentStudent=null;
 let currentVolunteerForm=null;
 const AUTH_STORAGE_KEY='js-plan-auth-v1';
@@ -2878,7 +2879,8 @@ function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergr
 function stageLabel(v){return v==='specialty'?'专科':'本科';}
 function subjectLabel(v){return v==='history'?'历史':'物理';}
 
-function showAccountModal(mode='login'){
+function showAccountModal(mode='login',role='consultant'){
+  accountModalRole=role==='consultant'?'consultant':'viewer';
   if(auth.user&&mode==='login'){showAccountCenter();return;}
   const isRegister=mode==='register';
   $('#modal').innerHTML=`<h3>${isRegister?'注册账号':'登录账号'}</h3><div class="modal-body">
@@ -2894,8 +2896,8 @@ function showAccountModal(mode='login'){
   openModal();
   markAccountFieldsUserEditing();
   clearAnonymousAccountFields();
-  $('#loginTab').addEventListener('click',()=>showAccountModal('login'));
-  $('#registerTab').addEventListener('click',()=>showAccountModal('register'));
+  $('#loginTab').addEventListener('click',()=>showAccountModal('login',accountModalRole));
+  $('#registerTab').addEventListener('click',()=>showAccountModal('register',accountModalRole));
   $('#accountSubmit').addEventListener('click',()=>isRegister?registerSupabase():loginSupabase());
 }
 function markAccountFieldsUserEditing(){
@@ -2952,7 +2954,7 @@ async function registerSupabase(){
     if(data.access_token){
       auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
       saveAuth();
-      await ensureUserProfile(displayName);
+      await ensureUserProfile(displayName,accountModalRole);
       loadCurrentStudent();
       loadCurrentVolunteerDraft();
       closeModal();
@@ -2983,7 +2985,7 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     const data=await res.json();
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
     saveAuth();
-    await ensureUserProfile(data.user?.user_metadata?.display_name||'');
+    await ensureUserProfile(data.user?.user_metadata?.display_name||'',options.role||data.user?.user_metadata?.role||'consultant');
     loadCurrentStudent();
     loadCurrentVolunteerDraft();
     closeModal();
@@ -3006,21 +3008,39 @@ async function handleLandingAuthMessage(event){
   const frame=$('#authLandingFrame')?.contentWindow;
   try{
     if(event.data.action==='register'){
-      showAccountModal('register');
+      showAccountModal('register',event.data.role||'consultant');
+      return;
+    }
+    if(event.data.action==='reset-password'){
+      await sendPasswordReset(String(event.data.email||''));
+      frame?.postMessage({source:'jiangsu-plan-auth',status:'ok',message:'已发送密码重置邮件，请到邮箱中继续操作。'},event.origin);
       return;
     }
     if(event.data.action==='login'){
-      await loginSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false});
+      await loginSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:event.data.role||'consultant'});
       frame?.postMessage({source:'jiangsu-plan-auth',status:'ok'},event.origin);
     }
   }catch(err){
     frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:'登录失败：'+err.message},event.origin);
   }
 }
-async function ensureUserProfile(displayName=''){
+async function sendPasswordReset(email){
+  if(!requireSupabase())return;
+  if(!email)throw new Error('请先输入需要重置密码的邮箱。');
+  const redirectTo=new URL('./haoshengya_login_landing.html#login',window.location.href).href;
+  const res=await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{
+    method:'POST',
+    headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email})
+  });
+  if(!res.ok)throw new Error(await res.text());
+  return true;
+}
+async function ensureUserProfile(displayName='',role='consultant'){
   if(!auth.user?.id)return;
   try{
-    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:'consultant',status:'active'})});
+    const safeRole=role==='admin'||role==='consultant'?'consultant':'viewer';
+    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:safeRole,status:'active'})});
   }catch(err){console.warn('创建/更新用户资料失败',err);}
 }
 function logoutSupabase(options={}){

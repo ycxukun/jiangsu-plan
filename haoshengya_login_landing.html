@@ -613,10 +613,19 @@
       gap: 8px;
     }
 
-    .login-options a {
+    .link-button {
+      border: 0;
+      padding: 0;
+      background: transparent;
       color: var(--brand-dark);
       text-decoration: none;
       font-weight: 800;
+      cursor: pointer;
+    }
+
+    .login-actions {
+      display: grid;
+      gap: 10px;
     }
 
     .login-btn {
@@ -887,10 +896,12 @@
             </div>
             <div class="login-options">
               <label><input type="checkbox" /> 保持登录状态</label>
-              <a href="#">忘记密码</a>
+              <button id="forgotPasswordBtn" class="link-button" type="button">忘记密码</button>
             </div>
-            <button class="btn btn-primary login-btn" type="submit">登录工作台</button>
-            <button class="btn btn-secondary login-btn" id="landingRegisterBtn" type="button">注册账号</button>
+            <div class="login-actions">
+              <button class="btn btn-primary login-btn" type="submit">登录工作台</button>
+              <button class="btn btn-secondary login-btn" id="landingRegisterBtn" type="button">注册账号</button>
+            </div>
           </form>
 
           <p class="login-tip">内测阶段建议先做“规划师端”登录；家长端、学生端可用专属链接进入对应学生档案。</p>
@@ -930,13 +941,19 @@
   </main>
 
   <script>
+    const SUPABASE_URL = 'https://qnspmqsrbjcgrgpqkzgl.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
+    const AUTH_STORAGE_KEY = 'js-plan-auth-v1';
     const buttons = document.querySelectorAll('.role-tabs button');
     const account = document.getElementById('account');
     const tip = document.querySelector('.login-tip');
+    const params = new URLSearchParams(window.location.search);
+    const nextPath = params.get('next') || '';
+    let activeRole = 'consultant';
     const roleTips = {
-      '规划师端': ['请输入规划师账号', '内测阶段建议先做“规划师端”登录；家长端、学生端可用专属链接进入对应学生档案。'],
-      '家长端': ['请输入家长手机号或专属账号', '家长端建议只开放：学生画像、服务进度、志愿方案说明、文件下载。'],
-      '学生端': ['请输入学生账号或访问码', '学生端建议只开放：基础信息确认、专业兴趣反馈、志愿方案查看。']
+      '规划师端': ['请输入规划师账号', 'consultant', '内测阶段建议先做“规划师端”登录；家长端、学生端可用专属链接进入对应学生档案。'],
+      '家长端': ['请输入家长手机号或专属账号', 'viewer', '家长端建议只开放：学生画像、服务进度、志愿方案说明、文件下载。'],
+      '学生端': ['请输入学生账号或访问码', 'viewer', '学生端建议只开放：基础信息确认、专业兴趣反馈、志愿方案查看。']
     };
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -944,16 +961,80 @@
         btn.classList.add('active');
         const label = btn.textContent.trim();
         account.placeholder = roleTips[label][0];
-        tip.textContent = roleTips[label][1];
+        activeRole = roleTips[label][1];
+        tip.textContent = roleTips[label][2];
       });
     });
     const password = document.getElementById('password');
     const loginForm = document.getElementById('landingLoginForm');
     const registerBtn = document.getElementById('landingRegisterBtn');
+    const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+    function isEmbedded() {
+      return window.parent && window.parent !== window;
+    }
     function sendAuthMessage(payload) {
-      if (window.parent && window.parent !== window) {
+      if (isEmbedded()) {
         window.parent.postMessage({ source: 'haoshengya-login', ...payload }, window.location.origin);
       }
+    }
+    function saveStandaloneAuth(data) {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+        accessToken: data.access_token || '',
+        refreshToken: data.refresh_token || '',
+        user: data.user || null
+      }));
+    }
+    function safeNextUrl() {
+      if (!nextPath || /^https?:\/\//i.test(nextPath) || nextPath.startsWith('//')) return './index.html';
+      return nextPath;
+    }
+    async function ensureStandaloneProfile(user, role) {
+      if (!user?.id) return;
+      try {
+        const accessToken = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || '{}').accessToken || '';
+        await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=id`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=ignore-duplicates'
+          },
+          body: JSON.stringify({
+            id: user.id,
+            email: user.email,
+            display_name: user.email,
+            role: role === 'consultant' ? 'consultant' : 'viewer',
+            status: 'active'
+          })
+        });
+      } catch (err) {
+        console.warn('profile create failed', err);
+      }
+    }
+    async function standaloneLogin(email, pwd) {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pwd })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      saveStandaloneAuth(data);
+      await ensureStandaloneProfile(data.user, activeRole);
+      tip.textContent = '登录成功，正在进入系统...';
+      window.location.href = safeNextUrl();
+    }
+    async function standaloneRecover(email) {
+      const redirectTo = new URL('./haoshengya_login_landing.html#login', window.location.href).href;
+      const recoverUrl = `${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`;
+      const res = await fetch(recoverUrl, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      tip.textContent = '已发送密码重置邮件，请到邮箱中继续操作。';
     }
     [account, password].forEach(input => {
       [0, 120, 500].forEach(delay => setTimeout(() => {
@@ -972,13 +1053,61 @@
         return;
       }
       tip.textContent = '正在登录，请稍候...';
-      sendAuthMessage({ action: 'login', email, password: pwd });
+      if (!isEmbedded()) {
+        standaloneLogin(email, pwd).catch(err => {
+          tip.textContent = '登录失败：' + err.message;
+        });
+        return;
+      }
+      sendAuthMessage({ action: 'login', email, password: pwd, role: activeRole });
     });
     registerBtn.addEventListener('click', () => {
-      sendAuthMessage({ action: 'register' });
+      if (!isEmbedded()) {
+        tip.textContent = '请先输入邮箱和密码后注册。';
+        const email = account.value.trim();
+        const pwd = password.value;
+        if (!email || !pwd) return;
+        fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pwd, data: { role: activeRole } })
+        }).then(async res => {
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json();
+          if (data.access_token) {
+            saveStandaloneAuth(data);
+            await ensureStandaloneProfile(data.user, activeRole);
+            tip.textContent = '注册并登录成功，正在进入系统...';
+            window.location.href = safeNextUrl();
+          } else {
+            tip.textContent = '注册成功。若系统开启邮箱确认，请先到邮箱完成确认后再登录。';
+          }
+        }).catch(err => {
+          tip.textContent = '注册失败：' + err.message;
+        });
+        return;
+      }
+      sendAuthMessage({ action: 'register', role: activeRole });
+    });
+    forgotPasswordBtn.addEventListener('click', () => {
+      const email = account.value.trim();
+      if (!email) {
+        tip.textContent = '请先输入需要重置密码的邮箱。';
+        account.focus();
+        return;
+      }
+      tip.textContent = '正在发送密码重置邮件...';
+      if (!isEmbedded()) {
+        standaloneRecover(email).catch(err => {
+          tip.textContent = '发送失败：' + err.message;
+        });
+        return;
+      }
+      sendAuthMessage({ action: 'reset-password', email });
     });
     window.addEventListener('message', event => {
       if (event.origin !== window.location.origin || event.data?.source !== 'jiangsu-plan-auth') return;
+      if (event.data.status === 'ok' && event.data.message) tip.textContent = event.data.message;
       if (event.data.status === 'error') tip.textContent = event.data.message || '登录失败，请检查账号密码。';
     });
   </script>

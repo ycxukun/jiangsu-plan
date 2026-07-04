@@ -72,6 +72,22 @@ as $$
   );
 $$;
 
+create or replace function public.is_consultant_or_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and role::text in ('admin', 'consultant')
+      and status = 'active'
+  );
+$$;
+
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
@@ -282,7 +298,7 @@ using (id = auth.uid() or public.is_admin());
 drop policy if exists "profiles_insert_self" on public.profiles;
 create policy "profiles_insert_self"
 on public.profiles for insert
-with check (id = auth.uid() and role = 'consultant' and status = 'active');
+with check (id = auth.uid() and role in ('consultant', 'viewer') and status = 'active');
 
 drop policy if exists "profiles_update_own_or_admin" on public.profiles;
 create policy "profiles_update_own_or_admin"
@@ -290,7 +306,7 @@ on public.profiles for update
 using (id = auth.uid() or public.is_admin())
 with check (
   public.is_admin()
-  or (id = auth.uid() and role = 'consultant' and status = 'active')
+  or (id = auth.uid() and role in ('consultant', 'viewer') and status = 'active')
 );
 
 drop policy if exists "students_owner_all" on public.students;
@@ -412,7 +428,7 @@ order by g.position, m.position;
 
 
 -- 升学规划资讯中心：公开图文与多类型文件资料
--- 目标：登录用户上传，所有网络用户可读。公开文件放入 public Storage bucket。
+-- 目标：规划师/管理员上传和删除，所有网络用户可读。公开文件放入 public Storage bucket。
 create table if not exists public.planning_articles (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -450,18 +466,18 @@ using (published = true or created_by = auth.uid() or public.is_admin());
 drop policy if exists "planning_articles_auth_insert" on public.planning_articles;
 create policy "planning_articles_auth_insert"
 on public.planning_articles for insert
-with check (auth.uid() is not null and (created_by = auth.uid() or public.is_admin()));
+with check (public.is_consultant_or_admin() and created_by = auth.uid());
 
 drop policy if exists "planning_articles_owner_update" on public.planning_articles;
 create policy "planning_articles_owner_update"
 on public.planning_articles for update
-using (created_by = auth.uid() or public.is_admin())
-with check (created_by = auth.uid() or public.is_admin());
+using (public.is_consultant_or_admin())
+with check (public.is_consultant_or_admin());
 
 drop policy if exists "planning_articles_owner_delete" on public.planning_articles;
 create policy "planning_articles_owner_delete"
 on public.planning_articles for delete
-using (created_by = auth.uid() or public.is_admin());
+using (public.is_consultant_or_admin());
 
 -- Supabase Storage 公开文件 bucket。
 -- 注意：如果 Dashboard 不允许 SQL 修改 storage.buckets，可在 Storage 页面手动创建 public bucket：planning-public，并将 MIME 类型限制留空或允许常见文件类型。
@@ -480,15 +496,15 @@ using (bucket_id = 'planning-public');
 drop policy if exists "planning_auth_files_insert" on storage.objects;
 create policy "planning_auth_files_insert"
 on storage.objects for insert
-with check (bucket_id = 'planning-public' and auth.uid() is not null);
+with check (bucket_id = 'planning-public' and public.is_consultant_or_admin());
 
 drop policy if exists "planning_owner_files_update" on storage.objects;
 create policy "planning_owner_files_update"
 on storage.objects for update
-using (bucket_id = 'planning-public' and (owner = auth.uid() or public.is_admin()))
-with check (bucket_id = 'planning-public' and (owner = auth.uid() or public.is_admin()));
+using (bucket_id = 'planning-public' and public.is_consultant_or_admin())
+with check (bucket_id = 'planning-public' and public.is_consultant_or_admin());
 
 drop policy if exists "planning_owner_files_delete" on storage.objects;
 create policy "planning_owner_files_delete"
 on storage.objects for delete
-using (bucket_id = 'planning-public' and (owner = auth.uid() or public.is_admin()));
+using (bucket_id = 'planning-public' and public.is_consultant_or_admin());

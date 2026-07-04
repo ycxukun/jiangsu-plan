@@ -48,10 +48,13 @@ button{cursor:pointer}
 .list-head h2{margin:0;font-size:16px}
 .list-head span{font-size:12px;color:var(--muted);font-weight:850}
 .article-list{display:grid}
-.content-row{display:grid;grid-template-columns:minmax(0,1fr) 138px;gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--line);padding:0 14px;color:inherit;text-decoration:none;background:#fff}
+.content-row{display:grid;grid-template-columns:minmax(0,1fr) 138px auto;gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--line);padding:0 14px;color:inherit;text-decoration:none;background:#fff}
 .content-row:hover{background:#f8fbf9}
 .content-row:last-child{border-bottom:0}
 .content-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:850}
+.content-open{min-width:0;border:0;background:transparent;color:inherit;text-align:left;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:850}
+.delete-file-btn{height:28px;border-radius:999px;border:1px solid #fecaca;background:#fff;color:#b42318;padding:0 10px;font-size:12px;font-weight:850}
+.delete-file-btn:hover{background:#fff1f2}
 .content-time{color:var(--muted);font-size:12px;text-align:right;white-space:nowrap}
 .empty{padding:28px;text-align:center;color:var(--muted);font-size:13px}
 .viewer{position:sticky;top:86px}
@@ -67,7 +70,7 @@ button{cursor:pointer}
 .footer{color:var(--muted);font-size:12px;text-align:center;padding:18px 0 0}
 .hidden{display:none!important}
 @media(max-width:1180px){.module-strip{grid-template-columns:repeat(4,minmax(120px,1fr))}.content-shell{grid-template-columns:1fr}.viewer{position:relative;top:0}.form{grid-template-columns:1fr 1fr}.form .btn,.progress{grid-column:1/-1}}
-@media(max-width:760px){.hero{display:grid;padding:14px 16px}.actions{justify-content:flex-start}.wrap{width:min(100% - 20px,720px)}.module-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{grid-template-columns:1fr}.content-row{grid-template-columns:1fr;gap:3px;padding:9px 12px}.content-time{text-align:left}.form{grid-template-columns:1fr}}
+@media(max-width:760px){.hero{display:grid;padding:14px 16px}.actions{justify-content:flex-start}.wrap{width:min(100% - 20px,720px)}.module-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{grid-template-columns:1fr}.content-row{grid-template-columns:1fr;gap:5px;padding:9px 12px}.content-time{text-align:left}.delete-file-btn{justify-self:start}.form{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -78,7 +81,8 @@ button{cursor:pointer}
       <a class="pill" href="../index.html">返回志愿填报</a>
       <a class="pill" href="../specialty/index.html">专科系统</a>
       <span id="accountPill" class="pill green">未登录</span>
-      <button id="toggleUploadBtn" class="btn primary" type="button">上传资料</button>
+      <a id="loginEntryBtn" class="pill" href="../haoshengya_login_landing.html?next=./content/index.html#login">登录入口</a>
+      <button id="toggleUploadBtn" class="btn primary hidden" type="button">上传资料</button>
       <button id="logoutBtn" class="btn hidden" type="button">退出</button>
     </div>
   </div>
@@ -118,6 +122,6 @@ button{cursor:pointer}
   </section>
   <div class="footer">© 2026 好生涯早规划 · 升学资讯中心</div>
 </main>
-<script src="./app.js?v=20260704-content-modules-r1"></script>
+<script src="./app.js?v=20260704-content-auth-r1"></script>
 </body>
 </html>
