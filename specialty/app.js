@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-const VERSION='专科版｜V1.1.67 强制暖纸 UI 版';
+const VERSION='专科版｜V1.1.68 当前学生同步修复版';
 const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const ADMIN_EMAIL='ycxukun@gmail.com';
@@ -145,6 +145,12 @@ function subjectChoicesInputsHTML(scope,selected){
 function studentSubjectSummary(student){
   const choices=studentSubjectChoices(student);
   return subjectLabel(student?.subject_type)+(choices.length?'+'+choices.join('+'):'+未填再选');
+}
+function studentSubjectShortSummary(student){
+  const choices=studentSubjectChoices(student);
+  const type=subjectTypeValue(student?.subject_type)==='history'?'史':'物';
+  const map={化学:'化',生物:'生',政治:'政',地理:'地'};
+  return type+(choices.length?choices.map(function(x){return map[x]||String(x).slice(0,1);}).join(''):'未填');
 }
 function studentMedicalCodes(student){
   return parseMedicalCodes(Array.isArray(student?.medical_codes)?student.medical_codes.join(' '):(student?.medical_codes||''));
