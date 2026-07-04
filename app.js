@@ -1769,7 +1769,8 @@ function majorRowHTML(s,g,m){
   const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
   const coopDetail=foreignCoopDetailForMajor(m);
   const actionButtons=majorActionButtonsHTML(s,g,m,coopDetail,groupKey);
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line"><span class="major-name-text">${esc(m.name)}</span>${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}</div>${actionButtons}</td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  const basicLine=`<button class="major-basic-line" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看软科评级、学科评估、专业硕博点等基础信息" aria-label="查看${esc(m.name)}专业基础信息"></button>`;
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line"><span class="major-name-text">${esc(m.name)}</span>${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}</div>${basicLine}${actionButtons}</td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
@@ -1901,6 +1902,14 @@ function groupInfoPairs(d={}){return [
 ];}
 function majorBasePairs(d={}){return [
   ['专业代码',d.code],['专业全称',d.majorFullName||d.name],['本科专业名称',d.undergraduateName],['专业备注',d.majorRemark],['专业层次',d.majorLevel],['专业类',d.majorClass],['学科门类',d.discipline],['学科专业',d.subjectMajor],['选科要求',d.subjectRequirement],['学制',d.duration||d.degreeYears],['学费',d.tuition],['是否新增',d.isNew],['专业水平标签',d.majorLevelTags],['软科评级',d.softRating],['软科专业排名',d.softRank||d.majorRank],['学科评估',d.disciplineEvaluation||d.disciplineEval4||d.disciplineEval5],['专业硕士点',d.majorMasterPrograms],['专业博士点',d.majorDoctorPrograms],['相似度/来源说明',d.similarity||d.sourceRule]
+];}
+function majorProfilePairs(d={}){return [
+  ['软科评级',d.softRating],
+  ['软科排名',d.softRank||d.majorRank],
+  ['学科评估',d.disciplineEvaluation||d.disciplineEval4||d.disciplineEval5],
+  ['专业水平',d.majorLevelTags],
+  ['本专业硕士点',d.majorMasterPrograms],
+  ['本专业博士点',d.majorDoctorPrograms]
 ];}
 function foreignCoopInfoPairs(d={}){return [
   ['项目类型',d.foreignCoop?'985/211 中外合作/国际合作补充信息':''],
@@ -2034,6 +2043,12 @@ function mergedMajorDetail(key,ctx){
 function showDetail(key,schoolKey,groupKey,mode='major'){
   const ctx=findMajorContext(key,groupKey);
   const d=mergedMajorDetail(key,ctx);
+  if(mode==='major-base'){
+    const title=d.majorFullName||d.name||ctx?.m?.name||'专业基础信息';
+    $('#modal').innerHTML=`<h3>${esc(title)}｜专业基础信息</h3><div class="modal-body"><div class="info-subtitle">对应表格中的专业基础信息：软科评级、软科排名、学科评估、专业水平、本专业硕士点、本专业博士点。</div>${infoSectionHTML('专业基础信息',majorProfilePairs(d),'major-info-section')}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+    openModal();
+    return;
+  }
   if(mode==='foreign-coop'){
     const title=ctx?.g?`${groupDisplayTitleText(ctx.s,ctx.g)}｜中外合作详情`:`${d.name||ctx?.m?.name||'中外合作专业'}｜中外合作详情`;
     const sections=foreignCoopGroupDetailSections(ctx,d);
