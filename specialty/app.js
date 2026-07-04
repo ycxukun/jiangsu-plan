@@ -1745,14 +1745,21 @@ function infoSectionHTML(title,pairs,extraClass=''){
   return `<section class="info-section ${extraClass}"><h4>${esc(title)}</h4><dl class="kv info-kv">${body}</dl></section>`;
 }
 function normSchoolName(name){return String(name||'').replace(/[（）()\s]/g,'').replace(/学院$/,'').replace(/大学$/,'').toLowerCase();}
-function parentSchoolRows(){return window.JIANGSU_COLLEGE_PARENT_CLEAN_DATA?.schools||[];}
+function parentSchoolRows(){
+  const rows=[];
+  if(Array.isArray(window.SchoolBasicInfoLinker?.schools))rows.push(...window.SchoolBasicInfoLinker.schools);
+  if(Array.isArray(window.JIANGSU_COLLEGE_PARENT_CLEAN_DATA?.schools))rows.push(...window.JIANGSU_COLLEGE_PARENT_CLEAN_DATA.schools);
+  return rows;
+}
 function parentSchoolInfo(name){
   const target=normSchoolName(name);
   if(!target)return null;
   const rows=parentSchoolRows();
-  return rows.find(x=>normSchoolName(x.name)===target)||rows.find(x=>{
+  return rows.find(x=>normSchoolName(x.name)===target||((x.aliases||[]).some(a=>normSchoolName(a)===target)))||rows.find(x=>{
     const n=normSchoolName(x.name);
-    return n&&target&&(n.includes(target)||target.includes(n));
+    const aliases=(x.aliases||[]).map(normSchoolName);
+    const candidates=[n,...aliases].filter(a=>a&&a.length>=6);
+    return target.length>=6&&candidates.some(a=>a.includes(target)||target.includes(a));
   })||null;
 }
 function mapSearchUrls(name,address,city){
@@ -1772,7 +1779,7 @@ function parentKV(title,pairs){
 }
 function parentSchoolInfoHTML(name,fallback={}){
   const info=parentSchoolInfo(name);
-  const basic=info?.basicInfo||{};
+  const basic=info?.basicInfo||info?.basic||{};
   const address=basic.address||fallback.address||'';
   const urls=mapSearchUrls(name,address,fallback.city);
   const mapLinks=linkActionsHTML([
@@ -1792,27 +1799,28 @@ function parentSchoolInfoHTML(name,fallback={}){
   }
   const evalInfo=info.evaluation||{};
   const dorm=info.dormitory||{};
-  const net=info.networkAndElectricity||{};
-  const daily=info.dailyManagement||{};
+  const net=info.networkAndElectricity||info.network||{};
+  const daily=info.dailyManagement||info.management||{};
   const life=info.campusLife||{};
-  const notes=Array.isArray(evalInfo.attentionNotes)&&evalInfo.attentionNotes.length?`<ul class="parent-note-list">${evalInfo.attentionNotes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:'';
+  const attentionNotes=evalInfo.attentionNotes||evalInfo.notes||[];
+  const notes=Array.isArray(attentionNotes)&&attentionNotes.length?`<ul class="parent-note-list">${attentionNotes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:'';
   return `<section class="info-section parent-info-section"><h4>位置与家长端信息</h4><div class="parent-school-card"><p>${esc(basic.overview||'')}</p><dl class="kv info-kv">${[
     ['地址',address],
     ['办学层次',info.educationLevel],
     ['办学性质',info.ownership],
     ['城市层级',info.cityLevel],
-    ['学校方向',evalInfo.schoolOrientation],
-    ['住宿判断',evalInfo.dormitoryLevel],
-    ['交通便利度',evalInfo.transportLevel],
-    ['管理强度',evalInfo.managementLevel]
+    ['学校方向',evalInfo.schoolOrientation||evalInfo.orientation],
+    ['住宿判断',evalInfo.dormitoryLevel||evalInfo.dormitory],
+    ['交通便利度',evalInfo.transportLevel||evalInfo.transport],
+    ['管理强度',evalInfo.managementLevel||evalInfo.management]
   ].map(infoPairHTML).join('')}</dl>${mapLinks}</div></section>${parentKV('住宿条件',[
-    ['床桌情况',dorm.bunkDesk],['宿舍人数',dorm.roomCapacity],['宿舍空调',dorm.dormAirConditioning],['教室空调',dorm.classroomAirConditioning],['独立卫浴',dorm.privateBathroom],['热水时间',dorm.hotWaterTime],['洗衣机',dorm.washingMachine],['通宵自习室',dorm.studyRoomOvernight]
+    ['床桌情况',dorm.bunkDesk],['宿舍人数',dorm.roomCapacity],['宿舍空调',dorm.dormAirConditioning],['教室空调',dorm.classroomAirConditioning],['独立卫浴',dorm.privateBathroom],['热水时间',dorm.hotWaterTime||dorm.hotWater],['洗衣机',dorm.washingMachine],['通宵自习室',dorm.studyRoomOvernight||dorm.overnightStudyRoom]
   ])}${parentKV('网络与用电',[
-    ['功率限制',net.powerLimit],['夜间断电',net.nightPowerOff],['夜间断网',net.nightNetworkOff],['校园网速度',net.campusNetworkSpeed],['校园网价格',net.campusNetworkPrice]
+    ['功率限制',net.powerLimit],['夜间断电',net.nightPowerOff],['夜间断网',net.nightNetworkOff],['校园网速度',net.campusNetworkSpeed||net.speed],['校园网价格',net.campusNetworkPrice||net.price]
   ])}${parentKV('日常管理',[
-    ['新生带电脑',daily.freshmanCanBringComputer],['查寝',daily.dormCheck],['门禁时间',daily.curfewTime],['早晚自习',daily.morningEveningStudy],['晨跑',daily.morningRun],['跑步打卡',daily.runningCheckIn]
+    ['新生带电脑',daily.freshmanCanBringComputer||daily.freshmanComputer],['查寝',daily.dormCheck],['门禁时间',daily.curfewTime||daily.curfew],['早晚自习',daily.morningEveningStudy||daily.studyRequirement],['晨跑',daily.morningRun],['跑步打卡',daily.runningCheckIn]
   ])}${parentKV('交通与生活',[
-    ['地铁',life.metro],['到市中心',life.distanceToDowntown],['交通便利度',life.transportConvenience],['外卖',life.takeout],['食堂价格',life.canteenPrice],['超市价格',life.supermarketPrice],['快递',life.parcelService],['共享单车',life.sharedBike]
+    ['地铁',life.metro],['到市中心',life.distanceToDowntown||life.downtownDistance],['交通便利度',life.transportConvenience],['外卖',life.takeout],['食堂价格',life.canteenPrice],['超市价格',life.supermarketPrice],['快递',life.parcelService||life.parcel],['共享单车',life.sharedBike]
   ])}${parentKV('综合评价',[
     ['适合学生',evalInfo.suitableFor]
   ])}${notes?`<section class="info-section parent-info-section"><h4>注意事项</h4>${notes}</section>`:''}`;
