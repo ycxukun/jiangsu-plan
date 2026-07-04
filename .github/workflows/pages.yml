@@ -27,6 +27,7 @@ jobs:
 
           cp .nojekyll index.html admin.html app.js haoshengya_login_landing.html _site/
           cp data*.js _site/
+          cp school-life-info-data.js _site/
           cp -R articles content students specialty _site/
           if [ -f _redirects ]; then
             cp _redirects _site/

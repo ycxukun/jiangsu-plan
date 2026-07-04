@@ -1747,8 +1747,7 @@ function infoSectionHTML(title,pairs,extraClass=''){
 function normSchoolName(name){return String(name||'').replace(/[（）()\s]/g,'').replace(/学院$/,'').replace(/大学$/,'').toLowerCase();}
 function parentSchoolRows(){
   const rows=[];
-  if(Array.isArray(window.SchoolBasicInfoLinker?.schools))rows.push(...window.SchoolBasicInfoLinker.schools);
-  if(Array.isArray(window.JIANGSU_COLLEGE_PARENT_CLEAN_DATA?.schools))rows.push(...window.JIANGSU_COLLEGE_PARENT_CLEAN_DATA.schools);
+  if(Array.isArray(window.SCHOOL_LIFE_INFO_DATA?.schools))rows.push(...window.SCHOOL_LIFE_INFO_DATA.schools);
   return rows;
 }
 function parentSchoolInfo(name){
@@ -1795,7 +1794,7 @@ function parentSchoolInfoHTML(name,fallback={}){
       ['公私性质',fallback.publicPrivate],
       ['地址',address]
     ];
-    return `<section class="info-section parent-info-section"><h4>位置与家长端信息</h4><div class="parent-school-card"><p class="muted">家长端信息库暂未匹配到该校，已保留招生库基础信息和地图检索入口。地图按“院校名 + 城市/地址”搜索，不使用未核验坐标。</p><dl class="kv info-kv">${fallbackPairs.map(infoPairHTML).join('')}</dl>${mapLinks}</div></section>`;
+    return `<section class="info-section parent-info-section"><h4>位置与宿舍生活信息</h4><div class="parent-school-card"><p class="muted">宿舍生活信息表暂未匹配到该校，已保留招生库基础信息和地图检索入口。地图按“院校名 + 城市/地址”搜索，不使用未核验坐标。</p><dl class="kv info-kv">${fallbackPairs.map(infoPairHTML).join('')}</dl>${mapLinks}</div></section>`;
   }
   const evalInfo=info.evaluation||{};
   const dorm=info.dormitory||{};
@@ -1804,7 +1803,7 @@ function parentSchoolInfoHTML(name,fallback={}){
   const life=info.campusLife||{};
   const attentionNotes=evalInfo.attentionNotes||evalInfo.notes||[];
   const notes=Array.isArray(attentionNotes)&&attentionNotes.length?`<ul class="parent-note-list">${attentionNotes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:'';
-  return `<section class="info-section parent-info-section"><h4>位置与家长端信息</h4><div class="parent-school-card"><p>${esc(basic.overview||'')}</p><dl class="kv info-kv">${[
+  return `<section class="info-section parent-info-section"><h4>位置与宿舍生活信息</h4><div class="parent-school-card"><p>${esc(basic.overview||'')}</p><dl class="kv info-kv">${[
     ['地址',address],
     ['办学层次',info.educationLevel],
     ['办学性质',info.ownership],
