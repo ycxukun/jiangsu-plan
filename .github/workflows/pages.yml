@@ -1,6 +1,9 @@
 name: Deploy static site to GitHub Pages
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -19,6 +22,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate JavaScript
+        run: node --check app.js
+
       - name: Prepare static site
         run: |
           set -euo pipefail
@@ -26,12 +32,26 @@ jobs:
           mkdir -p _site
 
           cp .nojekyll index.html admin.html app.js haoshengya_login_landing.html _site/
+          cp style-claude-*.css _site/
           cp data*.js _site/
           cp school-life-info-data.js _site/
           cp -R articles content students specialty _site/
           if [ -f _redirects ]; then
             cp _redirects _site/
           fi
+
+          test -f _site/index.html
+          test -f _site/app.js
+          test -f _site/style-claude-clean.css
+          test -f _site/style-claude-inspired.css
+          test -f _site/style-claude-force.css
+          test -f _site/style-claude-typography.css
+          test -f _site/data-db.js
+          test -f _site/data-major-details.js
+          test -f _site/data-foreign-coop-details.js
+          test -d _site/content
+          test -d _site/students
+          test -d _site/specialty
 
           find _site -name '.DS_Store' -delete
           du -sh _site
