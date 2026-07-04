@@ -1,0 +1,281 @@
+/*
+  好生涯 · Claude-inspired warm editorial UI theme
+  说明：借鉴温暖纸张、陶土色块、衬线标题、克制卡片的视觉语言；不复刻任何第三方品牌标识。
+  Version: 2026-07-04-claude-inspired-ui
+*/
+:root{
+  --green:#c76d52!important;
+  --green2:#a9543d!important;
+  --brand:#c76d52!important;
+  --brand-dark:#8f3f2d!important;
+  --ink:#17130f!important;
+  --muted:#746a5f!important;
+  --line:#e5dbcc!important;
+  --bg:#ddd6c6!important;
+  --card:#fbf7ef!important;
+  --red:#b84a3a!important;
+  --redbg:#fff1ea!important;
+  --blue:#394b7a!important;
+  --bluebg:#eef1fb!important;
+  --shadow:0 22px 70px rgba(66,45,30,.10)!important;
+  --paper:#fbf7ef;
+  --paper-2:#f4ecdd;
+  --paper-3:#ede3d3;
+  --clay:#c76d52;
+  --clay-dark:#914634;
+  --charcoal:#17130f;
+  --sage:#9ca58e;
+  --sand:#e9dcc1;
+}
+*{box-sizing:border-box}
+html{background:#ddd6c6!important;}
+body{
+  background:
+    radial-gradient(circle at 18% 10%, rgba(255,247,231,.72), transparent 34%),
+    radial-gradient(circle at 88% 0%, rgba(198,109,82,.18), transparent 26%),
+    linear-gradient(180deg,#e2dac9 0%,#d7cfbd 52%,#e8ddc4 100%)!important;
+  color:var(--charcoal)!important;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif!important;
+  letter-spacing:.005em;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:-1;
+  background-image:linear-gradient(rgba(23,19,15,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(23,19,15,.028) 1px,transparent 1px);
+  background-size:46px 46px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.45),transparent 68%);
+}
+button,input,select,textarea{font:inherit}
+button{transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease}
+button:hover{transform:translateY(-1px)}
+a{color:var(--clay-dark)}
+.topbar,
+header.topbar{
+  background:rgba(251,247,239,.88)!important;
+  border-bottom:1px solid rgba(64,44,28,.12)!important;
+  backdrop-filter:blur(22px) saturate(1.06)!important;
+  box-shadow:0 12px 44px rgba(55,42,30,.06)!important;
+}
+.hero{
+  padding-top:22px!important;
+  padding-bottom:12px!important;
+}
+.brand h1,
+.school-title h2,
+.panel h2,
+.landing .panel h2,
+.modal h3,
+.panel-head h3,
+.annotation-head h3,
+.group-head h3,
+.viewer-head h3,
+.article-card h3,
+.side-head strong,
+.volunteer-panel .panel-head h3{
+  font-family:"Iowan Old Style","Georgia","Times New Roman","Songti SC","STSong",serif!important;
+  font-weight:700!important;
+  letter-spacing:-.045em!important;
+  color:var(--charcoal)!important;
+}
+.brand h1{font-size:28px!important;line-height:1.05!important;}
+.brand p{color:#6f665b!important;max-width:760px;line-height:1.75!important;}
+.version,.pill,.btn,.header-toggle,.primary-btn,.top-actions button,.top-actions a,
+.detail-btn,.change-btn,.anno-btn,.anno-mini,.admin-dock button,
+.modal-actions button,.volunteer-head-actions button:not(.close-btn),.volunteer-add-btn{
+  border-radius:999px!important;
+  box-shadow:none!important;
+  font-weight:850!important;
+}
+.primary-btn,.btn.primary,.modal-actions .save,.volunteer-head-actions button:not(.close-btn){
+  background:var(--charcoal)!important;
+  color:#fff!important;
+  border-color:var(--charcoal)!important;
+}
+.primary-btn:hover,.btn.primary:hover,.modal-actions .save:hover{background:#2a2119!important;}
+.version,.pill.green,.badge.green,.tag.green,.range-summary{
+  background:#fff4ec!important;
+  color:var(--clay-dark)!important;
+  border-color:#edc2ae!important;
+}
+.header-toggle,.pill,.btn,.top-actions button,.detail-btn,.change-btn,.anno-btn,.anno-mini,.modal-actions button{
+  background:rgba(251,247,239,.86)!important;
+  border-color:#dccfbd!important;
+  color:#2b241d!important;
+}
+.filters,
+.toolbar{
+  gap:12px!important;
+}
+.filters select,.filters input,.filters button,
+.toolbar input,.toolbar select,
+.form input,.form select,.form textarea,
+.score-row input[type=number],.volunteer-workbench-toolbar input,.volunteer-workbench-toolbar select{
+  background:rgba(251,247,239,.94)!important;
+  border:1px solid #d9cab7!important;
+  border-radius:18px!important;
+  color:var(--charcoal)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.8), inset 0 1px 0 rgba(255,255,255,.45)!important;
+}
+.filters .filter-btn{
+  min-height:44px!important;
+  height:auto!important;
+  line-height:1.25!important;
+  display:flex!important;
+  align-items:center!important;
+  padding-right:34px!important;
+}
+.filters .filter-btn:after{right:14px!important;color:#8e8173!important;}
+.filters select:focus,.filters input:focus,.filters button:focus,
+.toolbar input:focus,.toolbar select:focus,.form input:focus,.form select:focus,.form textarea:focus{
+  outline:none!important;
+  border-color:var(--clay)!important;
+  box-shadow:0 0 0 4px rgba(199,109,82,.15)!important;
+}
+.layout{gap:22px!important;}
+.sidebar,.school-header,.group-card,.group-section,.panel,.modal,.note-panel,.volunteer-panel,
+.viewer,.article-card,.module-card,.upload-panel,.empty,.change-side,.change-metric,.annotation-drawer{
+  background:rgba(251,247,239,.94)!important;
+  border:1px solid rgba(65,45,29,.13)!important;
+  box-shadow:0 24px 70px rgba(63,45,30,.09)!important;
+}
+.sidebar,.school-header,.panel,.viewer{border-radius:30px!important;}
+.group-card,.group-section,.article-card,.module-card{border-radius:24px!important;}
+.school-header{
+  position:relative!important;
+  overflow:hidden!important;
+  background:
+    linear-gradient(135deg,rgba(251,247,239,.98),rgba(246,235,217,.94))!important;
+}
+.school-header::after{
+  content:"✳";
+  position:absolute;
+  right:36px;
+  top:28px;
+  width:86px;
+  height:86px;
+  display:grid;
+  place-items:center;
+  border-radius:32px;
+  transform:rotate(-3deg);
+  background:#d98262;
+  color:#fff6ec;
+  font-size:54px;
+  line-height:1;
+  opacity:.16;
+  font-family:Georgia,serif;
+}
+.school-title,.summary-grid,.badges{position:relative;z-index:1}
+.metric,.mini,.tag,.badge,.note-badge,.class-chip,.score-pill,.change-pill,.selected-major-item,.major-check,.selected-major-empty{
+  background:#fffbf5!important;
+  border-color:#e4d7c5!important;
+  color:#352a20!important;
+}
+.metric{border-radius:20px!important;}
+.metric b,.mini b{font-family:"Iowan Old Style",Georgia,"Songti SC",serif!important;color:var(--charcoal)!important;}
+.metric span,.mini span,.muted,.school-item .meta,.group-head p,.article-card p,.panel p,.file-note,.status{
+  color:#756b60!important;
+}
+.school-item{
+  background:transparent!important;
+  border-radius:18px!important;
+  border-color:transparent!important;
+}
+.school-item:hover{background:#fff7ec!important;border-color:#e5cdb7!important;}
+.school-item.active{background:#fff2e5!important;border-color:#d98a68!important;}
+.group-card{
+  background:
+    linear-gradient(180deg,rgba(255,251,245,.98),rgba(248,239,226,.9))!important;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.group-card:hover{
+  transform:translateY(-2px)!important;
+  border-color:#cf8c6f!important;
+  box-shadow:0 30px 78px rgba(66,45,30,.13)!important;
+}
+.group-card h3,.group-head h3{font-family:"Iowan Old Style",Georgia,"Songti SC",serif!important;}
+.tag{background:#efe7d9!important;color:#57483b!important;}
+.tag.red,.badge.red{background:#fff1ea!important;color:#9f3e30!important;border-color:#efb7a1!important;}
+.tag.green{background:#fff4ec!important;color:#8f3f2d!important;border-color:#efc3ae!important;}
+.note-badge{background:#2a2119!important;color:#fff7ec!important;border-color:#2a2119!important;}
+table{background:#fffbf5!important;}
+th{background:#f2eadf!important;color:#6f6254!important;}
+td,th{border-bottom-color:#eadfce!important;}
+tr:hover td{background:#fff5ea!important;}
+.risk-row td{background:#fff1ea!important;}
+.clickable-row .major-name,.major-name,.change-pos{color:var(--clay-dark)!important;}
+.detail-btn,.change-btn,.anno-btn,.anno-mini{color:var(--clay-dark)!important;}
+.panel,.annotation-drawer,.volunteer-panel{background:#fbf7ef!important;}
+.close-btn{background:#efe4d3!important;color:#2a2119!important;}
+.modal-mask{background:rgba(40,31,23,.36)!important;backdrop-filter:blur(8px)!important;}
+.modal{background:#fbf7ef!important;border-radius:28px!important;}
+.note-panel{border-color:#edc2ae!important;}
+.note-panel h4{background:#fff4ec!important;color:#8f3f2d!important;border-bottom-color:#edc2ae!important;}
+.volunteer-panel,.volunteer-workbench{background:#ddd6c6!important;}
+.volunteer-panel .panel-head,.volunteer-workbench-toolbar,.volunteer-table-head,.volunteer-row,.volunteer-card{
+  background:rgba(251,247,239,.96)!important;
+  border-color:#e2d5c3!important;
+}
+.backtop,.back-to-top,[data-backtop],button[aria-label*="顶部"]{
+  background:var(--charcoal)!important;
+  color:#fff!important;
+}
+.footer{
+  color:#756b60!important;
+}
+/* Landing / login / content center */
+.landing .panel,
+.upload-panel{
+  position:relative;
+  overflow:hidden;
+}
+.landing .panel::before,
+.upload-panel::before{
+  content:"";
+  position:absolute;
+  width:132px;height:132px;right:-38px;top:-36px;
+  border-radius:38px;
+  background:#d98262;
+  opacity:.12;
+  transform:rotate(4deg);
+  pointer-events:none;
+}
+.module-card{
+  background:#fffbf5!important;
+}
+.module-card:hover{border-color:#d18d70!important;}
+.article-card{background:#fffbf5!important;}
+.viewer-body,.media-preview{background:#f2eadf!important;}
+.progress{background:#eee4d5!important;}
+.progress i{background:linear-gradient(90deg,#17130f,#c76d52)!important;}
+.btn.blue{background:#f0ecdf!important;color:#2f3b62!important;border-color:#d8d1c3!important;}
+.notice{background:#fff4ec!important;border-color:#edc2ae!important;color:#743927!important;}
+/* Login pages with unknown class names: broad safe treatment */
+.login-card,.auth-card,.workspace-card,.landing-card,.account-card{
+  background:#fbf7ef!important;
+  border:1px solid #e4d7c5!important;
+  box-shadow:0 30px 80px rgba(63,45,30,.12)!important;
+  border-radius:30px!important;
+}
+.login-card h1,.auth-card h1,.workspace-card h1,.landing-card h1{
+  font-family:"Iowan Old Style",Georgia,"Songti SC",serif!important;
+  letter-spacing:-.045em!important;
+}
+/* Keep dense data products readable on small screens */
+@media(max-width:980px){
+  .hero{padding-left:16px!important;padding-right:16px!important;}
+  .filters{grid-template-columns:repeat(2,minmax(0,1fr))!important;padding-left:16px!important;padding-right:16px!important;}
+  .filters input{grid-column:span 2!important;}
+  .layout{grid-template-columns:1fr!important;padding:16px!important;}
+  .sidebar{position:relative!important;top:0!important;height:auto!important;max-height:320px!important;}
+  .school-header::after{display:none!important;}
+}
+@media(max-width:640px){
+  .brand h1{font-size:24px!important;}
+  .filters{grid-template-columns:1fr!important;}
+  .filters input{grid-column:auto!important;}
+  .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .group-cards{grid-template-columns:1fr!important;}
+}
