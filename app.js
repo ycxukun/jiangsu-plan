@@ -1690,13 +1690,13 @@ function groupCleanTagsHTML(s,g,planDiff,quality,compact=false){
 function majorActionButtonsHTML(s,g,m,coopDetail,groupKey){
   const key=keyMajor(m);
   const buttons=[];
+  buttons.push(`<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(key)}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button>`);
   if(coopDetail){
     buttons.push(`<button class="anno-mini foreign-coop-detail-btn" data-major-detail="${esc(key)}" data-detail-mode="foreign-coop" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">中外合作详情</button>`);
   }else{
     buttons.push(`<button class="anno-mini major-detail-mini" data-major-detail="${esc(key)}" data-detail-mode="major" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}">专业信息</button>`);
   }
-  buttons.push(`<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(key)}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button>`);
-  return `<div class="major-actions-clean">${buttons.join('')}</div>`;
+  return `<span class="major-inline-actions">${buttons.join('')}</span>`;
 }
 function foreignCoopHeroHTML(d={}){
   if(!d.foreignCoop)return '';
@@ -1770,7 +1770,7 @@ function majorRowHTML(s,g,m){
   const coopDetail=foreignCoopDetailForMajor(m);
   const actionButtons=majorActionButtonsHTML(s,g,m,coopDetail,groupKey);
   const basicLine=`<button class="major-basic-line" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看软科评级、学科评估、专业硕博点等基础信息" aria-label="查看${esc(m.name)}专业基础信息"></button>`;
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line"><span class="major-name-text">${esc(m.name)}</span>${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}</div>${basicLine}${actionButtons}</td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line"><span class="major-name-text">${esc(m.name)}</span>${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div>${basicLine}</td><td class="major-class-stack">${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
