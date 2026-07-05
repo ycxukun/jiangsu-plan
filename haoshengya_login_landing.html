@@ -912,11 +912,11 @@
             </div>
             <div class="login-actions">
               <button class="btn btn-primary login-btn workbench-login-btn" type="submit">登录工作台</button>
-              <button class="btn btn-secondary login-btn" id="landingRegisterBtn" type="button">注册账号</button>
+              <button class="btn btn-secondary login-btn" id="landingRegisterBtn" type="button">申请开通</button>
             </div>
           </form>
 
-          <p class="login-tip">内测阶段建议先做“规划师端”登录；家长端、学生端可用专属链接进入对应学生档案。</p>
+          <p class="login-tip">系统处于内测阶段，不开放自由注册；请使用管理员分配的账号登录，或提交开通申请。</p>
         </section>
 
         <section class="system-card" id="security">
@@ -963,9 +963,9 @@
     const nextPath = params.get('next') || '';
     let activeRole = 'consultant';
     const roleTips = {
-      '规划师端': ['请输入规划师账号', 'consultant', '内测阶段建议先做“规划师端”登录；家长端、学生端可用专属链接进入对应学生档案。'],
-      '家长端': ['请输入家长手机号或专属账号', 'viewer', '家长端建议只开放：学生画像、服务进度、志愿方案说明、文件下载。'],
-      '学生端': ['请输入学生账号或访问码', 'viewer', '学生端建议只开放：基础信息确认、专业兴趣反馈、志愿方案查看。']
+      '规划师端': ['请输入规划师账号', 'consultant', '内测阶段不开放自由注册；规划师账号由管理员开通。'],
+      '家长端': ['请输入家长手机号或专属账号', 'viewer', '家长端需由管理员绑定对应学生后开通。'],
+      '学生端': ['请输入学生账号或访问码', 'viewer', '学生端需由管理员绑定对应档案后开通。']
     };
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1002,26 +1002,20 @@
     }
     async function ensureStandaloneProfile(user, role) {
       if (!user?.id) return;
-      try {
-        const accessToken = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || '{}').accessToken || '';
-        await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=id`, {
-          method: 'POST',
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            Prefer: 'resolution=ignore-duplicates'
-          },
-          body: JSON.stringify({
-            id: user.id,
-            email: user.email,
-            display_name: user.email,
-            role: role === 'consultant' ? 'consultant' : 'viewer',
-            status: 'active'
-          })
-        });
-      } catch (err) {
-        console.warn('profile create failed', err);
+      const accessToken = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || '{}').accessToken || '';
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=role,status&id=eq.${encodeURIComponent(user.id)}&limit=1`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const rows = await res.json();
+      const profile = rows?.[0] || null;
+      const allowed = profile && profile.status === 'active' && ['admin', 'consultant', 'planner'].includes(profile.role);
+      if (!allowed) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        throw new Error('账号尚未由管理员开通或已停用。请联系管理员分配账号后再登录。');
       }
     }
     async function standaloneLogin(email, pwd) {
@@ -1075,31 +1069,10 @@
     });
     registerBtn.addEventListener('click', () => {
       if (!isEmbedded()) {
-        tip.textContent = '请先输入邮箱和密码后注册。';
-        const email = account.value.trim();
-        const pwd = password.value;
-        if (!email || !pwd) return;
-        fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-          method: 'POST',
-          headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password: pwd, data: { role: activeRole } })
-        }).then(async res => {
-          if (!res.ok) throw new Error(await res.text());
-          const data = await res.json();
-          if (data.access_token) {
-            saveStandaloneAuth(data);
-            await ensureStandaloneProfile(data.user, activeRole);
-            tip.textContent = '注册并登录成功，正在进入系统...';
-            window.location.href = safeNextUrl();
-          } else {
-            tip.textContent = '注册成功。若系统开启邮箱确认，请先到邮箱完成确认后再登录。';
-          }
-        }).catch(err => {
-          tip.textContent = '注册失败：' + err.message;
-        });
+        tip.textContent = '请联系管理员开通账号；申请信息建议包含姓名、联系方式、身份类型和对应学生。';
         return;
       }
-      sendAuthMessage({ action: 'register', role: activeRole });
+      sendAuthMessage({ action: 'apply-access', role: activeRole });
     });
     forgotPasswordBtn.addEventListener('click', () => {
       const email = account.value.trim();

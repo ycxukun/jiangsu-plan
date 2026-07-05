@@ -37,7 +37,7 @@ const levelFacetGroups=[
 const specialTypeFacetGroups=[
   {title:'重点特殊类型',items:['定向军士男','3+2','5+0','中外合作','定向医学','定向医学生','司法警察男','司法警察女','石邮连云港','石邮扬州','石邮淮安','石邮镇江','定向军士女','石邮南通','石邮宿迁']},
   {title:'合作与培养模式',items:['联合培养','高收费','境外/国际培养','校企合作/产教融合']},
-  {title:'政策与特殊招生',items:['军校','公安','航海/飞行','专项计划','其他院校提前批','定向/军士','定向/公费/优师','民族班/预科','军警航海']},
+  {title:'政策与特殊招生',items:['军校','公安','航海/飞行','专项计划','其他院校提前批','强基计划','综评A','综评B','定向/军士','定向/公费/优师','民族班/预科','军警航海']},
   {title:'特殊班型',items:['实验班/拔尖班','双学位/本博硕博']}
 ];
 
@@ -1047,6 +1047,7 @@ function batchGuideFilterId(){
   const v=String(state.batch||'');
   return v.startsWith('guide:')?v.slice(6):'';
 }
+const BATCH_GUIDE_FILTER_IDS=['early-sergeant'];
 function batchGuideFilterLabel(def){
   if(!def)return '';
   const labels={
@@ -1065,7 +1066,11 @@ function batchGuideFilterLabel(def){
 function batchGuideEligibleForBatch(def,s,g){
   if(!def)return false;
   if(def.id==='early-sergeant')return true;
-  return /提前/.test(String(s?.batch||g?.batch||''));
+  const text=[
+    s?.batch,g?.batch,s?.name,g?.groupName,g?.rawGroupName,g?.remark,
+    ...(Array.isArray(g?.tags)?g.tags:[])
+  ].filter(Boolean).join(' ');
+  return /提前|定向军士|定向培养军士|士官|军士生/.test(text);
 }
 function groupMatchesBatchGuideFilter(s,g){
   const guideId=batchGuideFilterId();
@@ -1176,8 +1181,12 @@ function fillBatchSelect(sel,batches){
     if(!batchGuideEligibleForBatch(def,s,g))return;
     if(def)guideCounts.set(def.id,(guideCounts.get(def.id)||0)+1);
   }));
-  const guideDefs=(window.BatchGuide?.GUIDE_DEFS||[]).filter(def=>guideCounts.has(def.id));
-  const guideOptions=guideDefs.map(def=>`<option value="guide:${esc(def.id)}">${esc(batchGuideFilterLabel(def))}（${guideCounts.get(def.id)}组）</option>`).join('');
+  const allDefs=window.BatchGuide?.GUIDE_DEFS||[];
+  const guideDefs=BATCH_GUIDE_FILTER_IDS.map(id=>allDefs.find(def=>def.id===id)).filter(Boolean);
+  const guideOptions=guideDefs.map(def=>{
+    const count=guideCounts.get(def.id)||0;
+    return `<option value="guide:${esc(def.id)}">${esc(batchGuideFilterLabel(def))}${count?`（${count}组）`:''}</option>`;
+  }).join('');
   el.innerHTML=first+(guideOptions?`<optgroup label="提前批细分">${guideOptions}</optgroup>`:'')+batchOptions;
 }
 function initFilters(){
@@ -1576,13 +1585,16 @@ function groupSpecialTypeValues(s,g){
   if(/定向|公费师范|免费师范|优师|免费医学|委托培养|订单定向/.test(text))add('定向/公费/优师');
   if(/定向军士|军士/.test(text))add('定向/军士');
   if(/定向医学生|免费医学生|免费医学定向|农村订单定向医学生|订单定向医学生|定向医学/.test(text))add('定向医学生');
-  if(/地方专项|高校专项|国家专项|农村专项|专项计划|综合评价|强基/.test(text))add('专项计划');
+  if(/地方专项|高校专项|国家专项|农村专项|专项计划/.test(text))add('专项计划');
+  if(/强基计划|强基/.test(text))add('强基计划');
+  if(/8综评A|综评A|综合评价A|综合评价 A/.test(text))add('综评A');
+  if(/综评B|综合评价B|综合评价 B/.test(text))add('综评B');
   if(/民族班|预科|少数民族/.test(text))add('民族班/预科');
   if(/军校|军队院校|军事类|国防科技大学|陆军|海军|空军|火箭军|武警/.test(text))add('军校');
   if(/公安|警校|人民公安|刑事警察|警察学院|治安学|侦查学|公安学|公安技术|网络安全与执法/.test(text))add('公安');
   if(/司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('司法警校');
   if(/航海|轮机|船舶电子电气|飞行技术|民航|空中交通管制|海事/.test(text))add('航海/飞行');
-  if(/其他院校|本科提前批|提前本科|综合评价|强基|飞行技术|民航|空中交通管制|消防|司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('其他院校提前批');
+  if(/7其他|其他院校|本科提前批|提前本科|飞行技术|民航|空中交通管制|消防|司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('其他院校提前批');
   if(/军校|公安|警校|航海|轮机|飞行技术|民航|空中交通管制|司法警官|消防/.test(text))add('军警航海');
   if(/实验班|试验班|拔尖|强基|钱学森|英才|菁英|创新班|卓越班|领军|尖班|书院/.test(text))add('实验班/拔尖班');
   if(/双学士|双学位|本博|本硕|硕博|直博|长学制|八年制|九年制/.test(text))add('双学位/本博硕博');
@@ -3017,7 +3029,7 @@ async function writeStudentRecord(path,method,payload){
 function updateAccountUI(){
   const accountBtn=$('#accountBtn');
   if(accountBtn){
-    accountBtn.textContent=auth.user?.email?'账号中心：'+auth.user.email.split('@')[0]:'登录/注册';
+    accountBtn.textContent=auth.user?.email?'账号中心：'+auth.user.email.split('@')[0]:'登录/申请开通';
     accountBtn.classList.toggle('logged-in',Boolean(auth.user));
   }
   const logoutBtn=$('#logoutHeaderBtn');
@@ -3041,14 +3053,14 @@ function updateStudentProfileMenu(){
   if(!menu)return;
   const name=currentStudent?.name||auth.user?.email?.split('@')[0]||'未登录';
   const summary=currentStudent?studentTopSummary(currentStudent):(auth.user?'尚未选择学生，点击进入学生档案':'登录后管理学生、志愿表和账号');
-  const meta=currentStudent?stageLabel(currentStudent.stage)+'｜'+studentTopSummary(currentStudent):(auth.user?'已登录，尚未选择当前学生。':'未登录，点击账号中心登录或注册。');
+  const meta=currentStudent?stageLabel(currentStudent.stage)+'｜'+studentTopSummary(currentStudent):(auth.user?'已登录，尚未选择当前学生。':'未登录，点击账号中心登录或申请开通。');
   const initial=studentProfileInitial();
   const email=auth.user?.email||'未登录';
   const count='志愿表 '+volunteerKeys.length+'/'+VOLUNTEER_LIMIT;
   [['#studentProfileAvatar',initial],['#studentProfileAvatarLarge',initial],['#studentProfileName',name],['#studentProfileNameLarge',name],['#studentProfileSummary',summary],['#studentProfileMeta',meta],['#studentProfileAccount','账号：'+email],['#studentProfileVolunteer',count]].forEach(function(pair){const el=$(pair[0]); if(el)el.textContent=pair[1];});
   const trigger=$('#studentProfileBtn');
   if(trigger){
-    trigger.title=currentStudent?currentStudent.name+'｜'+studentTopSummary(currentStudent):(auth.user?'账号：'+auth.user.email:'登录/注册');
+    trigger.title=currentStudent?currentStudent.name+'｜'+studentTopSummary(currentStudent):(auth.user?'账号：'+auth.user.email:'登录/申请开通');
     trigger.setAttribute('aria-expanded',menu.classList.contains('open')?'true':'false');
   }
 }
@@ -3101,23 +3113,37 @@ function subjectLabel(v){return v==='history'?'历史':'物理';}
 
 function showAccountModal(mode='login'){
   if(auth.user&&mode==='login'){showAccountCenter();return;}
-  const isRegister=mode==='register';
-  $('#modal').innerHTML='<h3>'+(isRegister?'注册账号':'登录账号')+'</h3><div class="modal-body">'+
-    (supabaseConfigured()?'':'<div class="account-notice">数据库还没有配置。请先创建 Supabase 项目，执行 supabase/schema.sql，然后把 URL 和 anon key 填进 app.js。界面已经接好，配置后即可注册登录。</div>')+
-    '<div class="account-tabs"><button id="loginTab" class="'+(isRegister?'':'active')+'" type="button">登录</button><button id="registerTab" class="'+(isRegister?'active':'')+'" type="button">注册</button></div>'+
+  $('#modal').innerHTML='<h3>登录账号</h3><div class="modal-body">'+
+    (supabaseConfigured()?'':'<div class="account-notice">数据库还没有配置。请先创建 Supabase 项目并执行 <code>supabase/schema.sql</code>。</div>')+
+    '<div class="account-notice"><b>系统内测中，不开放自由注册。</b><br>请使用管理员分配的账号登录；需要开通请提交申请，由管理员审核后分配规划师或学生权限。</div>'+
     '<div class="account-form">'+
-    (isRegister?'<label>姓名或昵称<input id="accountName" placeholder="例如：王老师"></label>':'')+
     '<label>邮箱<input id="accountEmail" type="email" value="" placeholder="you@example.com" autocomplete="off" autocapitalize="none" spellcheck="false"></label>'+
     '<label>密码<input id="accountPassword" type="password" placeholder="至少 6 位" autocomplete="new-password"></label>'+
     '</div>'+
-    '<div class="modal-actions"><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')">取消</button><button id="accountSubmit" class="save">'+(isRegister?'注册':'登录')+'</button></div>'+
+    '<div class="modal-actions"><button id="accessRequestBtn" type="button">申请开通</button><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')">取消</button><button id="accountSubmit" class="save">登录</button></div>'+
     '</div>';
   openModal();
   markAccountFieldsUserEditing();
   clearAnonymousAccountFields();
-  $('#loginTab').addEventListener('click',()=>showAccountModal('login'));
-  $('#registerTab').addEventListener('click',()=>showAccountModal('register'));
-  $('#accountSubmit').addEventListener('click',()=>isRegister?registerSupabase():loginSupabase());
+  $('#accessRequestBtn')?.addEventListener('click',showAccessRequestModal);
+  $('#accountSubmit').addEventListener('click',()=>loginSupabase());
+}
+function showAccessRequestModal(){
+  $('#modal').innerHTML='<h3>申请开通</h3><div class="modal-body">'+
+    '<div class="account-notice"><b>申请不会自动创建账号。</b><br>管理员审核通过后，会分配账号、角色和可管理学生。为保护学生数据，当前不接受自由注册。</div>'+
+    '<div class="account-form">'+
+    '<label>申请人姓名<input id="accessName" placeholder="例如：王老师 / 张同学家长"></label>'+
+    '<label>联系邮箱或手机号<input id="accessContact" placeholder="用于接收开通通知"></label>'+
+    '<label>开通说明<input id="accessReason" placeholder="例如：规划师账号 / 某学生家长 / 内测体验"></label>'+
+    '</div>'+
+    '<div class="modal-actions"><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')" type="button">关闭</button><button id="copyAccessRequest" class="save" type="button">复制申请信息</button></div>'+
+    '</div>';
+  openModal();
+  $('#copyAccessRequest')?.addEventListener('click',async function(){
+    const text='申请开通志愿填报系统权限\n姓名：'+($('#accessName')?.value.trim()||'')+'\n联系方式：'+($('#accessContact')?.value.trim()||'')+'\n说明：'+($('#accessReason')?.value.trim()||'');
+    try{await navigator.clipboard.writeText(text);alert('申请信息已复制，请发给管理员审核开通。');}
+    catch(e){alert(text);}
+  });
 }
 function markAccountFieldsUserEditing(){
   ['accountEmail','accountPassword'].forEach(function(id){
@@ -3161,34 +3187,7 @@ function showAccountCenter(){
 }
 function showLoginModal(){showAccountModal('login');}
 async function registerSupabase(){
-  if(!requireSupabase())return;
-  const email=$('#accountEmail').value.trim();
-  const password=$('#accountPassword').value;
-  const displayName=$('#accountName')?.value.trim()||'';
-  if(!email||!password){alert('请输入邮箱和密码。');return;}
-  try{
-    const res=await fetch(SUPABASE_URL+'/auth/v1/signup',{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password,data:{display_name:displayName}})});
-    if(!res.ok)throw new Error(await res.text());
-    const data=await res.json();
-    if(data.access_token){
-      auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
-      saveAuth();
-      await ensureUserProfile(displayName);
-      loadCurrentStudent();
-      loadCurrentVolunteerDraft();
-      closeModal();
-      updateAccountUI();
-      updateAuthGate();
-      updateVolunteerUI();
-      render();
-      renderStudentPanel();
-      showModuleChoiceModal();
-      alert('注册并登录成功。');
-    }else{
-      alert('注册成功。若 Supabase 开启了邮箱确认，请先到邮箱完成确认后再登录。');
-      showAccountModal('login');
-    }
-  }catch(err){alert('注册失败：'+err.message);}
+  showAccessRequestModal();
 }
 async function loginSupabase(){
   if(!requireSupabase())return;
@@ -3203,6 +3202,7 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     if(!res.ok)throw new Error(await res.text());
     const data=await res.json();
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
+    await requireApprovedProfile();
     saveAuth();
     await ensureUserProfile(data.user?.user_metadata?.display_name||'');
     loadCurrentStudent();
@@ -3227,7 +3227,11 @@ async function handleLandingAuthMessage(event){
   const frame=$('#authLandingFrame')?.contentWindow;
   try{
     if(event.data.action==='register'){
-      showAccountModal('register');
+      showAccessRequestModal();
+      return;
+    }
+    if(event.data.action==='apply-access'){
+      showAccessRequestModal();
       return;
     }
     if(event.data.action==='login'){
@@ -3241,8 +3245,19 @@ async function handleLandingAuthMessage(event){
 async function ensureUserProfile(displayName=''){
   if(!auth.user?.id)return;
   try{
-    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:'consultant',status:'active'})});
+    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:'viewer',status:'pending'})});
   }catch(err){console.warn('创建/更新用户资料失败',err);}
+}
+async function requireApprovedProfile(){
+  if(!auth.user?.id)return;
+  const rows=await apiFetch('profiles?select=role,status&id=eq.'+encodeURIComponent(auth.user.id)+'&limit=1');
+  const p=rows?.[0]||null;
+  const allowed=p&&p.status==='active'&&['admin','consultant','planner'].includes(p.role);
+  if(!allowed){
+    auth={accessToken:'',refreshToken:'',user:null};
+    clearSavedAuth();
+    throw new Error('账号尚未由管理员开通或已停用。请联系管理员分配账号后再登录。');
+  }
 }
 function logoutSupabase(options={}){
   if(auth.user&&!options.skipConfirm){
@@ -3296,7 +3311,7 @@ function renderStudentPanel(){
     return;
   }
   if(!auth.user){
-    body.innerHTML='<div class="student-empty">请先登录或注册账号，然后就可以新增学生、保存志愿表。</div><div class="student-inline-actions" style="margin-top:12px"><button class="save" id="studentLoginNow">登录/注册</button></div>';
+    body.innerHTML='<div class="student-empty">请先使用管理员分配的账号登录；没有账号请申请开通。</div><div class="student-inline-actions" style="margin-top:12px"><button class="save" id="studentLoginNow">登录/申请开通</button></div>';
     $('#studentLoginNow')?.addEventListener('click',function(){showAccountModal('login');});
     return;
   }

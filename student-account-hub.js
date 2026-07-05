@@ -152,7 +152,7 @@
       <button id="studentAccountTrigger" class="student-account-trigger" type="button" aria-expanded="false">
         <span id="studentAccountAvatar" class="student-avatar-badge">学</span>
         <span class="student-account-text">
-          <b id="studentAccountTitle">登录/注册</b>
+          <b id="studentAccountTitle">登录/申请开通</b>
           <small id="studentAccountSubtitle">进入账号中心</small>
         </span>
         <span class="student-account-arrow">⌄</span>
@@ -225,13 +225,13 @@
         <div class="student-menu-profile">
           <div class="student-menu-avatar">学</div>
           <div class="student-menu-name">
-            <b>登录/注册</b>
+            <b>登录/申请开通</b>
             <span>进入账号后可管理学生档案与志愿表</span>
           </div>
         </div>
         <div class="student-menu-list">
           <button type="button" class="student-menu-item primary" data-hub-action="login">
-            <span>账号登录</span><small>登录或注册账号</small>
+            <span>账号登录</span><small>使用管理员分配账号，或申请开通</small>
           </button>
         </div>`;
     }
@@ -295,7 +295,7 @@
     const menuBody = $('#studentAccountMenuBody');
 
     if(title){
-      title.textContent = logged ? (student?.name || '未选择学生') : '登录/注册';
+      title.textContent = logged ? (student?.name || '未选择学生') : '登录/申请开通';
     }
     if(subtitle){
       subtitle.textContent = logged

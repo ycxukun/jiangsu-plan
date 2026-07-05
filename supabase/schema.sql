@@ -54,11 +54,17 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   display_name text,
-  role public.user_role not null default 'consultant',
-  status text not null default 'active' check (status in ('active', 'disabled')),
+  role public.user_role not null default 'viewer',
+  status text not null default 'pending' check (status in ('pending', 'active', 'trial', 'expired', 'suspended', 'rejected', 'deleted', 'disabled')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles alter column role set default 'viewer';
+alter table public.profiles alter column status set default 'pending';
+alter table public.profiles drop constraint if exists profiles_status_check;
+alter table public.profiles add constraint profiles_status_check
+  check (status in ('pending', 'active', 'trial', 'expired', 'suspended', 'rejected', 'deleted', 'disabled'));
 
 create or replace function public.is_admin()
 returns boolean
@@ -127,7 +133,7 @@ begin
   limit 1;
 
   if target_user.id is null then
-    raise exception 'No Supabase Auth user found for email %. Ask this planner to register or log in once first.', target_email;
+    raise exception 'No Supabase Auth user found for email %. Create the Auth user first, then grant planner access here.', target_email;
   end if;
 
   insert into public.profiles (id, email, display_name, role, status)
@@ -420,7 +426,7 @@ using (id = auth.uid() or public.is_admin());
 drop policy if exists "profiles_insert_self" on public.profiles;
 create policy "profiles_insert_self"
 on public.profiles for insert
-with check (id = auth.uid() and role in ('consultant', 'viewer') and status = 'active');
+with check (id = auth.uid() and role = 'viewer' and status = 'pending');
 
 drop policy if exists "profiles_admin_insert" on public.profiles;
 create policy "profiles_admin_insert"
@@ -433,60 +439,140 @@ on public.profiles for update
 using (id = auth.uid() or public.is_admin())
 with check (
   public.is_admin()
-  or (id = auth.uid() and role in ('consultant', 'viewer') and status = 'active')
+  or (id = auth.uid() and role = 'viewer' and status = 'pending')
 );
 
 drop policy if exists "students_owner_all" on public.students;
 create policy "students_owner_all"
 on public.students for all
-using (owner_id = auth.uid() or planner_id = auth.uid() or public.is_admin())
-with check (owner_id = auth.uid() or planner_id = auth.uid() or public.is_admin());
+using (
+  public.is_admin()
+  or (public.is_consultant_or_admin() and (owner_id = auth.uid() or planner_id = auth.uid()))
+)
+with check (
+  public.is_admin()
+  or (public.is_consultant_or_admin() and (owner_id = auth.uid() or planner_id = auth.uid()))
+);
 
 drop policy if exists "volunteer_forms_owner_all" on public.volunteer_forms;
 create policy "volunteer_forms_owner_all"
 on public.volunteer_forms for all
-using (owner_id = auth.uid() or public.is_admin())
+using (
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and (
+      owner_id = auth.uid()
+      or exists (
+        select 1 from public.students s
+        where s.id = student_id
+          and (s.owner_id = auth.uid() or s.planner_id = auth.uid())
+      )
+    )
+  )
+)
 with check (
-  (owner_id = auth.uid() or public.is_admin())
-  and exists (
-    select 1 from public.students s
-    where s.id = student_id
-      and (s.owner_id = owner_id or public.is_admin())
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and exists (
+      select 1 from public.students s
+      where s.id = student_id
+        and (s.owner_id = auth.uid() or s.planner_id = auth.uid() or s.owner_id = owner_id)
+    )
   )
 );
 
 drop policy if exists "volunteer_groups_owner_all" on public.volunteer_form_groups;
 create policy "volunteer_groups_owner_all"
 on public.volunteer_form_groups for all
-using (owner_id = auth.uid() or public.is_admin())
+using (
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and exists (
+      select 1
+      from public.volunteer_forms f
+      join public.students s on s.id = f.student_id
+      where f.id = form_id
+        and (f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid())
+    )
+  )
+)
 with check (
-  (owner_id = auth.uid() or public.is_admin())
-  and exists (
-    select 1 from public.volunteer_forms f
-    where f.id = form_id
-      and (f.owner_id = owner_id or public.is_admin())
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and exists (
+      select 1
+      from public.volunteer_forms f
+      join public.students s on s.id = f.student_id
+      where f.id = form_id
+        and (f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid() or f.owner_id = owner_id)
+    )
   )
 );
 
 drop policy if exists "volunteer_majors_owner_all" on public.volunteer_form_majors;
 create policy "volunteer_majors_owner_all"
 on public.volunteer_form_majors for all
-using (owner_id = auth.uid() or public.is_admin())
+using (
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and exists (
+      select 1
+      from public.volunteer_form_groups g
+      join public.volunteer_forms f on f.id = g.form_id
+      join public.students s on s.id = f.student_id
+      where g.id = form_group_id
+        and (g.owner_id = auth.uid() or f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid())
+    )
+  )
+)
 with check (
-  (owner_id = auth.uid() or public.is_admin())
-  and exists (
-    select 1
-    from public.volunteer_form_groups g
-    where g.id = form_group_id
-      and (g.owner_id = owner_id or public.is_admin())
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and exists (
+      select 1
+      from public.volunteer_form_groups g
+      join public.volunteer_forms f on f.id = g.form_id
+      join public.students s on s.id = f.student_id
+      where g.id = form_group_id
+        and (g.owner_id = auth.uid() or f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid() or g.owner_id = owner_id)
+    )
   )
 );
 
 drop policy if exists "volunteer_exports_owner_insert_select" on public.volunteer_exports;
 create policy "volunteer_exports_owner_insert_select"
 on public.volunteer_exports for all
-using (owner_id = auth.uid() or public.is_admin())
-with check (owner_id = auth.uid() or public.is_admin());
+using (
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and (
+      owner_id = auth.uid()
+      or exists (
+        select 1 from public.students s
+        where s.id = student_id
+          and (s.owner_id = auth.uid() or s.planner_id = auth.uid())
+      )
+    )
+  )
+)
+with check (
+  public.is_admin()
+  or (
+    public.is_consultant_or_admin()
+    and exists (
+      select 1 from public.students s
+      where s.id = student_id
+        and (s.owner_id = auth.uid() or s.planner_id = auth.uid() or s.owner_id = owner_id)
+    )
+  )
+);
 
 -- notes 当前前端未登录也会读取，所以允许公开读；写入只允许登录用户。
 drop policy if exists "notes_public_read" on public.notes;
