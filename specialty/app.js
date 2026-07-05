@@ -98,6 +98,7 @@ let volunteerFilterMode='';
 let volunteerAllExpanded=false;
 let volunteerExpandedKeys=new Set();
 let volunteerMajorPoolFilter={};
+let studentProfileCloseTimer=null;
 let groupIndex=new Map();
 let majorRefs=[];
 let majorRefsBySchool=new Map();
@@ -1205,7 +1206,11 @@ function bindEvents(){
   $('#logoutHeaderBtn')?.addEventListener('click',()=>logoutSupabase());
   $('#volunteerPanelBtn')?.addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
   $('#studentProfileBtn')?.addEventListener('click',e=>{e.stopPropagation();toggleStudentProfileMenu();});
-  $('#studentProfileMenu')?.addEventListener('click',e=>e.stopPropagation());
+  const studentProfileMenu=$('#studentProfileMenu');
+  studentProfileMenu?.addEventListener('mouseenter',openStudentProfileMenu);
+  studentProfileMenu?.addEventListener('mouseleave',scheduleCloseStudentProfileMenu);
+  studentProfileMenu?.addEventListener('click',e=>e.stopPropagation());
+  $('#studentProfileBtn')?.addEventListener('focus',openStudentProfileMenu);
   document.addEventListener('click',closeStudentProfileMenu);
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeStudentProfileMenu();});
   $('#profileOpenStudents')?.addEventListener('click',()=>{closeStudentProfileMenu();openStudentDirectory();});
@@ -2771,6 +2776,7 @@ function ensureAccountStyles(){
     .student-profile-caret{color:#6f6256;font-size:14px;font-weight:900}
     .student-profile-dropdown{position:absolute;top:calc(100% + 10px);right:0;width:min(380px,92vw);border:1px solid #e5d8c7;border-radius:18px;background:#fffdf8;box-shadow:0 24px 70px rgba(36,28,20,.18);padding:14px;opacity:0;visibility:hidden;transform:translateY(-6px);transition:.16s ease;pointer-events:none}
     .student-profile-dropdown::before{content:"";position:absolute;right:38px;top:-8px;width:14px;height:14px;background:#fffdf8;border-left:1px solid #e5d8c7;border-top:1px solid #e5d8c7;transform:rotate(45deg)}
+    .student-profile-dropdown::after{content:"";position:absolute;left:0;right:0;top:-14px;height:14px}
     .student-profile-menu:hover .student-profile-dropdown,.student-profile-menu.open .student-profile-dropdown{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}
     .student-profile-card{display:grid;grid-template-columns:72px minmax(0,1fr);gap:14px;align-items:center;padding:10px 8px 14px}
     .student-profile-card b{display:block;font-size:20px;line-height:1.25;color:#17130f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2911,12 +2917,25 @@ function updateStudentProfileMenu(){
   }
 }
 function closeStudentProfileMenu(){
+  clearTimeout(studentProfileCloseTimer);
   const menu=$('#studentProfileMenu');
   if(!menu)return;
   menu.classList.remove('open');
   $('#studentProfileBtn')?.setAttribute('aria-expanded','false');
 }
+function openStudentProfileMenu(){
+  clearTimeout(studentProfileCloseTimer);
+  const menu=$('#studentProfileMenu');
+  if(!menu)return;
+  menu.classList.add('open');
+  $('#studentProfileBtn')?.setAttribute('aria-expanded','true');
+}
+function scheduleCloseStudentProfileMenu(){
+  clearTimeout(studentProfileCloseTimer);
+  studentProfileCloseTimer=setTimeout(closeStudentProfileMenu,180);
+}
 function toggleStudentProfileMenu(){
+  clearTimeout(studentProfileCloseTimer);
   const menu=$('#studentProfileMenu');
   if(!menu)return;
   const open=!menu.classList.contains('open');
@@ -3337,15 +3356,20 @@ function majorPayloadsForSave(groupKey,dbGroupId){
   }).filter(Boolean);
 }
 async function replaceVolunteerFormGroups(formId){
-  const oldGroups=await apiFetch('volunteer_form_groups?select=id&form_id=eq.'+encodeURIComponent(formId));
-  const oldIds=(oldGroups||[]).map(function(g){return g.id;}).filter(Boolean);
-  if(oldIds.length)await apiFetch('volunteer_form_majors?form_group_id=in.('+oldIds.join(',')+')',{method:'DELETE'});
+  // volunteer_form_majors is deleted by the DB cascade on volunteer_form_groups.
   await apiFetch('volunteer_form_groups?form_id=eq.'+encodeURIComponent(formId),{method:'DELETE'});
+}
+function setVolunteerSaving(isSaving){
+  const btn=$('#saveVolunteerBtn');
+  if(!btn)return;
+  btn.disabled=Boolean(isSaving);
+  btn.textContent=isSaving?'保存中...':'保存到学生';
 }
 async function saveCurrentVolunteerForm(){
   if(!requireSupabase()||!requireLogin())return;
   if(!currentStudent){alert('请先到学生档案新增或选择一个学生。');openStudentDirectory();return;}
   if(!volunteerKeys.length){alert('当前志愿表为空，先加入专业组后再保存。');return;}
+  setVolunteerSaving(true);
   try{
     const title=currentStudent.name+' 专科志愿表 '+localDateStamp();
     const payload={student_id:currentStudent.id,owner_id:auth.user.id,title:currentVolunteerForm?.title||title,stage:'specialty',source_version:VERSION,max_group_count:VOLUNTEER_LIMIT,snapshot:{volunteerKeys,volunteerMajorKeys,volunteerMeta,medicalCodes:[...state.medicalCodes]}};
@@ -3366,6 +3390,7 @@ async function saveCurrentVolunteerForm(){
     renderStudentPanel();
     alert((editingId?'已更新':'已保存')+'到 '+currentStudent.name+'：'+groupRows.length+' 个专业组，'+majorRows.length+' 个专业。');
   }catch(err){alert('保存志愿表失败：'+err.message);}
+  finally{setVolunteerSaving(false);}
 }
 async function loadLatestVolunteerFormForStudent(student,options){
   if(!options)options={};
