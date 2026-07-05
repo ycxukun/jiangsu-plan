@@ -49,6 +49,7 @@ h1{margin:0;font-size:24px;letter-spacing:0}
 .student-card.active{border-color:#8ed2aa;background:#f7fffa}
 .student-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .student-card h3{margin:0;font-size:16px}
+.student-no{display:inline-flex;vertical-align:middle;margin-left:6px;border:1px solid #d8e6dc;border-radius:999px;background:#f7faf8;color:#526058;padding:2px 7px;font-size:11px;font-weight:900;letter-spacing:.02em}
 .student-card p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
 .badge{display:inline-flex;align-items:center;justify-content:center;border:1px solid #cbeed9;border-radius:999px;background:#eaf7ef;color:var(--green);padding:4px 8px;font-size:11px;font-weight:900;line-height:1;white-space:nowrap}
 .card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
@@ -71,7 +72,17 @@ h1{margin:0;font-size:24px;letter-spacing:0}
 .modal h2{margin:0;padding:16px 18px;border-bottom:1px solid var(--line);font-size:18px}
 .modal-body{padding:16px 18px}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+.detail-modal{width:min(1080px,96vw)}
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.detail-section{border:1px solid var(--line);border-radius:14px;background:#fbfdfc;padding:12px}
+.detail-section h3{margin:0 0 8px;font-size:14px}
+.detail-row{display:grid;grid-template-columns:128px minmax(0,1fr);gap:10px;padding:7px 0;border-top:1px solid #eef3ef}
+.detail-row:first-of-type{border-top:0}
+.detail-k{color:var(--muted);font-size:12px;font-weight:900}
+.detail-v{font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.detail-empty{margin-bottom:12px;border:1px dashed #fed7aa;border-radius:14px;background:#fff7ed;color:#7c2d12;padding:12px;line-height:1.6}
 @media(max-width:900px){.hero{display:block}.hero-actions{justify-content:flex-start;margin-top:12px}.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1}.content-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.detail-grid{grid-template-columns:1fr}.detail-row{grid-template-columns:1fr;gap:3px}}
 @media(max-width:560px){.page{padding:12px}.student-form-grid,.toolbar{grid-template-columns:1fr}.wide{grid-column:auto}.student-card-head{display:block}.hero{padding:14px}}
 </style>
 
@@ -90,6 +101,7 @@ h1{margin:0;font-size:24px;letter-spacing:0}
     <div class="hero-actions">
       <a class="pill-btn" id="backMainLink" href="../index.html">返回本科</a>
       <a class="pill-btn" id="backSpecialtyLink" href="../specialty/index.html">返回专科</a>
+      <a class="pill-btn" id="adminConsoleLink" href="../admin-console.html">管理员后台</a>
       <a class="pill-btn" id="openIntakeFormLink" href="./intake-form-v6.6.7.html" target="_blank" rel="noopener">打开采集表</a>
       <button class="pill-btn" id="importIntakeBtn" type="button">导入采集表JSON</button>
       <button class="pill-btn save" id="refreshBtn" type="button">刷新</button>
@@ -150,6 +162,6 @@ h1{margin:0;font-size:24px;letter-spacing:0}
   </div>
 </main>
 <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
-<script src="./app.js?v=student-intake-bridge-20260705"></script>
+<script src="./app.js?v=student-intake-detail-20260705"></script>
 </body>
 </html>

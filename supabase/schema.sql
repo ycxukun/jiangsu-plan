@@ -46,6 +46,8 @@ begin
 end;
 $$;
 
+create sequence if not exists public.student_no_seq start 1;
+
 -- 登录账号由 Supabase Auth 管理。
 -- 这里不保存明文密码，只保存业务侧用户资料和权限。
 create table if not exists public.profiles (
@@ -99,6 +101,8 @@ for each row execute function public.set_updated_at();
 create table if not exists public.students (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
+  planner_id uuid references auth.users(id) on delete set null,
+  student_no text,
   name text not null,
   phone text,
   gender text check (gender in ('男', '女', '未知')) default '未知',
@@ -111,6 +115,7 @@ create table if not exists public.students (
   target_cities text[] not null default '{}',
   target_majors text[] not null default '{}',
   medical_codes text[] not null default '{}',
+  intake_payload jsonb not null default '{}'::jsonb,
   note text,
   archived boolean not null default false,
   created_at timestamptz not null default now(),
@@ -120,14 +125,71 @@ create table if not exists public.students (
 alter table if exists public.students
 add column if not exists subject_choices text[] not null default '{}';
 
+alter table if exists public.students
+add column if not exists planner_id uuid references auth.users(id) on delete set null;
+
+alter table if exists public.students
+add column if not exists student_no text;
+
+alter table if exists public.students
+add column if not exists intake_payload jsonb not null default '{}'::jsonb;
+
+update public.students
+set planner_id = owner_id
+where planner_id is null;
+
+with numbered_students as (
+  select id, row_number() over (order by created_at, id) as rn
+  from public.students
+  where student_no is null or student_no = ''
+)
+update public.students s
+set student_no = lpad(numbered_students.rn::text, 5, '0')
+from numbered_students
+where s.id = numbered_students.id;
+
+select setval(
+  'public.student_no_seq',
+  greatest(
+    coalesce((select max(student_no::integer) from public.students where student_no ~ '^[0-9]+$'), 0) + 1,
+    1
+  ),
+  false
+);
+
+create or replace function public.assign_student_identity()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.planner_id is null then
+    new.planner_id := new.owner_id;
+  end if;
+  if new.student_no is null or btrim(new.student_no) = '' then
+    loop
+      new.student_no := lpad(nextval('public.student_no_seq')::text, 5, '0');
+      exit when not exists (select 1 from public.students where student_no = new.student_no);
+    end loop;
+  end if;
+  return new;
+end;
+$$;
+
 create index if not exists students_owner_idx on public.students(owner_id);
+create index if not exists students_planner_idx on public.students(planner_id);
 create index if not exists students_owner_stage_idx on public.students(owner_id, stage);
 create index if not exists students_owner_created_idx on public.students(owner_id, created_at desc);
+create unique index if not exists students_student_no_uidx on public.students(student_no);
 
 drop trigger if exists students_set_updated_at on public.students;
 create trigger students_set_updated_at
 before update on public.students
 for each row execute function public.set_updated_at();
+
+drop trigger if exists students_assign_identity on public.students;
+create trigger students_assign_identity
+before insert on public.students
+for each row execute function public.assign_student_identity();
 
 -- 志愿表主表：每个学生可以有多张草稿/终稿。
 create table if not exists public.volunteer_forms (
@@ -302,6 +364,11 @@ create policy "profiles_insert_self"
 on public.profiles for insert
 with check (id = auth.uid() and role in ('consultant', 'viewer') and status = 'active');
 
+drop policy if exists "profiles_admin_insert" on public.profiles;
+create policy "profiles_admin_insert"
+on public.profiles for insert
+with check (public.is_admin());
+
 drop policy if exists "profiles_update_own_or_admin" on public.profiles;
 create policy "profiles_update_own_or_admin"
 on public.profiles for update
@@ -314,8 +381,8 @@ with check (
 drop policy if exists "students_owner_all" on public.students;
 create policy "students_owner_all"
 on public.students for all
-using (owner_id = auth.uid() or public.is_admin())
-with check (owner_id = auth.uid() or public.is_admin());
+using (owner_id = auth.uid() or planner_id = auth.uid() or public.is_admin())
+with check (owner_id = auth.uid() or planner_id = auth.uid() or public.is_admin());
 
 drop policy if exists "volunteer_forms_owner_all" on public.volunteer_forms;
 create policy "volunteer_forms_owner_all"

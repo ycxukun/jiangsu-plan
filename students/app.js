@@ -169,15 +169,21 @@ async function apiFetch(path,options={},retried=false){
   const text=await res.text();
   return text?JSON.parse(text):null;
 }
-function isSubjectChoicesColumnMissing(err){return /subject_choices|schema cache|column/i.test(err?.message||String(err));}
+function isOptionalStudentColumnMissing(err){return /subject_choices|intake_payload|planner_id|student_no|schema cache|column/i.test(err?.message||String(err));}
 async function writeStudentRecord(path,method,payload){
   try{
     return await apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(payload)});
   }catch(err){
-    if(Object.prototype.hasOwnProperty.call(payload,'subject_choices')&&isSubjectChoicesColumnMissing(err)){
+    if(isOptionalStudentColumnMissing(err)){
+      const msg=String(err?.message||err);
       const fallback={...payload};
-      delete fallback.subject_choices;
-      return apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)});
+      if(/subject_choices|schema cache|column/i.test(msg))delete fallback.subject_choices;
+      if(/intake_payload|schema cache|column/i.test(msg))delete fallback.intake_payload;
+      if(/planner_id|schema cache|column/i.test(msg))delete fallback.planner_id;
+      if(/student_no|schema cache|column/i.test(msg))delete fallback.student_no;
+      if(Object.keys(fallback).length!==Object.keys(payload).length){
+        return apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)});
+      }
     }
     throw err;
   }
@@ -292,13 +298,21 @@ async function deleteVolunteerForm(formId){
     render();
   }catch(err){alert('删除志愿表失败：'+err.message);}
 }
+function studentNoText(student){return student?.student_no?`HSY${student.student_no}`:'待生成学号';}
+function studentIntakePayload(student){
+  if(student?.intake_payload&&typeof student.intake_payload==='object'&&!Array.isArray(student.intake_payload)&&Object.keys(student.intake_payload).length)return student.intake_payload;
+  const local=storageJSON(`js-plan-intake-json:${student?.id}`,null);
+  if(local?.data&&typeof local.data==='object'&&!Array.isArray(local.data))return local.data;
+  return null;
+}
 function studentSummary(s){
   const cities=(s.target_cities||[]).length?`｜城市 ${(s.target_cities||[]).join('、')}`:'';
   const medical=studentMedicalCodes(s);
-  return `${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${medical.length?'｜体检 '+medical.join('/'):''}${cities}`;
+  return `${studentNoText(s)}｜${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${medical.length?'｜体检 '+medical.join('/'):''}${cities}`;
 }
 function searchText(s,savedForms=[]){
-  return [s.name,s.phone,stageLabel(s.stage),subjectLabel(s.subject_type),studentSubjectChoices(s).join(' '),s.score,s.rank,(s.target_cities||[]).join(' '),(s.medical_codes||[]).join(' '),savedForms.map(f=>f.title).join(' ')].join(' ').toLowerCase();
+  const intake=studentIntakePayload(s);
+  return [s.student_no,s.name,s.phone,stageLabel(s.stage),subjectLabel(s.subject_type),studentSubjectChoices(s).join(' '),s.score,s.rank,(s.target_cities||[]).join(' '),(s.target_majors||[]).join(' '),(s.medical_codes||[]).join(' '),s.note,intake?JSON.stringify(intake):'',savedForms.map(f=>f.title).join(' ')].join(' ').toLowerCase();
 }
 function filteredStudents(){
   const q=query.trim().toLowerCase();
@@ -336,10 +350,11 @@ function studentCardHTML(s,savedForms){
   const recent=savedForms.slice(0,3);
   const formList=recent.length?`<div class="form-list">${recent.map(f=>`<div class="form-row"><button class="form-title-btn" type="button" data-open-volunteer-form="${esc(f.id)}"><span>${esc(f.title||'未命名志愿表')}</span><small>${esc(shortDateTime(f.updated_at||f.created_at))}</small></button><div class="form-row-actions"><span class="badge">${esc(stageLabel(f.stage||s.stage))}</span><button type="button" data-open-volunteer-form="${esc(f.id)}">修改</button><button class="danger" type="button" data-delete-volunteer-form="${esc(f.id)}">删除</button></div></div>`).join('')}${savedForms.length>3?`<div class="form-row more"><span>还有 ${savedForms.length-3} 份未显示，可刷新后查看最近 3 份</span><span></span></div>`:''}</div>`:'<div class="form-list">还没有保存过志愿表。</div>';
   return `<article class="student-card ${active?'active':''}">
-    <div class="student-card-head"><div><h3>${esc(s.name)}</h3><p>${esc(studentSummary(s))}</p></div><span class="badge">${esc(stageLabel(s.stage))}</span></div>
+    <div class="student-card-head"><div><h3>${esc(s.name)} <span class="student-no">${esc(studentNoText(s))}</span></h3><p>${esc(studentSummary(s))}</p></div><span class="badge">${esc(stageLabel(s.stage))}</span></div>
     <div class="card-actions">
       <button class="save" data-set-current="${esc(s.id)}" type="button">设为当前</button>
       <button data-edit-student="${esc(s.id)}" type="button">编辑档案</button>
+      <button data-intake-detail="${esc(s.id)}" type="button">采集详情</button>
       <a class="pill-btn" href="${esc(backUrlForStudent(s))}">去做志愿表</a>
     </div>
     ${formList}
@@ -358,6 +373,10 @@ function bindCardActions(){
   $$('[data-edit-student]').forEach(btn=>btn.addEventListener('click',()=>{
     const s=students.find(x=>x.id===btn.dataset.editStudent);
     if(s)showEditor(s);
+  }));
+  $$('[data-intake-detail]').forEach(btn=>btn.addEventListener('click',()=>{
+    const s=students.find(x=>x.id===btn.dataset.intakeDetail);
+    if(s)showIntakeDetail(s);
   }));
   $$('[data-open-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>openVolunteerFormForEdit(btn.dataset.openVolunteerForm)));
   $$('[data-delete-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>deleteVolunteerForm(btn.dataset.deleteVolunteerForm)));
@@ -380,7 +399,7 @@ async function createStudent(){
   const name=$('#newStudentName').value.trim();
   if(!name){alert('请填写学生姓名。');return;}
   const subjectChoices=subjectChoicesFromInputs('newStudentSubjects');
-  const payload={owner_id:auth.user.id,name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:studentMedicalCodesFromInputs('newStudentMedical','#newStudentMedical')};
+  const payload={owner_id:auth.user.id,planner_id:auth.user.id,name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:studentMedicalCodesFromInputs('newStudentMedical','#newStudentMedical')};
   try{
     const rows=await writeStudentRecord('students','POST',payload);
     const created={...rows[0],subject_choices:subjectChoices};
@@ -392,6 +411,7 @@ async function createStudent(){
   }catch(err){alert('新增学生失败：'+err.message);}
 }
 function showEditor(student){
+  $('#modal').className='modal';
   const choices=studentSubjectChoices(student);
   $('#modal').innerHTML=`<h2>编辑学生档案</h2><div class="modal-body"><div class="student-form-grid">
     <label>姓名<input id="editStudentName" value="${esc(student.name||'')}" placeholder="学生姓名"></label>
@@ -408,6 +428,97 @@ function showEditor(student){
   bindStudentMedicalPickers();
   $('#cancelEditBtn').addEventListener('click',closeModal);
   $('#saveEditBtn').addEventListener('click',()=>updateStudent(student.id));
+}
+function detailValue(value){
+  if(Array.isArray(value))return value.length?value.join('、'):'—';
+  if(value&&typeof value==='object')return JSON.stringify(value);
+  const text=String(value??'').trim();
+  return text||'—';
+}
+function detailRowHTML(label,value){
+  return `<div class="detail-row"><div class="detail-k">${esc(label)}</div><div class="detail-v">${esc(detailValue(value))}</div></div>`;
+}
+function detailSectionHTML(title,rows){
+  const body=rows.map(([label,value])=>detailRowHTML(label,value)).join('');
+  return `<section class="detail-section"><h3>${esc(title)}</h3>${body}</section>`;
+}
+function detailFromKeys(data,pairs){
+  return pairs.map(([label,key])=>[label,data?.[key]]);
+}
+function showIntakeDetail(student){
+  const data=studentIntakePayload(student);
+  const fallbackSections=[
+    detailSectionHTML('系统档案',[
+      ['好生涯学号',studentNoText(student)],
+      ['姓名',student.name],
+      ['手机号',student.phone],
+      ['批次',stageLabel(student.stage)],
+      ['选科',studentSubjectSummary(student)],
+      ['分数',student.score],
+      ['位次',student.rank],
+      ['目标城市',(student.target_cities||[]).join('、')],
+      ['体检代码',(student.medical_codes||[]).join('、')],
+      ['备注',student.note]
+    ])
+  ];
+  const sections=data?[
+    detailSectionHTML('基础信息',[
+      ['好生涯学号',studentNoText(student)],
+      ['学生姓名',data['学生姓名']||student.name],
+      ['性别',data['性别']],
+      ['出生日期',data['出生日期']],
+      ['就读学校',data['就读学校']],
+      ['班级',data['班级']],
+      ['家长电话',data['家长电话']||student.phone],
+      ['备用电话',data['备用电话']],
+      ['高考省份',data['高考省份']||student.province],
+      ['高考年份',data['高考年份']||'2026']
+    ]),
+    detailSectionHTML('成绩与选科',[
+      ['选科',data['选科']||studentSubjectSummary(student)],
+      ['总分',data['总分']||student.score],
+      ['位次',data['位次']||student.rank],
+      ['高考语种',data['高考语种']],
+      ['语文',data['语文']],
+      ['数学',data['数学']],
+      ['外语',data['外语']],
+      ['历次模考',data['历次模考']],
+      ['成绩结构判断',data['成绩结构判断']]
+    ]),
+    detailSectionHTML('体检与限制',[
+      ['体检快捷代码',data['体检快捷代码']||student.medical_codes],
+      ['口语测试',data['口语测试']],
+      ['体检限制补充',data['体检限制补充']],
+      ['体检需避开专业',data['体检需避开专业']]
+    ]),
+    detailSectionHTML('家庭诉求',detailFromKeys(data,[
+      ['家庭核心诉求排序','家庭核心诉求排序'],['学校专业取舍','学校专业取舍'],['就业偏好','就业偏好'],['最终决策人','最终决策人'],
+      ['家长核心诉求原话','家长核心诉求原话'],['学生本人诉求原话','学生本人诉求原话'],['家庭内部冲突点','家庭内部冲突点'],['家庭资源职业背景','家庭资源职业背景']
+    ])),
+    detailSectionHTML('地域与院校',detailFromKeys(data,[
+      ['意向地区排序','意向地区排序'],['坚决不去地区排序','坚决不去地区排序'],['地域偏好补充说明','地域偏好补充说明'],
+      ['院校层次偏好','院校层次偏好'],['意向院校','意向院校'],['明确排斥院校','明确排斥院校'],
+      ['是否接受中外合作院校','是否接受中外合作院校'],['是否接受港澳院校','是否接受港澳院校'],['年预算上限','年预算上限']
+    ])),
+    detailSectionHTML('专业偏好',detailFromKeys(data,[
+      ['意向专业类排序','意向专业类排序'],['意向专业类','意向专业类'],['专业白名单','专业白名单'],['专业灰名单','专业灰名单'],
+      ['专业黑名单','专业黑名单'],['专业选择原因','专业选择原因']
+    ])),
+    detailSectionHTML('风险与规划结论',detailFromKeys(data,[
+      ['是否接受调剂','是否接受调剂'],['整体风险偏好','整体风险偏好'],['是否接受大类分流','是否接受大类分流'],
+      ['不能接受的最差结果','不能接受的最差结果'],['可以妥协的条件','可以妥协的条件'],['规划师初步判断','规划师初步判断'],
+      ['初步适合方向','初步适合方向'],['下一次必须追问的问题','下一次必须追问的问题'],['需要补充材料','需要补充材料'],['沟通备注或录音文件名','沟通备注或录音文件名']
+    ]))
+  ]:fallbackSections;
+  $('#modal').className='modal detail-modal';
+  $('#modal').innerHTML=`<h2>采集详情｜${esc(student.name)} <span class="student-no">${esc(studentNoText(student))}</span></h2>
+    <div class="modal-body">
+      ${data?'':'<div class="detail-empty">这个学生还没有同步完整采集表 JSON；当前只显示系统档案字段。</div>'}
+      <div class="detail-grid">${sections.join('')}</div>
+      <div class="modal-actions"><button id="closeDetailBtn" type="button">关闭</button></div>
+    </div>`;
+  $('#modalMask').classList.add('open');
+  $('#closeDetailBtn').addEventListener('click',closeModal);
 }
 function closeModal(){$('#modalMask').classList.remove('open');}
 async function updateStudent(studentId){
@@ -456,12 +567,18 @@ function intakeNote(data){
   ];
   return pairs.map(([label,key])=>intakeText(data,key)?`${label}：${intakeText(data,key)}`:'').filter(Boolean).join('\n').slice(0,6000);
 }
+function intakeStudentNo(data){
+  const raw=intakeText(data,'好生涯学号')||intakeText(data,'学号')||intakeText(data,'学生编号');
+  const digits=raw.replace(/^HSY/i,'').replace(/\D/g,'');
+  return digits?digits.padStart(5,'0').slice(-5):null;
+}
 function intakePayload(data){
   const name=intakeText(data,'学生姓名');
   if(!name)throw new Error('采集表 JSON 缺少“学生姓名”。');
   const subjectChoices=intakeSubjectChoices(data);
-  return {
+  const payload={
     owner_id:auth.user.id,
+    planner_id:auth.user.id,
     name,
     phone:intakeText(data,'家长电话')||intakeText(data,'备用电话')||null,
     gender:['男','女'].includes(intakeText(data,'性别'))?intakeText(data,'性别'):'未知',
@@ -474,15 +591,21 @@ function intakePayload(data){
     target_cities:intakeTargetCities(data),
     target_majors:intakeTargetMajors(data),
     medical_codes:parseMedicalCodes([...(Array.isArray(data['体检快捷代码'])?data['体检快捷代码']:[]),intakeText(data,'体检限制补充'),intakeText(data,'体检需避开专业')].join(' ')),
+    intake_payload:data,
     note:intakeNote(data)
   };
+  const no=intakeStudentNo(data);
+  if(no)payload.student_no=no;
+  return payload;
 }
 async function importIntakeData(data){
   if(!auth.user)throw new Error('请先登录后再导入采集表。');
   const payload=intakePayload(data);
-  const existing=students.find(s=>s.name===payload.name&&(payload.phone?String(s.phone||'')===String(payload.phone):true));
+  const existingByNo=payload.student_no?students.find(s=>s.student_no===payload.student_no):null;
+  const sameName=students.filter(s=>s.name===payload.name&&(payload.phone?String(s.phone||'')===String(payload.phone):true));
+  const existing=existingByNo||sameName[0];
   let rows;
-  if(existing&&confirm(`检测到已有学生“${payload.name}”。是否用采集表覆盖更新该学生档案？\n\n选择取消将新增一个学生。`)){
+  if(existing&&(existingByNo||confirm(`检测到同名学生“${payload.name}”。\n\n系统不会自动按姓名串档。确认后才会用采集表覆盖该学生；取消将新增一个独立学生。`))){
     rows=await writeStudentRecord(`students?id=eq.${encodeURIComponent(existing.id)}`,'PATCH',payload);
   }else{
     rows=await writeStudentRecord('students','POST',payload);

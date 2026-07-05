@@ -267,6 +267,9 @@
         <button type="button" class="student-menu-item" data-hub-action="open-account">
           <span>账号管理</span><small>查看账号与登录状态</small>
         </button>
+        <button type="button" class="student-menu-item" data-hub-action="open-admin">
+          <span>管理员后台</span><small>管理规划师与学生分配</small>
+        </button>
         <button type="button" class="student-menu-item" data-hub-action="switch-account">
           <span>切换账号</span><small>退出当前账号后重新登录</small>
         </button>
@@ -404,6 +407,12 @@
         if(action === 'open-account'){
           closeMenu();
           clickSource('accountBtn');
+          return;
+        }
+
+        if(action === 'open-admin'){
+          closeMenu();
+          window.location.href = './admin-console.html';
           return;
         }
 

@@ -3077,12 +3077,18 @@ function intakeNote(data){
   ];
   return pairs.map(([label,key])=>intakeText(data,key)?`${label}：${intakeText(data,key)}`:'').filter(Boolean).join('\n').slice(0,6000);
 }
+function intakeStudentNo(data){
+  const raw=intakeText(data,'好生涯学号')||intakeText(data,'学号')||intakeText(data,'学生编号');
+  const digits=raw.replace(/^HSY/i,'').replace(/\D/g,'');
+  return digits?digits.padStart(5,'0').slice(-5):null;
+}
 function buildPayload(data,auth){
   const name=intakeText(data,'学生姓名');
   if(!name)throw new Error('请先填写学生姓名。');
   const subjectChoices=intakeSubjectChoices(data);
-  return {
+  const payload={
     owner_id:auth.user.id,
+    planner_id:auth.user.id,
     name,
     phone:intakeText(data,'家长电话')||intakeText(data,'备用电话')||null,
     gender:['男','女'].includes(intakeText(data,'性别'))?intakeText(data,'性别'):'未知',
@@ -3095,8 +3101,12 @@ function buildPayload(data,auth){
     target_cities:intakeTargetCities(data),
     target_majors:intakeTargetMajors(data),
     medical_codes:parseMedicalCodes([...(Array.isArray(data['体检快捷代码'])?data['体检快捷代码']:[]),intakeText(data,'体检限制补充'),intakeText(data,'体检需避开专业')].join(' ')),
+    intake_payload:data,
     note:intakeNote(data)
   };
+  const no=intakeStudentNo(data);
+  if(no)payload.student_no=no;
+  return payload;
 }
 async function rest(path,options,auth){
   const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{...(options||{}),headers:headers(auth,options?.headers)});
@@ -3109,10 +3119,14 @@ async function writeStudent(path,method,payload,auth){
   try{
     return await rest(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(payload)},auth);
   }catch(err){
-    if(Object.prototype.hasOwnProperty.call(payload,'subject_choices')&&/subject_choices|schema cache|column/i.test(String(err.message||err))){
+    if(/subject_choices|intake_payload|planner_id|student_no|schema cache|column/i.test(String(err.message||err))){
+      const msg=String(err.message||err);
       const fallback={...payload};
-      delete fallback.subject_choices;
-      return rest(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)},auth);
+      if(/subject_choices|schema cache|column/i.test(msg))delete fallback.subject_choices;
+      if(/intake_payload|schema cache|column/i.test(msg))delete fallback.intake_payload;
+      if(/planner_id|schema cache|column/i.test(msg))delete fallback.planner_id;
+      if(/student_no|schema cache|column/i.test(msg))delete fallback.student_no;
+      if(Object.keys(fallback).length!==Object.keys(payload).length)return rest(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)},auth);
     }
     throw err;
   }
@@ -3141,12 +3155,18 @@ async function syncIntakeToSystem(){
     const data=collect();
     const payload=buildPayload(data,auth);
     const map=storageJSON(INTAKE_SYNC_MAP_KEY,{});
-    let targetId=(window.currentStudentId&&map[window.currentStudentId])||map[payload.name]||'';
+    let targetId=(window.currentStudentId&&map[window.currentStudentId])||'';
     if(!targetId){
       try{
-        const rows=await rest(`students?select=id,name,phone&name=eq.${encodeURIComponent(payload.name)}&limit=5`,{method:'GET'},auth);
-        const exact=(rows||[]).find(s=>payload.phone?String(s.phone||'')===String(payload.phone):true);
-        if(exact&&confirm(`系统里已有学生“${payload.name}”。是否覆盖更新该学生？\n\n选择取消将新增一个学生。`))targetId=exact.id;
+        if(payload.student_no){
+          const rows=await rest(`students?select=id,name,phone,student_no&student_no=eq.${encodeURIComponent(payload.student_no)}&limit=1`,{method:'GET'},auth);
+          if(rows?.[0])targetId=rows[0].id;
+        }
+        if(!targetId){
+          const rows=await rest(`students?select=id,name,phone,student_no&name=eq.${encodeURIComponent(payload.name)}&limit=5`,{method:'GET'},auth);
+          const exact=(rows||[]).find(s=>payload.phone?String(s.phone||'')===String(payload.phone):true);
+          if(exact&&confirm(`系统里已有同名学生“${payload.name}”。\n\n系统不会自动按姓名串档。确认后才会覆盖该学生；取消将新增一个独立学生。`))targetId=exact.id;
+        }
       }catch(e){}
     }
     const rows=targetId

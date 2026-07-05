@@ -2865,15 +2865,18 @@ async function apiFetch(path,options={}){
   const text=await res.text();
   return text?JSON.parse(text):null;
 }
-function isSubjectChoicesColumnMissing(err){return /subject_choices|schema cache|column/i.test(err?.message||String(err));}
+function isSubjectChoicesColumnMissing(err){return /subject_choices|planner_id|student_no|schema cache|column/i.test(err?.message||String(err));}
 async function writeStudentRecord(path,method,payload){
   try{
     return await apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(payload)});
   }catch(err){
-    if(Object.prototype.hasOwnProperty.call(payload,'subject_choices')&&isSubjectChoicesColumnMissing(err)){
+    if(isSubjectChoicesColumnMissing(err)){
+      const msg=String(err?.message||err);
       const fallback={...payload};
-      delete fallback.subject_choices;
-      return apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)});
+      if(/subject_choices|schema cache|column/i.test(msg))delete fallback.subject_choices;
+      if(/planner_id|schema cache|column/i.test(msg))delete fallback.planner_id;
+      if(/student_no|schema cache|column/i.test(msg))delete fallback.student_no;
+      if(Object.keys(fallback).length!==Object.keys(payload).length)return apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)});
     }
     throw err;
   }
@@ -3322,7 +3325,7 @@ async function createStudentFromPanel(){
   if(!name){alert('请填写学生姓名。');return;}
   const subjectChoices=subjectChoicesFromInputs('newStudentSubjects');
   try{
-    const rows=await writeStudentRecord('students','POST',{owner_id:auth.user.id,name:name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:studentMedicalCodesFromInputs('newStudentMedical','#newStudentMedical')});
+    const rows=await writeStudentRecord('students','POST',{owner_id:auth.user.id,planner_id:auth.user.id,name:name,phone:$('#newStudentPhone').value.trim()||null,province:'江苏',stage:stageValue($('#newStudentStage').value),subject_type:subjectTypeValue($('#newStudentSubject').value),subject_choices:subjectChoices,score:dbInteger($('#newStudentScore').value),rank:dbInteger($('#newStudentRank').value),target_cities:splitListInput($('#newStudentCities').value),medical_codes:studentMedicalCodesFromInputs('newStudentMedical','#newStudentMedical')});
     currentStudent={...rows[0],subject_choices:subjectChoices};
     saveLocalStudentSubjectChoices(currentStudent.id,subjectChoices);
     volunteerKeys=[];

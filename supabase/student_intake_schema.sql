@@ -1,0 +1,76 @@
+-- 学生采集表全量信息与学生唯一编号。
+-- 如果线上库已经建过 students 表，只需要执行本文件即可启用：
+-- 1. “采集详情”跨设备保存
+-- 2. 好生涯学号 student_no，例如 00001、00002
+-- 3. planner_id 规划师归属，便于管理员转移学生
+
+create sequence if not exists public.student_no_seq start 1;
+
+alter table if exists public.students
+add column if not exists planner_id uuid references auth.users(id) on delete set null;
+
+alter table if exists public.students
+add column if not exists student_no text;
+
+alter table if exists public.students
+add column if not exists intake_payload jsonb not null default '{}'::jsonb;
+
+update public.students
+set planner_id = owner_id
+where planner_id is null;
+
+with numbered_students as (
+  select id, row_number() over (order by created_at, id) as rn
+  from public.students
+  where student_no is null or student_no = ''
+)
+update public.students s
+set student_no = lpad(numbered_students.rn::text, 5, '0')
+from numbered_students
+where s.id = numbered_students.id;
+
+select setval(
+  'public.student_no_seq',
+  greatest(
+    coalesce((select max(student_no::integer) from public.students where student_no ~ '^[0-9]+$'), 0) + 1,
+    1
+  ),
+  false
+);
+
+create or replace function public.assign_student_identity()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.planner_id is null then
+    new.planner_id := new.owner_id;
+  end if;
+  if new.student_no is null or btrim(new.student_no) = '' then
+    loop
+      new.student_no := lpad(nextval('public.student_no_seq')::text, 5, '0');
+      exit when not exists (select 1 from public.students where student_no = new.student_no);
+    end loop;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists students_assign_identity on public.students;
+create trigger students_assign_identity
+before insert on public.students
+for each row execute function public.assign_student_identity();
+
+create index if not exists students_planner_idx on public.students(planner_id);
+create unique index if not exists students_student_no_uidx on public.students(student_no);
+
+drop policy if exists "profiles_admin_insert" on public.profiles;
+create policy "profiles_admin_insert"
+on public.profiles for insert
+with check (public.is_admin());
+
+drop policy if exists "students_owner_all" on public.students;
+create policy "students_owner_all"
+on public.students for all
+using (owner_id = auth.uid() or planner_id = auth.uid() or public.is_admin())
+with check (owner_id = auth.uid() or planner_id = auth.uid() or public.is_admin());
