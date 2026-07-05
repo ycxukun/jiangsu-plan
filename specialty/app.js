@@ -1017,7 +1017,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <header class="topbar">
-      <div class="hero"><div class="brand"><h1>江苏专科招生计划变化知识库</h1><p>基于 2026 高职专科行级数据生成；院校与专业组均按专业加权均分排序，支持志愿表、特殊类型、体检受限与风险提示。</p></div><div class="top-actions"><div class="stage-switch"><a href="../index.html">本科</a><a class="active" href="./index.html">专科</a></div><a id="contentCenterBtn" class="header-toggle content-toggle" href="../content/index.html">升学资讯</a><div class="version">${VERSION}</div><button id="studentPanelBtn" class="header-toggle student-toggle" type="button">学生档案</button><button id="accountBtn" class="header-toggle account-toggle" type="button">登录/注册</button><button id="logoutHeaderBtn" class="header-toggle logout-toggle" type="button" hidden>退出登录</button><button id="volunteerPanelBtn" class="header-toggle volunteer-toggle" type="button">专科志愿表 0/40</button><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
+      <div class="hero"><div class="brand"><h1>江苏专科招生计划变化知识库</h1><p>基于 2026 高职专科行级数据生成；院校与专业组均按专业加权均分排序，支持志愿表、特殊类型、体检受限与风险提示。</p></div><div class="top-actions"><div class="stage-switch"><a href="../index.html">本科</a><a class="active" href="./index.html">专科</a></div><a id="contentCenterBtn" class="header-toggle content-toggle" href="../content/index.html">升学资讯</a><div class="version">${VERSION}</div><div id="studentProfileMenu" class="student-profile-menu"><button id="studentProfileBtn" class="student-profile-trigger" type="button" aria-expanded="false"><span id="studentProfileAvatar" class="student-profile-avatar">未</span><span class="student-profile-copy"><b id="studentProfileName">未选择学生</b><small id="studentProfileSummary">登录后管理学生、志愿表和账号</small></span><span class="student-profile-caret">⌄</span></button><div class="student-profile-dropdown"><div class="student-profile-card"><span id="studentProfileAvatarLarge" class="student-profile-avatar large">未</span><div><b id="studentProfileNameLarge">未选择学生</b><p id="studentProfileMeta">登录后可保存和加载志愿表。</p></div></div><div class="student-profile-mini"><span id="studentProfileAccount">账号：未登录</span><span id="studentProfileVolunteer">志愿表 0/40</span></div><div class="student-profile-actions"><button id="profileOpenStudents" type="button">学生档案</button><button id="profileOpenVolunteer" type="button">志愿表</button><button id="profileAccountCenter" type="button">账号中心</button><button id="profileSwitchAccount" type="button">切换账号</button><button id="profileLogout" class="danger" type="button">退出登录</button></div></div></div><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
       <div class="filters">
         <select id="batchFilter"><option value="">全部批次</option></select>
         <select id="subjectFilter"><option value="">全部科类</option></select>
@@ -1177,7 +1177,16 @@ function bindEvents(){
   $('#studentPanelBtn')?.addEventListener('click',openStudentDirectory);
   $('#accountBtn')?.addEventListener('click',()=>showAccountModal('login'));
   $('#logoutHeaderBtn')?.addEventListener('click',()=>logoutSupabase());
-  $('#volunteerPanelBtn').addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
+  $('#volunteerPanelBtn')?.addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
+  $('#studentProfileBtn')?.addEventListener('click',e=>{e.stopPropagation();toggleStudentProfileMenu();});
+  $('#studentProfileMenu')?.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',closeStudentProfileMenu);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeStudentProfileMenu();});
+  $('#profileOpenStudents')?.addEventListener('click',()=>{closeStudentProfileMenu();openStudentDirectory();});
+  $('#profileOpenVolunteer')?.addEventListener('click',()=>{closeStudentProfileMenu();renderVolunteerPanel();openPanel('volunteerPanel');});
+  $('#profileAccountCenter')?.addEventListener('click',()=>{closeStudentProfileMenu();auth.user?showAccountCenter():showAccountModal('login');});
+  $('#profileSwitchAccount')?.addEventListener('click',switchAccountFromProfile);
+  $('#profileLogout')?.addEventListener('click',()=>{closeStudentProfileMenu();logoutSupabase();});
   $('#fillVolunteerBtn').addEventListener('click',fillVolunteerFromCurrentFilters);
   $('#saveVolunteerBtn').addEventListener('click',saveCurrentVolunteerForm);
   $('#exportVolunteerBtn').addEventListener('click',exportVolunteerXlsx);
@@ -2044,6 +2053,7 @@ function updateVolunteerUI(){
   const count=volunteerKeys.length;
   const btn=$('#volunteerPanelBtn');
   if(btn)btn.textContent=`志愿表 ${count}/${VOLUNTEER_LIMIT}`;
+  updateStudentProfileMenu();
   const countEl=$('#volunteerPanelCount');
   if(countEl)countEl.textContent=`已选 ${count} / ${VOLUNTEER_LIMIT} 个专业组`;
   $$('[data-volunteer-key]').forEach(btn=>{
@@ -2724,6 +2734,31 @@ function ensureAccountStyles(){
     .student-empty{padding:20px;text-align:center;color:#66756d;font-size:14px;border:1px dashed #dce4df;border-radius:16px}
     .student-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
     .student-sync-active{border-color:#8ed2aa!important;background:#f0faf4!important;color:var(--green)!important}
+    .student-profile-menu{position:relative;z-index:35}
+    .student-profile-trigger{min-height:44px;max-width:460px;border:1px solid #ded2c2;border-radius:999px;background:#fffaf2;color:#17130f;padding:6px 12px 6px 8px;display:grid;grid-template-columns:32px minmax(0,1fr) 16px;gap:9px;align-items:center;box-shadow:0 1px 0 rgba(0,0,0,.03);text-align:left}
+    .student-profile-trigger:hover,.student-profile-menu.open .student-profile-trigger{border-color:#c9b89f;background:#fff6e7}
+    .student-profile-avatar{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#111;color:#fff;font-size:13px;font-weight:950;line-height:1}
+    .student-profile-avatar.large{width:72px;height:72px;font-size:24px;background:linear-gradient(135deg,#111,#3d2c1f)}
+    .student-profile-copy{min-width:0;display:grid;gap:2px}
+    .student-profile-copy b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:1.2}
+    .student-profile-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f6256;font-size:11px;font-weight:800;line-height:1.2}
+    .student-profile-caret{color:#6f6256;font-size:14px;font-weight:900}
+    .student-profile-dropdown{position:absolute;top:calc(100% + 10px);right:0;width:min(380px,92vw);border:1px solid #e5d8c7;border-radius:18px;background:#fffdf8;box-shadow:0 24px 70px rgba(36,28,20,.18);padding:14px;opacity:0;visibility:hidden;transform:translateY(-6px);transition:.16s ease;pointer-events:none}
+    .student-profile-dropdown::before{content:"";position:absolute;right:38px;top:-8px;width:14px;height:14px;background:#fffdf8;border-left:1px solid #e5d8c7;border-top:1px solid #e5d8c7;transform:rotate(45deg)}
+    .student-profile-menu:hover .student-profile-dropdown,.student-profile-menu.open .student-profile-dropdown{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}
+    .student-profile-card{display:grid;grid-template-columns:72px minmax(0,1fr);gap:14px;align-items:center;padding:10px 8px 14px}
+    .student-profile-card b{display:block;font-size:20px;line-height:1.25;color:#17130f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .student-profile-card p{margin:6px 0 0;color:#74695e;font-size:13px;line-height:1.55}
+    .student-profile-mini{display:grid;gap:7px;margin:0 0 10px;padding:10px;border:1px solid #eadfce;border-radius:14px;background:#fff8ec;color:#5c4630;font-size:12px;font-weight:900}
+    .student-profile-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid #eee2d2;padding-top:10px}
+    .student-profile-actions button{height:38px;border:1px solid #ded2c2;border-radius:12px;background:#fff;color:#24352b;font-size:13px;font-weight:900}
+    .student-profile-actions button:hover{border-color:#b7dfc6;background:#f0faf4;color:var(--green)}
+    .student-profile-actions button.danger{border-color:#efc9bd;background:#fff4ef;color:#9b3026}
+    body.compact-mode .student-profile-trigger{min-height:36px;max-width:360px;padding:4px 10px 4px 6px;grid-template-columns:28px minmax(0,1fr) 14px}
+    body.compact-mode .student-profile-avatar{width:28px;height:28px;font-size:12px}
+    body.compact-mode .student-profile-copy b{font-size:12px}
+    body.compact-mode .student-profile-copy small{font-size:10px}
+    @media(max-width:760px){.student-profile-trigger{max-width:100%;width:100%}.student-profile-menu{width:100%}.student-profile-dropdown{left:0;right:auto;width:100%}.student-profile-dropdown::before{left:36px;right:auto}}
 
     .student-context-bar{border-top:1px solid rgba(10,124,66,.1);padding:10px 24px 12px;background:linear-gradient(90deg,#f2fbf6,#ffffff);display:grid;gap:5px}
     .student-context-bar[hidden]{display:none!important}
@@ -2822,7 +2857,51 @@ function updateAccountUI(){
     studentBtn.title=currentStudent?studentTopSummary(currentStudent):'学生档案';
     studentBtn.classList.toggle('active-student',Boolean(currentStudent));
   }
+  updateStudentProfileMenu();
   renderStudentContextBar();
+}
+function studentProfileInitial(){
+  const name=currentStudent?.name||auth.user?.email||'未';
+  const text=String(name).trim();
+  return text?text.slice(0,1).toUpperCase():'未';
+}
+function updateStudentProfileMenu(){
+  const menu=$('#studentProfileMenu');
+  if(!menu)return;
+  const name=currentStudent?.name||auth.user?.email?.split('@')[0]||'未登录';
+  const summary=currentStudent?studentTopSummary(currentStudent):(auth.user?'尚未选择学生，点击进入学生档案':'登录后管理学生、志愿表和账号');
+  const meta=currentStudent?stageLabel(currentStudent.stage)+'｜'+studentTopSummary(currentStudent):(auth.user?'已登录，尚未选择当前学生。':'未登录，点击账号中心登录或注册。');
+  const initial=studentProfileInitial();
+  const email=auth.user?.email||'未登录';
+  const count='志愿表 '+volunteerKeys.length+'/'+VOLUNTEER_LIMIT;
+  [['#studentProfileAvatar',initial],['#studentProfileAvatarLarge',initial],['#studentProfileName',name],['#studentProfileNameLarge',name],['#studentProfileSummary',summary],['#studentProfileMeta',meta],['#studentProfileAccount','账号：'+email],['#studentProfileVolunteer',count]].forEach(function(pair){const el=$(pair[0]); if(el)el.textContent=pair[1];});
+  const trigger=$('#studentProfileBtn');
+  if(trigger){
+    trigger.title=currentStudent?currentStudent.name+'｜'+studentTopSummary(currentStudent):(auth.user?'账号：'+auth.user.email:'登录/注册');
+    trigger.setAttribute('aria-expanded',menu.classList.contains('open')?'true':'false');
+  }
+}
+function closeStudentProfileMenu(){
+  const menu=$('#studentProfileMenu');
+  if(!menu)return;
+  menu.classList.remove('open');
+  $('#studentProfileBtn')?.setAttribute('aria-expanded','false');
+}
+function toggleStudentProfileMenu(){
+  const menu=$('#studentProfileMenu');
+  if(!menu)return;
+  const open=!menu.classList.contains('open');
+  menu.classList.toggle('open',open);
+  $('#studentProfileBtn')?.setAttribute('aria-expanded',open?'true':'false');
+}
+function switchAccountFromProfile(){
+  closeStudentProfileMenu();
+  if(auth.user){
+    const ok=confirm('切换账号前，请确认当前志愿表已经保存到学生。\n\n确定退出当前账号并切换吗？');
+    if(!ok)return;
+    logoutSupabase({skipConfirm:true});
+  }
+  showAccountModal('login');
 }
 function updateAuthGate(){
   const locked=!(auth.accessToken&&auth.user);
