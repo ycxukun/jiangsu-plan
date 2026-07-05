@@ -425,12 +425,94 @@ async function updateStudent(studentId){
     alert('学生档案已更新。');
   }catch(err){alert('更新学生失败：'+err.message);}
 }
+function intakeText(data,key){return String(data?.[key]??'').trim();}
+function intakeArray(data,key){const v=data?.[key];return Array.isArray(v)?v.filter(Boolean).map(x=>String(x).trim()).filter(Boolean):splitListInput(v);}
+function intakeSubjectType(data){
+  const xk=intakeText(data,'选科');
+  return /史|历/.test(xk)&&!/物/.test(xk)?'history':'physics';
+}
+function intakeSubjectChoices(data){
+  const xk=intakeText(data,'选科');
+  const out=[];
+  [['化学',/化/],['生物',/生/],['政治',/政/],['地理',/地/]].forEach(([name,re])=>{if(re.test(xk)&&!out.includes(name))out.push(name);});
+  return out;
+}
+function intakeTargetMajors(data){
+  const ordered=intakeArray(data,'意向专业类排序');
+  const checked=intakeArray(data,'意向专业类');
+  const white=splitListInput(intakeText(data,'专业白名单'));
+  return [...new Set([...ordered,...checked,...white])].slice(0,80);
+}
+function intakeTargetCities(data){
+  const wanted=intakeArray(data,'意向地区排序');
+  const extra=splitListInput(intakeText(data,'地域偏好补充说明'));
+  return [...new Set([...wanted,...extra])].slice(0,80);
+}
+function intakeNote(data){
+  const pairs=[
+    ['就读学校','就读学校'],['班级','班级'],['沟通老师','沟通老师'],['家长诉求','家长核心诉求原话'],['学生诉求','学生本人诉求原话'],
+    ['专业白名单','专业白名单'],['专业灰名单','专业灰名单'],['专业黑名单','专业黑名单'],['院校意向','意向院校'],['排斥院校','明确排斥院校'],
+    ['规划师判断','规划师初步判断'],['补充材料','需要补充材料'],['采集备注','沟通备注或录音文件名']
+  ];
+  return pairs.map(([label,key])=>intakeText(data,key)?`${label}：${intakeText(data,key)}`:'').filter(Boolean).join('\n').slice(0,6000);
+}
+function intakePayload(data){
+  const name=intakeText(data,'学生姓名');
+  if(!name)throw new Error('采集表 JSON 缺少“学生姓名”。');
+  const subjectChoices=intakeSubjectChoices(data);
+  return {
+    owner_id:auth.user.id,
+    name,
+    phone:intakeText(data,'家长电话')||intakeText(data,'备用电话')||null,
+    gender:['男','女'].includes(intakeText(data,'性别'))?intakeText(data,'性别'):'未知',
+    province:intakeText(data,'高考省份')||'江苏',
+    stage:'undergraduate',
+    subject_type:intakeSubjectType(data),
+    subject_choices:subjectChoices,
+    score:dbInteger(intakeText(data,'总分')),
+    rank:dbInteger(intakeText(data,'位次')),
+    target_cities:intakeTargetCities(data),
+    target_majors:intakeTargetMajors(data),
+    medical_codes:parseMedicalCodes([...(Array.isArray(data['体检快捷代码'])?data['体检快捷代码']:[]),intakeText(data,'体检限制补充'),intakeText(data,'体检需避开专业')].join(' ')),
+    note:intakeNote(data)
+  };
+}
+async function importIntakeData(data){
+  if(!auth.user)throw new Error('请先登录后再导入采集表。');
+  const payload=intakePayload(data);
+  const existing=students.find(s=>s.name===payload.name&&(payload.phone?String(s.phone||'')===String(payload.phone):true));
+  let rows;
+  if(existing&&confirm(`检测到已有学生“${payload.name}”。是否用采集表覆盖更新该学生档案？\n\n选择取消将新增一个学生。`)){
+    rows=await writeStudentRecord(`students?id=eq.${encodeURIComponent(existing.id)}`,'PATCH',payload);
+  }else{
+    rows=await writeStudentRecord('students','POST',payload);
+  }
+  const saved={...(rows?.[0]||payload),subject_choices:payload.subject_choices};
+  saveLocalStudentSubjectChoices(saved.id,payload.subject_choices);
+  saveCurrentStudent(saved);
+  try{localStorage.setItem(`js-plan-intake-json:${saved.id}`,JSON.stringify({saved_at:new Date().toISOString(),data}));}catch(e){}
+  await fetchAll();
+  alert(`采集表已导入并设为当前学生：${saved.name}`);
+}
+function handleIntakeImport(event){
+  const file=event.target.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{await importIntakeData(JSON.parse(reader.result));}
+    catch(err){alert('导入采集表失败：'+err.message);}
+    event.target.value='';
+  };
+  reader.readAsText(file,'utf-8');
+}
 function bindEvents(){
   $('#studentSearch').addEventListener('input',e=>{query=e.target.value;render();});
   $('#stageFilter').addEventListener('change',e=>{stageFilter=e.target.value;render();});
   $('#subjectFilter').addEventListener('change',e=>{subjectFilter=e.target.value;render();});
   $('#clearSearchBtn').addEventListener('click',()=>{query='';stageFilter='';subjectFilter='';render();});
   $('#refreshBtn').addEventListener('click',fetchAll);
+  $('#importIntakeBtn')?.addEventListener('click',()=>$('#intakeImportFile')?.click());
+  $('#intakeImportFile')?.addEventListener('change',handleIntakeImport);
   $('#createStudentBtn').addEventListener('click',createStudent);
   $('#resetFormBtn').addEventListener('click',resetNewForm);
   $('#modalMask').addEventListener('click',e=>{if(e.target.id==='modalMask')closeModal();});
