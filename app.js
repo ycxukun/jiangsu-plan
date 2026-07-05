@@ -1051,7 +1051,16 @@ function batchGuideFilterId(){
 }
 function batchGuideFilterLabel(def){
   if(!def)return '';
-  if(def.id==='early-sergeant')return '专科提前批-定向军士';
+  const labels={
+    'early-military':'提前批-军校',
+    'early-police':'提前批-公安',
+    'early-maritime':'提前批-航海',
+    'early-special-plan':'提前批-专项计划',
+    'early-other':'提前批-其他院校',
+    'early-medical':'提前批-定向医学生',
+    'early-sergeant':'专科提前批-定向军士'
+  };
+  if(labels[def.id])return labels[def.id];
   const name=String(def.scope||def.channel||'').split('·').pop().trim().replace(/提前批$/,'');
   return `提前批-${name||def.channel}`;
 }
@@ -1171,7 +1180,7 @@ function fillBatchSelect(sel,batches){
   }));
   const guideDefs=(window.BatchGuide?.GUIDE_DEFS||[]).filter(def=>guideCounts.has(def.id));
   const guideOptions=guideDefs.map(def=>`<option value="guide:${esc(def.id)}">${esc(batchGuideFilterLabel(def))}（${guideCounts.get(def.id)}组）</option>`).join('');
-  el.innerHTML=first+batchOptions+(guideOptions?`<optgroup label="提前批细分">${guideOptions}</optgroup>`:'');
+  el.innerHTML=first+(guideOptions?`<optgroup label="提前批细分">${guideOptions}</optgroup>`:'')+batchOptions;
 }
 function initFilters(){
   const batches=unique(DB.map(s=>s.batch)).sort();
