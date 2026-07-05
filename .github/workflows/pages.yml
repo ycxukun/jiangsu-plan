@@ -25,6 +25,8 @@ jobs:
       - name: Validate JavaScript
         run: |
           node --check app.js
+          node --check batch-guide.js
+          node --check batch-guide-links.js
           node --check qualification-risk.js
           node --check admin-console.js
           node --check students/app.js
@@ -39,7 +41,7 @@ jobs:
           rm -rf _site
           mkdir -p _site
 
-          cp .nojekyll index.html admin.html admin-console.html admin-console.js app.js qualification-risk.js haoshengya_login_landing.html _site/
+          cp .nojekyll index.html admin.html admin-console.html admin-console.js app.js batch-guide.js batch-guide-links.js qualification-risk.js haoshengya_login_landing.html _site/
           cp style-claude-*.css _site/
           cp data*.js _site/
           cp school-life-info-data.js _site/
@@ -50,6 +52,8 @@ jobs:
 
           test -f _site/index.html
           test -f _site/app.js
+          test -f _site/batch-guide.js
+          test -f _site/batch-guide-links.js
           test -f _site/qualification-risk.js
           test -f _site/admin-console.html
           test -f _site/admin-console.js
