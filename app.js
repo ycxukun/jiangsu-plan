@@ -726,6 +726,9 @@ function qualificationRiskExportText(meta){
   if(!meta||!Array.isArray(meta.issues)||!meta.issues.length)return '';
   return meta.issues.map(x=>`${x.label||'资格提醒'}：${x.message||''}`).filter(Boolean).join('；');
 }
+function qualificationRiskBlocksSelection(meta){
+  return Boolean(meta&&Array.isArray(meta.issues)&&meta.issues.some(x=>x.level==='block'));
+}
 function groupQualificationBadge(s,g){
   if(!window.QualificationRisk)return '';
   const metas=(g?.majors||[]).map(m=>qualificationRiskForMajor(s,g,m)).filter(x=>x&&Array.isArray(x.issues)&&x.issues.length);
@@ -1836,15 +1839,16 @@ function majorRowHTML(s,g,m){
   const physical=medicalRestrictionForMajor(m);
   const subjectBlock=subjectRequirementBlockReason(s,g);
   const qualification=qualificationRiskForMajor(s,g,m);
+  const qualificationBlocked=qualificationRiskBlocksSelection(qualification);
   const riskToneClass=riskMeta.tone?`risk-tone-${riskMeta.tone}`:'';
-  const disabled=(physical.blocked||subjectBlock)?' disabled':'';
+  const disabled=(physical.blocked||subjectBlock||qualificationBlocked)?' disabled':'';
   const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
   const qualificationTitle=qualification?.summary||'';
   const coopDetail=foreignCoopDetailForMajor(m);
   const actionButtons=majorActionButtonsHTML(s,g,m,coopDetail,groupKey);
   const metaBadges=majorMetaBadgesHTML(m,'四');
   const majorNameButton=`<button class="major-name-link" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看${esc(m.name)}专业详情">${esc(m.name)}</button>`;
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked||qualificationBlocked?'当前学生档案不满足该专业组选科/体检/报考资格要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
@@ -2158,7 +2162,10 @@ function uniqueValidMajorKeys(keys,g){
   const valid=new Set((g.majors||[]).map(m=>m.key));
   const out=[];
   (Array.isArray(keys)?keys:[]).forEach(k=>{
-    if(valid.has(k)&&!out.includes(k)&&out.length<MAX_MAJOR_PER_GROUP){const m=(g.majors||[]).find(x=>x.key===k); if(m&&!medicalRestrictionForMajor(m).blocked)out.push(k);}
+    if(valid.has(k)&&!out.includes(k)&&out.length<MAX_MAJOR_PER_GROUP){
+      const m=(g.majors||[]).find(x=>x.key===k);
+      if(m&&!medicalRestrictionForMajor(m).blocked&&!qualificationRiskBlocksSelection(qualificationRiskForMajor(null,g,m)))out.push(k);
+    }
   });
   return out;
 }
@@ -2196,7 +2203,7 @@ function setMajorSelection(key,majorKey,checked){
     const physical=target?medicalRestrictionForMajor(target):null;
     if(physical&&physical.blocked){alert(`体检受限：该专业不能选择。\n${physical.reason}`);return false;}
     const qualification=target?qualificationRiskForMajor(rec.s,rec.g,target):null;
-    if(qualification&&qualification.level==='block'&&!confirm(`资格风险提醒：\n${qualification.summary}\n\n该风险来自专业备注/招生章程关键词自动识别，建议人工核对。仍要加入该专业吗？`))return false;
+    if(qualificationRiskBlocksSelection(qualification)){alert(`报考资格不符合：该专业不能选择。\n${qualification.summary}`);return false;}
     if(!ensureVolunteerGroupForMajor(key))return false;
     arr=selectedMajorOrder(key);
     if(!arr.includes(majorKey)){
@@ -2519,10 +2526,11 @@ function volunteerMajorPoolCardHTML(s,g,m,key,selectedOrder,poolFilter,subjectBl
   const physical=medicalRestrictionForMajor(m);
   const qualification=qualificationRiskForMajor(s,g,m);
   const blocked=physical.blocked||Boolean(subjectBlock);
-  const blockTitle=subjectBlock||physical.reason;
+  const qualificationBlocked=qualificationRiskBlocksSelection(qualification);
   const qualificationTitle=qualification?.summary||'';
-  return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${physical.blocked?'physical-blocked':''} ${subjectBlock?'subject-blocked':''} ${isSelected?'selected':'unselected'}" title="${esc(blocked?blockTitle:(qualificationTitle||riskMeta.reason||''))}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}>
-    <input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''} ${blocked?'disabled':''}>
+  const blockTitle=subjectBlock||physical.reason||qualificationTitle;
+  return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${physical.blocked?'physical-blocked':''} ${subjectBlock?'subject-blocked':''} ${qualificationBlocked?'qualification-blocked':''} ${isSelected?'selected':'unselected'}" title="${esc((blocked||qualificationBlocked)?blockTitle:(qualificationTitle||riskMeta.reason||''))}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}>
+    <input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''} ${(blocked||qualificationBlocked)?'disabled':''}>
     ${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}
     <span class="volunteer-pool-major-body">
       <span class="volunteer-pool-major-top"><b>${esc(m.name)}</b>${majorMetaBadgesHTML(m,'四')}${volunteerMajorBadgesHTML(physical,subjectBlock,riskMeta,qualification)}</span>
@@ -2986,6 +2994,9 @@ function ensureAccountStyles(){
     .subject-choice-row input{width:auto;height:auto;margin:0}
     .subject-blocked-row td{background:#fff7ed}
     .major-check.subject-blocked{border-color:#fed7aa;background:#fff7ed;color:#9a3412}
+    .qualification-blocked-row td{background:#fff0ee}
+    .major-check.qualification-blocked{border-color:#fecaca;background:#fff7f6;color:#9f241b;opacity:.78}
+    .major-check.qualification-blocked input{cursor:not-allowed}
     .student-list{display:grid;gap:10px;margin-top:12px}
     .student-card{border:1px solid var(--line);border-radius:16px;background:#fff;padding:12px}
     .student-card.active{border-color:#8ed2aa;background:#f7fffa}

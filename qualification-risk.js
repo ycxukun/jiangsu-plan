@@ -32,7 +32,7 @@ function firstValue(data,keys){
 function normalizeStudent(student){
   const data=(student&&typeof student.intake_payload==='object'&&!Array.isArray(student.intake_payload))?student.intake_payload:{};
   return {
-    language:textOf(student?.foreign_language||firstValue(data,['外语语种','高考语种','高考外语语种','外语'])),
+    language:textOf(student?.foreign_language||firstValue(data,['外语语种','高考语种','高考外语语种'])),
     oral:yesNo(student?.oral_exam_status||firstValue(data,['外语口试','外语口试成绩','口语测试','英语口试'])),
     gender:textOf(student?.gender&&student.gender!=='未知'?student.gender:firstValue(data,['性别'])),
     political:textOf(student?.political_status||firstValue(data,['政治面貌','政治身份'])),
@@ -45,10 +45,10 @@ function normalizeStudent(student){
     acceptEnglish:yesNo(student?.accept_english_teaching||firstValue(data,['是否接受全英文授课','接受全英文授课'])),
     acceptProcess:yesNo(student?.accept_interview_physical_test||firstValue(data,['是否接受政审体测面试','是否接受面试/体测/政审','接受面试体测政审'])),
     scores:{
-      英语:num(student?.foreign_language_score||firstValue(data,['英语成绩','外语成绩','高考英语','英语'])),
-      外语:num(student?.foreign_language_score||firstValue(data,['外语成绩','英语成绩','高考外语'])),
-      数学:num(student?.math_score||firstValue(data,['数学成绩','数学'])),
-      语文:num(student?.chinese_score||firstValue(data,['语文成绩','语文']))
+      英语:num(student?.foreign_language_score||firstValue(data,['英语成绩','英语单科成绩','外语成绩','外语单科成绩','高考英语','英语','外语'])),
+      外语:num(student?.foreign_language_score||firstValue(data,['外语成绩','外语单科成绩','英语成绩','英语单科成绩','高考外语','外语','英语'])),
+      数学:num(student?.math_score||firstValue(data,['数学成绩','数学单科成绩','数学'])),
+      语文:num(student?.chinese_score||firstValue(data,['语文成绩','语文单科成绩','语文']))
     }
   };
 }
@@ -66,7 +66,10 @@ function addScoreRules(text,rules){
   let match;
   while((match=re.exec(text))){
     const subject=match[1]==='外语'?'外语':match[1];
-    rules.singleScores.push({subject,value:Number(match[2]),source:match[0]});
+    const value=Number(match[2]);
+    if(!rules.singleScores.some(x=>x.subject===subject&&x.value===value)){
+      rules.singleScores.push({subject,value,source:match[0]});
+    }
   }
 }
 function parseRules(text,ctx){

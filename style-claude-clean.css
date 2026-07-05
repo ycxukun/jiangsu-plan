@@ -445,6 +445,20 @@
 .volunteer-panel .volunteer-major-strip-item{
   border-color:#d4c2ae!important;
 }
+.qualification-blocked-row td{
+  background:#fff0ee!important;
+}
+.volunteer-panel .major-check.qualification-blocked,
+.major-check.qualification-blocked{
+  border-color:#fecaca!important;
+  background:#fff7f6!important;
+  color:#9f241b!important;
+  opacity:.78!important;
+}
+.volunteer-panel .major-check.qualification-blocked input,
+.major-check.qualification-blocked input{
+  cursor:not-allowed!important;
+}
 .volunteer-panel .major-check input{
   width:14px!important;
   height:14px!important;
