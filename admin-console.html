@@ -63,8 +63,8 @@ button.save{background:var(--green);border-color:var(--green);color:#fff}button.
       <div class="panel-head"><h2>规划师管理</h2><span class="badge" id="plannerCount">0 人</span></div>
       <div class="panel-body">
         <div class="form-grid">
-          <label>授权已有账号为规划师<input id="plannerUserId" placeholder="Supabase Auth 用户 UUID"></label>
-          <label>邮箱<input id="plannerEmail" placeholder="planner@example.com"></label>
+          <label>邮箱<input id="plannerEmail" placeholder="规划师登录邮箱，例如 planner@example.com"></label>
+          <label>用户 UUID（可选）<input id="plannerUserId" placeholder="一般不用填；系统会按邮箱查账号"></label>
           <label>显示名<input id="plannerName" placeholder="规划师姓名，可空"></label>
           <button class="save" id="addPlannerBtn" type="button">添加/启用规划师</button>
         </div>

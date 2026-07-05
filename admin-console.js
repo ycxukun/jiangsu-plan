@@ -40,11 +40,23 @@ function setNotice(text,type='info'){
   el.style.background=type==='error'?'#fff8f7':'#fff7ed';
   el.style.color=type==='error'?'#8a1f17':'#7c2d12';
 }
+function friendlyError(err){
+  const raw=String(err?.message||err||'');
+  try{
+    const obj=JSON.parse(raw);
+    return obj.message||obj.hint||raw;
+  }catch(e){
+    return raw;
+  }
+}
+function isUuid(value){
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||'').trim());
+}
 async function ensureAdmin(){
   if(!auth.user)throw new Error('请先登录管理员账号。');
   const rows=await apiFetch(`profiles?select=*&id=eq.${encodeURIComponent(auth.user.id)}&limit=1`);
   profile=rows?.[0]||null;
-  if(profile?.role!=='admin'||profile?.status!=='active')throw new Error('当前账号不是 active 管理员，不能进入后台。');
+  if(profile?.role!=='admin'||profile?.status!=='active')throw new Error('当前账号不是 active 管理员，不能进入后台。请先在 Supabase SQL Editor 执行 supabase/admin_bootstrap.sql，把当前登录邮箱设为管理员。');
 }
 async function loadAll(){
   setNotice('正在读取后台数据...');
@@ -118,15 +130,23 @@ function render(){
   bindActions();
 }
 async function addPlanner(){
-  const id=$('#plannerUserId').value.trim();
-  const email=$('#plannerEmail').value.trim();
+  let id=$('#plannerUserId').value.trim();
+  let email=$('#plannerEmail').value.trim();
   const name=$('#plannerName').value.trim();
-  if(!id||!email){alert('请填写 Supabase Auth 用户 UUID 和邮箱。');return;}
+  if(id&&!isUuid(id)&&!email){
+    email=id;
+    id='';
+  }
+  if(!email){alert('请填写规划师登录邮箱。');return;}
   try{
-    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id,email,display_name:name||email,role:'planner',status:'active'})});
+    if(id){
+      await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id,email,display_name:name||email,role:'planner',status:'active'})});
+    }else{
+      await apiFetch('rpc/admin_grant_profile_by_email',{method:'POST',body:JSON.stringify({target_email:email,target_display_name:name||email,target_role:'planner'})});
+    }
     $('#plannerUserId').value='';$('#plannerEmail').value='';$('#plannerName').value='';
     await loadAll();
-  }catch(err){alert('添加规划师失败：'+err.message);}
+  }catch(err){alert('添加规划师失败：'+friendlyError(err));}
 }
 async function togglePlanner(id){
   const p=planners.find(x=>x.id===id);
@@ -136,14 +156,14 @@ async function togglePlanner(id){
   try{
     await apiFetch(`profiles?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({status:next})});
     await loadAll();
-  }catch(err){alert('更新规划师状态失败：'+err.message);}
+  }catch(err){alert('更新规划师状态失败：'+friendlyError(err));}
 }
 async function changeRole(id,role){
   if(id===auth.user.id&&role!=='admin'){alert('不能把当前登录管理员降级。');return;}
   try{
     await apiFetch(`profiles?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({role})});
     await loadAll();
-  }catch(err){alert('修改角色失败：'+err.message);}
+  }catch(err){alert('修改角色失败：'+friendlyError(err));}
 }
 async function transferStudent(studentId,newPlannerId){
   const student=students.find(s=>s.id===studentId);
@@ -162,7 +182,7 @@ async function transferStudent(studentId,newPlannerId){
       await apiFetch(`volunteer_exports?student_id=eq.${encodeURIComponent(studentId)}`,{method:'PATCH',body:JSON.stringify({owner_id:newPlannerId})});
     }
     await loadAll();
-  }catch(err){alert('转移学生失败：'+err.message);}
+  }catch(err){alert('转移学生失败：'+friendlyError(err));}
 }
 async function archiveStudent(studentId){
   const student=students.find(s=>s.id===studentId);
@@ -172,7 +192,7 @@ async function archiveStudent(studentId){
   try{
     await apiFetch(`students?id=eq.${encodeURIComponent(studentId)}`,{method:'PATCH',body:JSON.stringify({archived:next})});
     await loadAll();
-  }catch(err){alert('更新学生状态失败：'+err.message);}
+  }catch(err){alert('更新学生状态失败：'+friendlyError(err));}
 }
 function openStudent(studentId){
   const student=students.find(s=>s.id===studentId);
@@ -198,7 +218,7 @@ function bindEvents(){
 async function init(){
   bindEvents();
   loadAuth();
-  try{await loadAll();}catch(err){setNotice(err.message,'error');$('#plannerList').innerHTML='<div class="empty">无法读取后台。</div>';$('#studentList').innerHTML='<div class="empty">无法读取学生。</div>';}
+  try{await loadAll();}catch(err){setNotice(friendlyError(err),'error');$('#plannerList').innerHTML='<div class="empty">无法读取后台。</div>';$('#studentList').innerHTML='<div class="empty">无法读取学生。</div>';}
 }
 init();
 })();

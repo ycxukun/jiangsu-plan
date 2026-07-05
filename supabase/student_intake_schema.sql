@@ -64,6 +64,64 @@ for each row execute function public.assign_student_identity();
 create index if not exists students_planner_idx on public.students(planner_id);
 create unique index if not exists students_student_no_uidx on public.students(student_no);
 
+create or replace function public.admin_grant_profile_by_email(
+  target_email text,
+  target_display_name text default null,
+  target_role text default 'planner'
+)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  target_user auth.users%rowtype;
+  next_role public.user_role;
+  saved_profile public.profiles%rowtype;
+begin
+  if not public.is_admin() then
+    raise exception 'Only active admins can grant planner accounts.';
+  end if;
+
+  if btrim(coalesce(target_email, '')) = '' then
+    raise exception 'Planner email is required.';
+  end if;
+
+  if target_role not in ('admin', 'consultant', 'planner') then
+    raise exception 'Unsupported role: %', target_role;
+  end if;
+  next_role := target_role::public.user_role;
+
+  select *
+  into target_user
+  from auth.users
+  where lower(email) = lower(btrim(target_email))
+  limit 1;
+
+  if target_user.id is null then
+    raise exception 'No Supabase Auth user found for email %. Ask this planner to register or log in once first.', target_email;
+  end if;
+
+  insert into public.profiles (id, email, display_name, role, status)
+  values (
+    target_user.id,
+    target_user.email,
+    nullif(btrim(coalesce(target_display_name, '')), ''),
+    next_role,
+    'active'
+  )
+  on conflict (id) do update
+  set email = excluded.email,
+      display_name = coalesce(excluded.display_name, public.profiles.display_name, excluded.email),
+      role = excluded.role,
+      status = 'active',
+      updated_at = now()
+  returning * into saved_profile;
+
+  return saved_profile;
+end;
+$$;
+
 drop policy if exists "profiles_admin_insert" on public.profiles;
 create policy "profiles_admin_insert"
 on public.profiles for insert
