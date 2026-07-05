@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>写文章｜升学规划资讯中心</title>
+<link rel="stylesheet" href="./post-style.css?v=20260705-post-mvp-r1" />
+</head>
+<body>
+<header class="post-topbar">
+  <div class="post-topbar-inner">
+    <div class="post-brand">
+      <h1>写图文文章</h1>
+      <p>Markdown 编辑，右侧实时预览，发布后按公众号式图文展示。</p>
+    </div>
+    <div class="post-actions">
+      <span id="accountPill" class="post-btn green">读取账号中</span>
+      <a class="post-btn" href="./index.html">返回资讯中心</a>
+      <button id="saveDraftBtn" class="post-btn" type="button">保存草稿</button>
+      <button id="publishBtn" class="post-btn primary" type="button">发布文章</button>
+    </div>
+  </div>
+</header>
+<main class="post-shell">
+  <section class="editor-grid">
+    <section class="editor-card">
+      <form class="editor-form" onsubmit="return false">
+        <label>文章标题<input id="titleInput" maxlength="120" placeholder="例如：2026 江苏综评时间线与材料准备"></label>
+        <label>副标题<input id="subtitleInput" maxlength="180" placeholder="可选，用一句话补充文章价值"></label>
+        <div class="editor-row">
+          <label>所属模块<select id="categoryInput"><option>志愿填报</option><option>政策解读</option><option>院校研究</option><option>专业研究</option><option>中外合作</option><option>提前批</option><option>讲座资料</option><option>表格数据</option></select></label>
+          <label>发布选项<select id="pinnedInput"><option value="false">普通文章</option><option value="true">置顶文章</option></select></label>
+        </div>
+        <label>摘要<textarea id="summaryInput" rows="3" placeholder="列表卡片展示用，建议 60-120 字。"></textarea></label>
+        <label>封面图 URL<input id="coverUrlInput" placeholder="上传封面后自动填入，也可以粘贴 https 图片地址"></label>
+        <div class="editor-file-line">
+          <input id="coverFileInput" type="file" accept="image/*">
+          <button id="uploadCoverBtn" class="post-btn" type="button">上传封面</button>
+        </div>
+        <label>正文 Markdown<textarea id="contentInput" placeholder="# 标题&#10;&#10;这里写正文。支持 **加粗**、引用、列表、表格、图片和链接。"></textarea></label>
+        <div class="editor-file-line">
+          <input id="bodyImageInput" type="file" accept="image/*">
+          <button id="insertImageBtn" class="post-btn" type="button">上传图片并插入正文</button>
+        </div>
+        <div id="editorStatus" class="editor-status"></div>
+      </form>
+    </section>
+    <aside class="preview-card">
+      <div class="preview-head"><b>公众号式预览</b><span id="previewState" class="editor-status">草稿预览</span></div>
+      <div class="preview-body">
+        <article>
+          <h1 id="previewTitle" class="article-title">未命名文章</h1>
+          <p id="previewSubtitle" class="article-subtitle hidden"></p>
+          <div class="article-meta"><span id="previewCategory" class="tag">志愿填报</span><span id="previewAuthor">规划师</span><span id="previewTime">实时预览</span></div>
+          <img id="previewCover" class="article-cover hidden" alt="封面图">
+          <div id="previewBody" class="wechat-body"></div>
+        </article>
+      </div>
+    </aside>
+  </section>
+</main>
+<script src="./editor.js?v=20260705-post-mvp-r1"></script>
+</body>
+</html>

@@ -3,6 +3,8 @@
 
 -- 升学规划资讯中心：公开图文与多类型文件资料
 -- 目标：规划师/管理员上传和删除，所有网络用户可读。公开文件放入 public Storage bucket。
+alter type public.user_role add value if not exists 'planner';
+
 create or replace function public.is_consultant_or_admin()
 returns boolean
 language sql
@@ -14,7 +16,7 @@ as $$
     select 1
     from public.profiles
     where id = auth.uid()
-      and role::text in ('admin', 'consultant')
+      and role::text in ('admin', 'consultant', 'planner')
       and status = 'active'
   );
 $$;
@@ -67,6 +69,57 @@ with check (public.is_consultant_or_admin());
 drop policy if exists "planning_articles_owner_delete" on public.planning_articles;
 create policy "planning_articles_owner_delete"
 on public.planning_articles for delete
+using (public.is_consultant_or_admin());
+
+-- 公众号式 Markdown 图文文章
+create table if not exists public.planning_posts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  subtitle text,
+  summary text,
+  category text not null default '志愿填报',
+  cover_url text,
+  content_md text not null default '',
+  content_html text,
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  pinned boolean not null default false,
+  author_id uuid references auth.users(id) on delete set null,
+  author_name text,
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists planning_posts_status_idx on public.planning_posts(status, pinned desc, published_at desc, created_at desc);
+create index if not exists planning_posts_category_idx on public.planning_posts(category);
+create index if not exists planning_posts_author_idx on public.planning_posts(author_id, updated_at desc);
+
+drop trigger if exists planning_posts_set_updated_at on public.planning_posts;
+create trigger planning_posts_set_updated_at
+before update on public.planning_posts
+for each row execute function public.set_updated_at();
+
+alter table public.planning_posts enable row level security;
+
+drop policy if exists "planning_posts_public_read" on public.planning_posts;
+create policy "planning_posts_public_read"
+on public.planning_posts for select
+using (status = 'published' or author_id = auth.uid() or public.is_consultant_or_admin());
+
+drop policy if exists "planning_posts_planner_insert" on public.planning_posts;
+create policy "planning_posts_planner_insert"
+on public.planning_posts for insert
+with check (public.is_consultant_or_admin() and author_id = auth.uid());
+
+drop policy if exists "planning_posts_planner_update" on public.planning_posts;
+create policy "planning_posts_planner_update"
+on public.planning_posts for update
+using (public.is_consultant_or_admin())
+with check (public.is_consultant_or_admin());
+
+drop policy if exists "planning_posts_planner_delete" on public.planning_posts;
+create policy "planning_posts_planner_delete"
+on public.planning_posts for delete
 using (public.is_consultant_or_admin());
 
 -- Supabase Storage 公开文件 bucket。

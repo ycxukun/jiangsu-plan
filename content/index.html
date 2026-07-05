@@ -27,6 +27,9 @@ button{cursor:pointer}
 .module-card b{display:block;font-size:15px;line-height:1.2;margin-bottom:8px}
 .module-card span{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px;line-height:1.25}
 .module-card em{font-style:normal;color:var(--brand);font-weight:900}
+.content-tabs{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.content-tab{height:38px;border-radius:999px;border:1px solid var(--line);background:#fff;color:#24352b;padding:0 16px;font-size:13px;font-weight:900;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.content-tab.active{background:#111;color:#fff;border-color:#111}
 .toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 150px 110px 116px;gap:8px;margin-bottom:10px}
 .toolbar input,.toolbar select{height:36px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:0 10px;color:var(--ink)}
 .upload-row{display:none;border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px;margin-bottom:12px;box-shadow:0 6px 18px rgba(11,42,26,.04)}
@@ -43,11 +46,26 @@ button{cursor:pointer}
 .danger{color:var(--red)}
 .notice{border:1px solid #fed7aa;background:#fff7ed;color:#7c2d12;border-radius:8px;padding:9px 10px;font-size:12px;line-height:1.55;margin-bottom:10px}
 .content-shell{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;align-items:start}
+.content-shell.posts-mode{grid-template-columns:1fr}
+.content-shell.posts-mode .viewer{display:none}
 .list-panel,.viewer{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 22px rgba(11,42,26,.05);overflow:hidden}
 .list-head{height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:0 14px}
 .list-head h2{margin:0;font-size:16px}
 .list-head span{font-size:12px;color:var(--muted);font-weight:850}
 .article-list{display:grid}
+.article-list.posts{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:12px;background:#fbfcfb}
+.article-list.posts .notice,.article-list.posts .empty{grid-column:1/-1}
+.post-card{min-height:250px;border:1px solid var(--line);border-radius:14px;background:#fff;color:inherit;text-decoration:none;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 5px 18px rgba(11,42,26,.04);transition:.16s ease}
+.post-card:hover{border-color:#9bd8b2;box-shadow:var(--shadow);transform:translateY(-1px)}
+.post-cover{height:132px;background:linear-gradient(135deg,#eaf7ef,#fff7e8);display:grid;place-items:center;color:#8b7a69;font-weight:900;font-size:13px;overflow:hidden}
+.post-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.post-info{display:grid;gap:8px;padding:12px}
+.post-info h3{margin:0;font-size:17px;line-height:1.25;letter-spacing:-.03em}
+.post-info p{margin:0;color:var(--muted);font-size:13px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.post-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.post-tag{border:1px solid #e6d8c8;background:#fff7ea;border-radius:999px;padding:3px 8px;color:#7b4b2d;font-weight:850}
+.post-card-actions{margin-top:auto;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:0 12px 12px}
+.post-card-actions .btn{height:30px}
 .content-row{display:grid;grid-template-columns:minmax(0,1fr) 138px auto;gap:12px;align-items:center;min-height:44px;border-bottom:1px solid var(--line);padding:0 14px;color:inherit;text-decoration:none;background:#fff}
 .content-row:hover{background:#f8fbf9}
 .content-row:last-child{border-bottom:0}
@@ -69,19 +87,20 @@ button{cursor:pointer}
 .viewer .empty{height:500px;display:grid;place-items:center;padding:24px}
 .footer{color:var(--muted);font-size:12px;text-align:center;padding:18px 0 0}
 .hidden{display:none!important}
-@media(max-width:1180px){.module-strip{grid-template-columns:repeat(4,minmax(120px,1fr))}.content-shell{grid-template-columns:1fr}.viewer{position:relative;top:0}.form{grid-template-columns:1fr 1fr}.form .btn,.progress{grid-column:1/-1}}
-@media(max-width:760px){.hero{display:grid;padding:14px 16px}.actions{justify-content:flex-start}.wrap{width:min(100% - 20px,720px)}.module-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{grid-template-columns:1fr}.content-row{grid-template-columns:1fr;gap:5px;padding:9px 12px}.content-time{text-align:left}.delete-file-btn{justify-self:start}.form{grid-template-columns:1fr}}
+@media(max-width:1180px){.module-strip{grid-template-columns:repeat(4,minmax(120px,1fr))}.content-shell{grid-template-columns:1fr}.viewer{position:relative;top:0}.form{grid-template-columns:1fr 1fr}.form .btn,.progress{grid-column:1/-1}.article-list.posts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.hero{display:grid;padding:14px 16px}.actions{justify-content:flex-start}.wrap{width:min(100% - 20px,720px)}.module-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{grid-template-columns:1fr}.content-row{grid-template-columns:1fr;gap:5px;padding:9px 12px}.content-time{text-align:left}.delete-file-btn{justify-self:start}.form{grid-template-columns:1fr}.article-list.posts{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="topbar">
   <div class="hero">
-    <div class="brand"><h1>升学规划资讯中心</h1><p>按板块归档资讯和文件；进入模块后只看名称与上传时间。</p></div>
+    <div class="brand"><h1>升学规划资讯中心</h1><p>图文文章与文件资料并存；规划师可在线写文章、发布政策解读和院校研究。</p></div>
     <div class="actions">
       <a class="pill" href="../index.html">返回志愿填报</a>
       <a class="pill" href="../specialty/index.html">专科系统</a>
       <span id="accountPill" class="pill green">未登录</span>
       <a id="loginEntryBtn" class="pill" href="../haoshengya_login_landing.html?next=./content/index.html#login">登录入口</a>
+      <a id="writePostBtn" class="btn primary hidden" href="./editor.html">写文章</a>
       <button id="toggleUploadBtn" class="btn primary hidden" type="button">上传资料</button>
       <button id="logoutBtn" class="btn hidden" type="button">退出</button>
     </div>
@@ -89,6 +108,11 @@ button{cursor:pointer}
 </header>
 <main class="wrap">
   <nav id="moduleStrip" class="module-strip" aria-label="升学资讯模块"></nav>
+
+  <section class="content-tabs" aria-label="内容类型">
+    <button id="postsTab" class="content-tab active" type="button">图文文章</button>
+    <button id="filesTab" class="content-tab" type="button">资料文件</button>
+  </section>
 
   <section class="toolbar" aria-label="资讯筛选">
     <input id="searchInput" placeholder="搜索名称，例如：中外合作 / 综评 / 专业" />
@@ -110,7 +134,7 @@ button{cursor:pointer}
     </form>
   </section>
 
-  <section class="content-shell">
+  <section id="contentShell" class="content-shell posts-mode">
     <section class="list-panel">
       <div class="list-head"><h2 id="sectionTitle">全部模块</h2><span id="sectionCount">0 条</span></div>
       <div id="articleList" class="article-list"></div>
@@ -122,6 +146,6 @@ button{cursor:pointer}
   </section>
   <div class="footer">© 2026 好生涯早规划 · 升学资讯中心</div>
 </main>
-<script src="./app.js?v=20260704-content-auth-r1"></script>
+<script src="./app.js?v=20260705-post-mvp-r1"></script>
 </body>
 </html>
