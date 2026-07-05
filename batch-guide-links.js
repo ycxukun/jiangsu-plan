@@ -2,11 +2,12 @@
 'use strict';
 
 window.BATCH_GUIDE_LINKS=Object.assign({
-  'early-common':'',
   'early-military':'',
   'early-police':'',
-  'early-judicial':'',
   'early-maritime':'',
+  'early-special-plan':'',
+  'early-other':'',
+  'early-medical':'',
   'early-sergeant':''
 },window.BATCH_GUIDE_LINKS||{});
 })();

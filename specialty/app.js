@@ -35,9 +35,9 @@ const levelFacetGroups=[
   {title:'特殊性质',items:['中外合作','联合培养','高收费','定向/军士','航海轮机']}
 ];
 const specialTypeFacetGroups=[
-  {title:'重点特殊类型',items:['定向军士男','3+2','5+0','中外合作','定向医学','司法警察男','司法警察女','石邮连云港','石邮扬州','石邮淮安','石邮镇江','定向军士女','石邮南通','石邮宿迁']},
+  {title:'重点特殊类型',items:['定向军士男','3+2','5+0','中外合作','定向医学','定向医学生','司法警察男','司法警察女','石邮连云港','石邮扬州','石邮淮安','石邮镇江','定向军士女','石邮南通','石邮宿迁']},
   {title:'合作与培养模式',items:['联合培养','高收费','境外/国际培养','校企合作/产教融合']},
-  {title:'政策与特殊招生',items:['定向/军士','定向/公费/优师','专项计划','民族班/预科','军警航海']},
+  {title:'政策与特殊招生',items:['军校','公安','航海/飞行','专项计划','其他院校提前批','定向/军士','定向/公费/优师','民族班/预科','军警航海']},
   {title:'特殊班型',items:['实验班/拔尖班','双学位/本博硕博']}
 ];
 
@@ -1117,7 +1117,7 @@ function createLayout(){
     <div id="studentPanel" class="panel student-panel"><div class="panel-head"><div><h3>学生档案</h3><p id="studentPanelSubtitle" class="panel-subtitle">登录后可新增学生、保存和加载志愿表。</p></div><button class="close-btn" data-close="studentPanel">×</button></div><div class="panel-body"><div id="studentPanelBody"></div></div></div>
     <div id="medicalPanel" class="panel medical-panel"><div class="panel-head"><h3>体检受限</h3><button class="close-btn" data-close="medicalPanel">×</button></div><div class="panel-body"><p class="medical-help">输入体检结论代码，例如：21、22、23、34、35。系统会在主表和志愿表中提示，并禁止受限专业被勾选。色弱/色盲按严格口径处理：化学、生物、医学、药学、食品、农林、水产、环境、材料类、建筑/风景园林、纺织服装、设计类等限报；计算机、电子信息、普通机械不按大类一刀切。</p><input id="medicalCodeInput" class="medical-code-input" placeholder="输入体检代码，如：21 35 或 23,34"><div class="medical-quick-codes">${Object.keys(MEDICAL_CODE_META).map(c=>`<button type="button" data-medical-code="${c}">${c}</button>`).join('')}</div><div id="medicalCodeSummary" class="medical-code-summary"></div><div class="modal-actions"><button id="clearMedicalBtn">清空体检代码</button><button id="applyMedicalBtn" class="save">应用体检限制</button></div></div></div>
     <div id="changePanel" class="panel change-panel"><div class="panel-head"><div><h3>专业组变迁</h3><p id="changePanelTitle" class="panel-subtitle"></p></div><button class="close-btn" data-close="changePanel">×</button></div><div id="changePanelBody" class="panel-body"></div></div>
-    <div id="batchGuidePanel" class="panel batch-guide-panel"><div class="panel-head"><div><h3>批次指南</h3><p class="panel-subtitle">提前批、军校、公安、司法、航海、定向军士分通道核对。</p></div><button class="close-btn" data-close="batchGuidePanel">×</button></div><div id="batchGuidePanelBody" class="panel-body"></div></div>
+    <div id="batchGuidePanel" class="panel batch-guide-panel"><div class="panel-head"><div><h3>批次指南</h3><p class="panel-subtitle">本科提前批按军校、公安、航海、专项计划、其他院校、定向医学生核对；专科另含定向军士。</p></div><button class="close-btn" data-close="batchGuidePanel">×</button></div><div id="batchGuidePanelBody" class="panel-body"></div></div>
     <div id="volunteerPanel" class="panel volunteer-panel"><div class="panel-head volunteer-panel-head"><div><h3>专业组专业表</h3><p id="volunteerPanelCount" class="panel-subtitle">已选 0 / 40 个专业组</p></div><div class="volunteer-head-actions"><button id="saveVolunteerBtn" class="save" type="button">保存到学生</button><button id="exportVolunteerBtn" class="save" type="button">导出 Excel</button><button class="close-btn" data-close="volunteerPanel">×</button></div></div><div class="panel-body volunteer-workbench"><div class="volunteer-sticky-shell"><div class="volunteer-toolbar volunteer-workbench-toolbar"><input id="volunteerSearchInput" type="search" placeholder="搜索院校、专业组、专业、专业类"><select id="volunteerFilterSelect"><option value="">全部专业组</option><option value="冲">只看冲</option><option value="稳">只看稳</option><option value="保">只看保</option><option value="垫">只看垫</option><option value="pending">只看待定</option><option value="emptyMajor">未选具体专业</option><option value="notFullMajor">专业未满 6 个</option><option value="fullMajor">已满 6 个专业</option></select><button id="resetVolunteerFilterBtn" type="button">清除筛选</button><button id="expandVolunteerBtn" type="button">一键展开</button><button id="fillVolunteerBtn" type="button">当前筛选补满</button><button id="clearVolunteerBtn" type="button">清空</button></div><div class="volunteer-table-head"><div>排序</div><div>院校专业组</div><div>已选专业</div><div>基础信息</div><div>操作</div></div></div><div id="medicalVolunteerNotice" class="medical-active-notice" style="display:none"></div><div id="volunteerList" class="volunteer-list volunteer-table-list"></div></div></div>
     <div id="annotationDrawer" class="annotation-drawer">
       <div class="annotation-head"><div><h3>批注</h3><p id="annotationObject">未选择批注对象</p></div><button id="closeAnnotationBtn" class="close-btn" type="button">×</button></div>
@@ -1530,12 +1530,14 @@ function groupSpecialTypeValues(s,g){
   if(/校企合作|产教融合|现代产业学院|产业学院|企业联合|行业联合|订单班|卓越工程师学院|未来技术学院/.test(text))add('校企合作/产教融合');
   if(/定向|公费师范|免费师范|优师|免费医学|委托培养|订单定向/.test(text))add('定向/公费/优师');
   if(/定向军士|军士/.test(text))add('定向/军士');
+  if(/定向医学生|免费医学生|免费医学定向|农村订单定向医学生|订单定向医学生|定向医学/.test(text))add('定向医学生');
   if(/地方专项|高校专项|国家专项|农村专项|专项计划|综合评价|强基/.test(text))add('专项计划');
   if(/民族班|预科|少数民族/.test(text))add('民族班/预科');
   if(/军校|军队院校|军事类|国防科技大学|陆军|海军|空军|火箭军|武警/.test(text))add('军校');
   if(/公安|警校|人民公安|刑事警察|警察学院|治安学|侦查学|公安学|公安技术|网络安全与执法/.test(text))add('公安');
   if(/司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('司法警校');
   if(/航海|轮机|船舶电子电气|飞行技术|民航|空中交通管制|海事/.test(text))add('航海/飞行');
+  if(/其他院校|本科提前批|提前本科|综合评价|强基|飞行技术|民航|空中交通管制|消防|司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('其他院校提前批');
   if(/军校|公安|警校|航海|轮机|飞行技术|民航|空中交通管制|司法警官|消防/.test(text))add('军警航海');
   if(/实验班|试验班|拔尖|强基|钱学森|英才|菁英|创新班|卓越班|领军|尖班|书院/.test(text))add('实验班/拔尖班');
   if(/双学士|双学位|本博|本硕|硕博|直博|长学制|八年制|九年制/.test(text))add('双学位/本博硕博');
