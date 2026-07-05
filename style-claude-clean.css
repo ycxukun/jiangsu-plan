@@ -597,6 +597,76 @@
   background:#eff6ff!important;
   color:#1d4ed8!important;
 }
+.batch-guide-badge{
+  display:inline-flex!important;
+  align-items:center!important;
+  margin-left:6px!important;
+  padding:3px 8px!important;
+  border:1px solid #f7c08a!important;
+  border-radius:999px!important;
+  background:#fff7ed!important;
+  color:#9a3412!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  line-height:1.1!important;
+  white-space:nowrap!important;
+}
+.batch-guide-btn{
+  border:1px solid #f7c08a!important;
+  border-radius:999px!important;
+  background:#fffaf2!important;
+  color:#8a3a17!important;
+  padding:6px 10px!important;
+  font-size:12px!important;
+  font-weight:900!important;
+}
+.batch-channel-summary{
+  display:grid!important;
+  gap:10px!important;
+  margin:0 0 12px!important;
+  padding:12px!important;
+  border:1px solid #f3c99e!important;
+  border-radius:16px!important;
+  background:#fff7ed!important;
+}
+.batch-channel-summary strong{display:block!important;color:#7c2d12!important}
+.batch-channel-summary span{font-size:12px!important;color:#7f5b45!important}
+.batch-channel-items{display:flex!important;gap:8px!important;flex-wrap:wrap!important}
+.batch-channel-items button{
+  display:inline-grid!important;
+  gap:2px!important;
+  border:1px solid #efb076!important;
+  border-radius:12px!important;
+  background:#fff!important;
+  color:#7c2d12!important;
+  padding:8px 10px!important;
+  text-align:left!important;
+}
+.batch-channel-warn{margin:0!important;color:#b42318!important;font-size:12px!important;font-weight:900!important}
+.volunteer-guide-line{
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  flex-wrap:wrap!important;
+  color:#7c2d12!important;
+  font-size:12px!important;
+  font-weight:900!important;
+}
+.batch-guide-card h4{margin:4px 0 10px!important;font-size:22px!important}
+.batch-guide-card h5{margin:16px 0 8px!important;font-size:14px!important}
+.batch-guide-eyebrow{color:#9a3412!important;font-size:12px!important;font-weight:900!important}
+.batch-guide-warning{margin:12px 0!important;padding:10px!important;border:1px solid #f3c99e!important;border-radius:12px!important;background:#fff7ed!important;color:#7c2d12!important;line-height:1.55!important}
+.batch-guide-card ol{margin:0!important;padding-left:22px!important;line-height:1.75!important}
+.batch-guide-link-row{margin-top:14px!important}
+.batch-guide-link-row a{
+  display:inline-flex!important;
+  border-radius:999px!important;
+  background:#111!important;
+  color:#fff!important;
+  padding:9px 14px!important;
+  text-decoration:none!important;
+  font-weight:900!important;
+}
 .volunteer-panel .qualification-risk-label{
   color:#92400e!important;
   background:#fffbeb!important;
