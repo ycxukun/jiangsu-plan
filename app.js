@@ -713,6 +713,29 @@ function medicalRestrictionForMajor(m){
 function medicalRestrictionLabelHTML(meta){
   return meta&&meta.blocked?`<span class="medical-risk-label" title="${esc(meta.reason)}">体检限报 ${esc(meta.codes.join('/'))}</span>`:'';
 }
+function qualificationRiskForMajor(s,g,m){
+  if(!window.QualificationRisk)return {level:'pass',tone:'green',label:'资格通过',issues:[],summary:''};
+  return window.QualificationRisk.evaluate({student:currentStudent,school:s,group:g,major:m,details:detailOf(m)});
+}
+function qualificationRiskLabelHTML(meta){
+  if(!meta||!Array.isArray(meta.issues)||!meta.issues.length)return '';
+  const tone=meta.tone||'yellow';
+  return `<span class="qualification-risk-label qualification-${esc(tone)}" title="${esc(meta.summary||meta.label||'资格提醒')}">${esc(meta.label||'资格提醒')}</span>`;
+}
+function qualificationRiskExportText(meta){
+  if(!meta||!Array.isArray(meta.issues)||!meta.issues.length)return '';
+  return meta.issues.map(x=>`${x.label||'资格提醒'}：${x.message||''}`).filter(Boolean).join('；');
+}
+function groupQualificationBadge(s,g){
+  if(!window.QualificationRisk)return '';
+  const metas=(g?.majors||[]).map(m=>qualificationRiskForMajor(s,g,m)).filter(x=>x&&Array.isArray(x.issues)&&x.issues.length);
+  if(!metas.length)return '';
+  const rank=window.QualificationRisk.LEVEL_RANK||{};
+  const worst=metas.reduce((a,b)=>(rank[b.level]||0)>(rank[a.level]||0)?b:a,metas[0]);
+  const title=metas.slice(0,10).map(x=>x.summary).filter(Boolean).join('；');
+  const tone=worst.tone||'yellow';
+  return `<span class="badge qualification-group-badge qualification-${esc(tone)}" title="${esc(title)}">${worst.level==='block'?'资格风险':'资格提醒'} ${metas.length}</span>`;
+}
 function groupMedicalRestrictionSummary(g){
   if(!medicalCodesActive())return null;
   const majors=g?.majors||[];
@@ -1724,6 +1747,7 @@ function groupCleanTagsHTML(s,g,planDiff,quality,compact=false){
   push(groupQualityBadge(quality));
   push(foreignCoopCountBadgeHTML(g));
   push(groupMedicalBadge(g));
+  push(groupQualificationBadge(s,g));
   push(predictionBadgeHTML(s,g));
   if(planDiff!==0)push(planDeltaBadge(planDiff));
   const weighted=groupWeightedMajorScore(g);
@@ -1811,14 +1835,16 @@ function majorRowHTML(s,g,m){
   const riskMeta=majorRiskMeta(s,g,m);
   const physical=medicalRestrictionForMajor(m);
   const subjectBlock=subjectRequirementBlockReason(s,g);
+  const qualification=qualificationRiskForMajor(s,g,m);
   const riskToneClass=riskMeta.tone?`risk-tone-${riskMeta.tone}`:'';
   const disabled=(physical.blocked||subjectBlock)?' disabled':'';
   const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
+  const qualificationTitle=qualification?.summary||'';
   const coopDetail=foreignCoopDetailForMajor(m);
   const actionButtons=majorActionButtonsHTML(s,g,m,coopDetail,groupKey);
   const metaBadges=majorMetaBadgesHTML(m,'四');
   const majorNameButton=`<button class="major-name-link" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看${esc(m.name)}专业详情">${esc(m.name)}</button>`;
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
@@ -2037,9 +2063,11 @@ function majorRiskDetailPairs(s,g,m){
   const meta=majorRiskMeta(s,g,m);
   const tier=lectureTierMeta(m);
   const quality=groupQuality(s,g);
+  const qualification=qualificationRiskForMajor(s,g,m);
   return [
     ['专业热度梯队',tier.label],
     ['梯队分类',tier.bucket],
+    ['报考资格匹配',qualification?.issues?.length?qualification.summary:'未识别到额外资格限制'],
     ['刺客/异类提示',meta.risk?`${meta.label||'风险专业'}｜${meta.tone||''}`:'未标注为刺客专业'],
     ['风险原因',meta.reason],
     ['专业组结构风险',quality?`${quality.label}｜${quality.title}`:''],
@@ -2167,6 +2195,8 @@ function setMajorSelection(key,majorKey,checked){
     const target=(rec.g.majors||[]).find(m=>m.key===majorKey);
     const physical=target?medicalRestrictionForMajor(target):null;
     if(physical&&physical.blocked){alert(`体检受限：该专业不能选择。\n${physical.reason}`);return false;}
+    const qualification=target?qualificationRiskForMajor(rec.s,rec.g,target):null;
+    if(qualification&&qualification.level==='block'&&!confirm(`资格风险提醒：\n${qualification.summary}\n\n该风险来自专业备注/招生章程关键词自动识别，建议人工核对。仍要加入该专业吗？`))return false;
     if(!ensureVolunteerGroupForMajor(key))return false;
     arr=selectedMajorOrder(key);
     if(!arr.includes(majorKey)){
@@ -2461,16 +2491,17 @@ function volunteerMajorCompactMeta(m,withRank=false){
   if(withRank)parts.push(`位次 ${fmtNum(m.rank25)}`);
   return parts.join('｜');
 }
-function volunteerMajorBadgesHTML(physical,subjectBlock,riskMeta){
-  return `${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}`;
+function volunteerMajorBadgesHTML(physical,subjectBlock,riskMeta,qualification){
+  return `${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}`;
 }
 function selectedVolunteerMajorHTML(s,g,m,key,index,total){
   const physical=medicalRestrictionForMajor(m);
   const riskMeta=majorRiskMeta(s,g,m);
+  const qualification=qualificationRiskForMajor(s,g,m);
   return `<li class="volunteer-major-strip-item">
     <span class="major-order-badge">${index+1}</span>
     <div class="volunteer-major-name">
-      <b><span class="major-name-text">${esc(m.name)}</span>${majorMetaBadgesHTML(m,'四')}${volunteerMajorBadgesHTML(physical,'',riskMeta)}</b>
+      <b><span class="major-name-text">${esc(m.name)}</span>${majorMetaBadgesHTML(m,'四')}${volunteerMajorBadgesHTML(physical,'',riskMeta,qualification)}</b>
       <small>${volunteerMajorCompactMeta(m,false)}</small>
     </div>
     <div class="volunteer-major-mini-actions">
@@ -2486,13 +2517,15 @@ function volunteerMajorPoolCardHTML(s,g,m,key,selectedOrder,poolFilter,subjectBl
   const hidden=(poolFilter==='selected'&&!isSelected)||(poolFilter==='unselected'&&isSelected);
   const riskMeta=majorRiskMeta(s,g,m);
   const physical=medicalRestrictionForMajor(m);
+  const qualification=qualificationRiskForMajor(s,g,m);
   const blocked=physical.blocked||Boolean(subjectBlock);
   const blockTitle=subjectBlock||physical.reason;
-  return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${physical.blocked?'physical-blocked':''} ${subjectBlock?'subject-blocked':''} ${isSelected?'selected':'unselected'}" title="${esc(blocked?blockTitle:(riskMeta.risk?riskMeta.reason:''))}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}>
+  const qualificationTitle=qualification?.summary||'';
+  return `<label class="major-check ${riskMeta.risk?'risk':''} ${riskMeta.tone?`risk-tone-${riskMeta.tone}`:''} ${physical.blocked?'physical-blocked':''} ${subjectBlock?'subject-blocked':''} ${isSelected?'selected':'unselected'}" title="${esc(blocked?blockTitle:(qualificationTitle||riskMeta.reason||''))}" data-major-pool-state="${isSelected?'selected':'unselected'}" ${hidden?'style="display:none"':''}>
     <input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''} ${blocked?'disabled':''}>
     ${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}
     <span class="volunteer-pool-major-body">
-      <span class="volunteer-pool-major-top"><b>${esc(m.name)}</b>${majorMetaBadgesHTML(m,'四')}${volunteerMajorBadgesHTML(physical,subjectBlock,riskMeta)}</span>
+      <span class="volunteer-pool-major-top"><b>${esc(m.name)}</b>${majorMetaBadgesHTML(m,'四')}${volunteerMajorBadgesHTML(physical,subjectBlock,riskMeta,qualification)}</span>
       <small>${volunteerMajorCompactMeta(m,true)}</small>
     </span>
   </label>`;
@@ -2683,8 +2716,8 @@ function exportVolunteerXlsx(){
     return;
   }
   const date=localDateStamp();
-  const headers=['志愿序号','院校专业组代码','专业组','专业组信息','专业志愿序号','专业代码','专业名称','2026计划','25计划','25最低分','25最低位次','3年平均分','3年平均位次','定位','服从调剂','备注','选择状态'];
-  const widths=[58,82,170,320,72,76,280,76,72,76,92,86,110,70,78,220,92];
+  const headers=['志愿序号','院校专业组代码','专业组','专业组信息','专业志愿序号','专业代码','专业名称','资格匹配结果','2026计划','25计划','25最低分','25最低位次','3年平均分','3年平均位次','定位','服从调剂','备注','选择状态'];
+  const widths=[58,82,170,320,72,76,280,260,76,72,76,92,86,110,70,78,220,92];
   const valueOrBlank=v=>v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
   const rows=[];
   for(let i=0;i<volunteerKeys.length;i++){
@@ -2708,10 +2741,12 @@ function exportVolunteerXlsx(){
       const majorSeqStyle=selected?'seq':'unselectedSeq';
       const majorTextStyle=selected?'body':'unselected';
       const majorNumStyle=selected?'num':'unselectedNum';
+      const qualification=m?qualificationRiskExportText(qualificationRiskForMajor(s,g,m)):'';
       const majorCells=[
         {value:m?item.order:'',style:majorSeqStyle,index:5},
         {value:m?(m.code||''):'',style:majorTextStyle},
         {value:m?(m.name||'未选择具体专业'):'未选择具体专业',style:majorTextStyle},
+        {value:qualification,style:qualification?'note':majorTextStyle},
         {value:m?valueOrBlank(m.plan26):'',style:majorNumStyle},
         {value:m?valueOrBlank(m.plan25):'',style:majorNumStyle},
         {value:m?valueOrBlank(m.score25):'',style:majorNumStyle},
@@ -2733,7 +2768,7 @@ function exportVolunteerXlsx(){
           statusCell
         ]);
       }else{
-        rows.push([...majorCells,{...statusCell,index:17}]);
+        rows.push([...majorCells,{...statusCell,index:18}]);
       }
     });
   }
