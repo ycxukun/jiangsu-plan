@@ -777,6 +777,32 @@ function majorInfo(m){
     base:cleanMajorText(d.undergraduateName||m.name||d.name)
   };
 }
+function majorDurationShort(v){
+  const text=String(v??'').trim();
+  if(!text)return '';
+  const map={一:'一',二:'二',两:'二',三:'三',四:'四',五:'五',六:'六',七:'七',八:'八',九:'九',十:'十','1':'一','2':'二','3':'三','4':'四','5':'五','6':'六','7':'七','8':'八','9':'九','10':'十'};
+  const hit=text.match(/十|[一二两三四五六七八九]|\d+(?:\.\d+)?/);
+  if(!hit)return '';
+  const raw=hit[0];
+  return map[raw]||raw;
+}
+function tuitionNumber(v){
+  const text=String(v??'').replace(/,/g,'').trim();
+  if(!text)return null;
+  const nums=[...text.matchAll(/\d+(?:\.\d+)?/g)].map(x=>Number(x[0])).filter(Number.isFinite);
+  if(!nums.length)return null;
+  const max=Math.max(...nums);
+  return /万/.test(text)?max*10000:max;
+}
+function majorMetaBadgesHTML(m,standardDuration='四'){
+  const d=detailOf(m);
+  const duration=majorDurationShort(m.duration||d.duration||d.degreeYears);
+  const tuition=tuitionNumber(m.tuition||d.tuition||d.foreignCoopTuition);
+  const badges=[];
+  if(duration&&duration!==standardDuration)badges.push(`<span class="major-meta-badge duration" title="学制：${esc(duration)}年">${esc(duration)}</span>`);
+  if(tuition!==null&&tuition>10000)badges.push(`<span class="major-meta-badge fee" title="学费超过 10000 元：${esc(fmtNum(tuition))} 元/年">高收费</span>`);
+  return badges.join('');
+}
 function buildPredictionIndexes(){
   majorRefs=[];
   majorRefsBySchool=new Map();
@@ -1785,8 +1811,9 @@ function majorRowHTML(s,g,m){
   const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
   const coopDetail=foreignCoopDetailForMajor(m);
   const actionButtons=majorActionButtonsHTML(s,g,m,coopDetail,groupKey);
+  const metaBadges=majorMetaBadgesHTML(m,'四');
   const majorNameButton=`<button class="major-name-link" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看${esc(m.name)}专业详情">${esc(m.name)}</button>`;
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked?'当前学生档案不满足该专业组选科/体检要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
@@ -2438,7 +2465,7 @@ function selectedVolunteerMajorHTML(s,g,m,key,index,total){
   return `<li class="volunteer-major-strip-item">
     <span class="major-order-badge">${index+1}</span>
     <div class="volunteer-major-name">
-      <b><span class="major-name-text">${esc(m.name)}</span>${volunteerMajorBadgesHTML(physical,'',riskMeta)}</b>
+      <b><span class="major-name-text">${esc(m.name)}</span>${majorMetaBadgesHTML(m,'四')}${volunteerMajorBadgesHTML(physical,'',riskMeta)}</b>
       <small>${volunteerMajorCompactMeta(m,false)}</small>
     </div>
     <div class="volunteer-major-mini-actions">
@@ -2460,7 +2487,7 @@ function volunteerMajorPoolCardHTML(s,g,m,key,selectedOrder,poolFilter,subjectBl
     <input type="checkbox" data-major-check="${esc(key)}" value="${esc(m.key)}" ${isSelected?'checked':''} ${blocked?'disabled':''}>
     ${isSelected?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}
     <span class="volunteer-pool-major-body">
-      <span class="volunteer-pool-major-top"><b>${esc(m.name)}</b>${volunteerMajorBadgesHTML(physical,subjectBlock,riskMeta)}</span>
+      <span class="volunteer-pool-major-top"><b>${esc(m.name)}</b>${majorMetaBadgesHTML(m,'四')}${volunteerMajorBadgesHTML(physical,subjectBlock,riskMeta)}</span>
       <small>${volunteerMajorCompactMeta(m,true)}</small>
     </span>
   </label>`;
@@ -2897,6 +2924,9 @@ function ensureAccountStyles(){
     .student-profile-actions button{height:38px;border:1px solid #ded2c2;border-radius:12px;background:#fff;color:#24352b;font-size:13px;font-weight:900}
     .student-profile-actions button:hover{border-color:#b7dfc6;background:#f0faf4;color:var(--green)}
     .student-profile-actions button.danger{border-color:#efc9bd;background:#fff4ef;color:#9b3026}
+    .major-meta-badge{display:inline-flex;align-items:center;justify-content:center;margin-left:5px;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:950;line-height:1.25;vertical-align:middle;white-space:nowrap}
+    .major-meta-badge.duration{border:1px solid #f59e0b;background:#fffbeb;color:#92400e}
+    .major-meta-badge.fee{border:1px solid #fca5a5;background:#fff1f2;color:#b42318}
     body.compact-mode .student-profile-trigger{min-height:36px;max-width:360px;padding:4px 10px 4px 6px;grid-template-columns:28px minmax(0,1fr) 14px}
     body.compact-mode .student-profile-avatar{width:28px;height:28px;font-size:12px}
     body.compact-mode .student-profile-copy b{font-size:12px}
