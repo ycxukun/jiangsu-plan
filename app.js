@@ -1045,6 +1045,27 @@ function groupScoreLineHTML(s,g){
 function batchGuideDef(s,g,m){
   return window.BatchGuide?window.BatchGuide.detect({school:s,group:g,major:m,details:m?detailOf(m):null}):null;
 }
+function batchGuideFilterId(){
+  const v=String(state.batch||'');
+  return v.startsWith('guide:')?v.slice(6):'';
+}
+function batchGuideFilterLabel(def){
+  if(!def)return '';
+  if(def.id==='early-sergeant')return '专科提前批-定向军士';
+  const name=String(def.scope||def.channel||'').split('·').pop().trim().replace(/提前批$/,'');
+  return `提前批-${name||def.channel}`;
+}
+function batchGuideEligibleForBatch(def,s,g){
+  if(!def)return false;
+  if(def.id==='early-sergeant')return true;
+  return /提前/.test(String(s?.batch||g?.batch||''));
+}
+function groupMatchesBatchGuideFilter(s,g){
+  const guideId=batchGuideFilterId();
+  if(!guideId)return true;
+  const def=batchGuideDef(s,g);
+  return !!def&&def.id===guideId&&batchGuideEligibleForBatch(def,s,g);
+}
 function batchGuideBadgeHTML(s,g,compact=false){
   return window.BatchGuide?window.BatchGuide.badgeHTML({school:s,group:g},compact):'';
 }
@@ -1137,10 +1158,25 @@ function createLayout(){
 }
 function unique(arr){return Array.from(new Set(arr.filter(v=>v!==undefined&&v!==null&&String(v).trim()!=='')));}
 function fillSelect(sel,vals){const el=$(sel); if(!el)return; const first=el.options[0].outerHTML; el.innerHTML=first+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');}
+function fillBatchSelect(sel,batches){
+  const el=$(sel);
+  if(!el)return;
+  const first=el.options[0].outerHTML;
+  const batchOptions=batches.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  const guideCounts=new Map();
+  DB.forEach(s=>(s.groups||[]).forEach(g=>{
+    const def=batchGuideDef(s,g);
+    if(!batchGuideEligibleForBatch(def,s,g))return;
+    if(def)guideCounts.set(def.id,(guideCounts.get(def.id)||0)+1);
+  }));
+  const guideDefs=(window.BatchGuide?.GUIDE_DEFS||[]).filter(def=>guideCounts.has(def.id));
+  const guideOptions=guideDefs.map(def=>`<option value="guide:${esc(def.id)}">${esc(batchGuideFilterLabel(def))}（${guideCounts.get(def.id)}组）</option>`).join('');
+  el.innerHTML=first+batchOptions+(guideOptions?`<optgroup label="提前批细分">${guideOptions}</optgroup>`:'');
+}
 function initFilters(){
   const batches=unique(DB.map(s=>s.batch)).sort();
   const subjects=unique(DB.map(s=>s.subject)).sort();
-  fillSelect('#batchFilter',batches);
+  fillBatchSelect('#batchFilter',batches);
   fillSelect('#subjectFilter',subjects);
 }
 function schoolCountBy(field){const m=new Map(); DB.forEach(s=>{const key=String(s[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);}); return m;}
@@ -1728,13 +1764,14 @@ function sortGroupsByWeightedMajorScore(groups){
 }
 function applyFilters(){
   const result=[]; const q=state.q;
+  const guideFilter=batchGuideFilterId();
   DB.forEach(s=>{
-    if(state.batch&&s.batch!==state.batch)return;
+    if(state.batch&&!guideFilter&&s.batch!==state.batch)return;
     if(state.subject&&s.subject!==state.subject)return;
     if(state.selectedProvinces.size&&!state.selectedProvinces.has(s.province))return;
     if(state.selectedCities.size&&!state.selectedCities.has(s.city))return;
     if(!schoolMatchesLevelFacet(s))return;
-    const groups=s.groups.filter(g=>{if(!groupMatchesSpecialSelection(s,g))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
+    const groups=s.groups.filter(g=>{if(!groupMatchesBatchGuideFilter(s,g))return false; if(!groupMatchesSpecialSelection(s,g))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
     const visibleGroups=sortGroupsByWeightedMajorScore(groups);
     if(visibleGroups.length){result.push({...s,visibleGroups});}
   });
