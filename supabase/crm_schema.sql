@@ -71,20 +71,62 @@ add column if not exists consultant_remark text,
 add column if not exists supervisor_remark text,
 add column if not exists crm_external_id text;
 
-update public.students
-set gaokao_score = coalesce(gaokao_score, score),
-    gaokao_rank = coalesce(gaokao_rank, rank),
-    first_subject = coalesce(first_subject, case when subject_type::text = 'history' then '历史' else '物理' end),
-    second_subjects = case
-      when coalesce(array_length(second_subjects, 1), 0) > 0 then second_subjects
-      else subject_choices
-    end,
-    class_type = coalesce(class_type, case when subject_type::text = 'history' then '历史类' else '物理类' end),
-    physical_limit_codes = case
-      when coalesce(array_length(physical_limit_codes, 1), 0) > 0 then physical_limit_codes
-      else medical_codes
-    end
-where true;
+do $$
+begin
+  if to_regclass('public.students') is null then
+    return;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'students' and column_name = 'score'
+  ) then
+    execute 'update public.students set gaokao_score = coalesce(gaokao_score, score) where gaokao_score is null and score is not null';
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'students' and column_name = 'rank'
+  ) then
+    execute 'update public.students set gaokao_rank = coalesce(gaokao_rank, rank) where gaokao_rank is null and rank is not null';
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'students' and column_name = 'subject_type'
+  ) then
+    execute $sql$
+      update public.students
+      set first_subject = coalesce(first_subject, case when subject_type::text = 'history' then '历史' else '物理' end),
+          class_type = coalesce(class_type, case when subject_type::text = 'history' then '历史类' else '物理类' end)
+      where first_subject is null or class_type is null
+    $sql$;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'students' and column_name = 'subject_choices'
+  ) then
+    execute $sql$
+      update public.students
+      set second_subjects = subject_choices
+      where coalesce(array_length(second_subjects, 1), 0) = 0
+        and coalesce(array_length(subject_choices, 1), 0) > 0
+    $sql$;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'students' and column_name = 'medical_codes'
+  ) then
+    execute $sql$
+      update public.students
+      set physical_limit_codes = medical_codes
+      where coalesce(array_length(physical_limit_codes, 1), 0) = 0
+        and coalesce(array_length(medical_codes, 1), 0) > 0
+    $sql$;
+  end if;
+end $$;
 
 create or replace function public.crm_is_manager()
 returns boolean
