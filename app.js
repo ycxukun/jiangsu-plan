@@ -380,8 +380,21 @@ function signedClass(v){return v>0?'change-pos':v<0?'change-neg':'';}
 function planChangeInline(v){if(v===null||v===undefined||v==='')return '—'; return `<span class="${signedClass(v)}">${formatSigned(v)}</span>`;}
 function planDeltaBadge(v){if(v===null||v===undefined||v==='')return ''; const cls=signedClass(v); const label=v>0?'计划增加':v<0?'计划减少':'计划持平'; return `<span class="badge ${v>0?'green':v<0?'red':''} ${cls}">${label} ${formatSigned(v)}</span>`;}
 function groupNamingMeta(s,g){
-  const meta=GROUP_NAMING[keyGroup(s,g)]||null;
-  if(!meta||meta.sourceYear!==2026)return null;
+  const rawMeta=GROUP_NAMING[keyGroup(s,g)]||null;
+  const meta=cleanGroupNamingMeta(s,g,rawMeta);
+  const inferred=runtimeGroupNamingMeta(g);
+  if(!meta||meta.sourceYear!==2026)return inferred;
+  if(!inferred)return meta;
+  if(isWeakRuntimeGroupName(inferred.name))return meta;
+  return {
+    ...meta,
+    ...inferred,
+    sourceName:meta.name||'',
+    basis:`按当前专业组内“专业类”实时校正，不使用专业名称望文生义。${meta.basis?` ${meta.basis}`:''}`
+  };
+}
+function cleanGroupNamingMeta(s,g,meta){
+  if(!meta)return null;
   const name=String(meta.name||'');
   if(name&&authoritativeBatchGuideMeta(s,g).guideId!=='early-police'){
     const cleanName=name.replace(/法政公安/g,'法政');
@@ -389,24 +402,34 @@ function groupNamingMeta(s,g){
   }
   return meta;
 }
+function isWeakRuntimeGroupName(name){
+  return /^(其他|其他未细分|试验班未细分|交叉学科)(组|复合组|等混合组)?/.test(String(name||''));
+}
 function classBucket(c){
   const t=String(c||'');
-  if(/计算机|软件|网络空间|数据科学|智能科学/.test(t))return '计算机';
-  if(/电子信息|通信|微电子|集成电路|光电|电子科学/.test(t))return '电子信息';
-  if(/电气|自动化|机器人工程|仪器|测控/.test(t))return '电气自动化';
-  if(/临床医学|口腔|医学技术|基础医学|中医学|药学|护理/.test(t))return '医药';
-  if(/数学|统计|物理|天文|力学/.test(t))return '数理基础';
-  if(/金融|经济|财政|经贸|工商管理|管理科学|会计|财务|电子商务|物流|工业工程/.test(t))return '经管';
+  if(!t)return '其他未细分';
   if(/公安/.test(t))return '公安';
-  if(/法学|马克思|政治|社会学/.test(t))return '法政';
-  if(/中国语言|外国语言|新闻传播|历史|哲学|图书|戏剧|艺术/.test(t))return '文史语言新闻';
-  if(/材料/.test(t))return '材料';
-  if(/化学|化工|制药/.test(t))return '化工';
-  if(/生物|食品|环境|生态|农学|林学|水产|动物|植物/.test(t))return '生物食品环境';
-  if(/土木|建筑|交通|测绘|地理|地质|地球|海洋|矿业|安全/.test(t))return '土木建筑交通';
-  if(/能源|核工程/.test(t))return '能源动力';
-  if(/机械|车辆|航空航天|兵器/.test(t))return '机械车辆';
-  if(/大类|试验|交叉/.test(t))return '试验班未细分';
+  if(/法学|马克思|政治|社会学|民族学/.test(t))return '法政';
+  if(/临床医学|口腔|医学技术|基础医学|中医学|中药|药学|护理|公共卫生|预防医学|法医学/.test(t))return '医药';
+  if(/计算机|软件|网络空间|数据科学|人工智能|智能科学|信息安全/.test(t))return '计算机';
+  if(/电子信息|通信|微电子|集成电路|光电|电子科学|电子封装|电磁场/.test(t))return '电子信息';
+  if(/电气|自动化|机器人工程|仪器|测控|控制/.test(t))return '电气自动化';
+  if(/能源|动力|核工程|新能源|储能/.test(t))return '能源动力';
+  if(/航空航天|飞行器|低空/.test(t))return '航空航天';
+  if(/机械|车辆|智能制造|工业设计|过程装备|兵器/.test(t))return '机械';
+  if(/轻工|包装|印刷|纺织|服装/.test(t))return '轻工纺织';
+  if(/材料|冶金|高分子/.test(t))return '材料';
+  if(/化学|化工|制药|应用化学/.test(t))return '化工';
+  if(/土木|建筑|城乡规划|风景园林|给排水|建筑环境/.test(t))return '土木建筑';
+  if(/交通|测绘|地理|地质|地球|海洋|矿业|安全|应急/.test(t))return '交通地矿安全';
+  if(/生物|食品|环境|生态|农学|农业|林学|水产|动物|植物|草学/.test(t))return '生物食品环境';
+  if(/数学|统计|物理|天文|力学/.test(t))return '数理基础';
+  if(/金融|经济|财政|经贸|工商管理|管理科学|会计|财务|电子商务|物流|工业工程|公共管理|旅游/.test(t))return '经管';
+  if(/中国语言|外国语言|新闻传播|历史|哲学|图书|档案|考古/.test(t))return '文史语言新闻';
+  if(/教育学|体育学/.test(t))return '教育体育';
+  if(/艺术学|设计学|美术学|音乐|舞蹈|戏剧与影视/.test(t))return '艺术';
+  if(/大类|试验/.test(t))return '试验班未细分';
+  if(/交叉/.test(t))return '交叉学科';
   return t.replace(/类$/,'')||'其他未细分';
 }
 function groupBucketStats(g){
@@ -425,17 +448,40 @@ function groupBucketStats(g){
 function cooperationSuffix(g){
   const text=`${(g.tags||[]).join(' ')} ${g.remark||''} ${(g.majors||[]).map(m=>m.name).join(' ')}`;
   if(/中外合作|合作办学/.test(text))return '（中外合作）';
-  if(/联合培养|双学位/.test(text))return '（联合培养）';
+  if(/双学位|双学士|复合型人才/.test(text))return '（双学位）';
+  if(/联合培养/.test(text))return '（联合培养）';
   return '';
+}
+function groupNameFromBuckets(buckets,suffix){
+  const meaningful=buckets.filter(b=>!['试验班未细分','交叉学科','其他未细分'].includes(b));
+  const shown=meaningful.length?meaningful:buckets;
+  if(!shown.length)return suffix.replace(/[（）]/g,'');
+  const has=b=>shown.includes(b);
+  if(shown.length===1)return `${shown[0]}组${suffix}`;
+  if(shown.length===2&&has('机械')&&has('轻工纺织'))return `机械轻工组${suffix}`;
+  if(shown.length===2&&has('机械')&&has('材料'))return `机械材料组${suffix}`;
+  if(shown.length<=4)return `${shown.join('、')}复合组${suffix}`;
+  return `${shown.slice(0,4).join('、')}等混合组${suffix}`;
 }
 function inferGroupName(g){
   const stats=groupBucketStats(g);
   const suffix=cooperationSuffix(g);
   if(!stats.length)return suffix.replace(/[（）]/g,'');
   const buckets=stats.map(x=>x.bucket);
-  if(buckets.length===1)return `${buckets[0]}组${suffix}`;
-  if(buckets.length<=4)return `${buckets.join('、')}复合组${suffix}`;
-  return `${buckets.slice(0,4).join('、')}等混合组${suffix}`;
+  return groupNameFromBuckets(buckets,suffix);
+}
+function runtimeGroupNamingMeta(g){
+  const stats=groupBucketStats(g);
+  const name=stats.length?groupNameFromBuckets(stats.map(x=>x.bucket),cooperationSuffix(g)):'';
+  if(!name)return null;
+  return {
+    sourceYear:2026,
+    name,
+    type:'专业类实时校正',
+    attr:'专业类',
+    category:stats.map(x=>`${x.bucket}/${x.count}`).join('；'),
+    basis:'按当前专业组内专业的“专业类”字段归类。'
+  };
 }
 function groupDisplayName(s,g){return groupNamingMeta(s,g)?.name||inferGroupName(g);}
 function groupDisplayTitleText(s,g){const name=groupDisplayName(s,g); return name?`${g.groupName} ${name}`:g.groupName;}
@@ -2173,8 +2219,67 @@ function majorRowHTML(s,g,m){
   const majorNameButton=`<button class="major-name-link" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看${esc(m.name)}专业详情">${esc(m.name)}</button>`;
   return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked||qualificationBlocked?'当前学生档案不满足该专业组选科/体检/报考资格要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
+function clampTooltip(n,min,max){return Math.min(Math.max(n,min),Math.max(min,max));}
+function closeGroupMajorTooltips(){
+  $$('.group-card.group-tooltip-open').forEach(card=>{
+    card.classList.remove('group-tooltip-open');
+    card.style.removeProperty('--group-tooltip-left');
+    card.style.removeProperty('--group-tooltip-top');
+  });
+}
+function positionGroupMajorTooltip(card){
+  const tip=card?.querySelector?.('.group-major-tooltip');
+  if(!tip)return;
+  const margin=12;
+  const gap=12;
+  const vw=window.innerWidth||document.documentElement.clientWidth||0;
+  const vh=window.innerHeight||document.documentElement.clientHeight||0;
+  const rect=card.getBoundingClientRect();
+  tip.style.maxHeight=`${Math.max(160,vh-margin*2)}px`;
+  const tipWidth=Math.min(tip.offsetWidth||440,vw-margin*2);
+  const tipHeight=Math.min(tip.scrollHeight||tip.offsetHeight||240,vh-margin*2);
+  let left;
+  let top;
+  const rightSpace=vw-rect.right;
+  const leftSpace=rect.left;
+  if(rightSpace>=tipWidth+gap+margin){
+    left=rect.right+gap;
+    top=clampTooltip(rect.top,margin,vh-tipHeight-margin);
+  }else if(leftSpace>=tipWidth+gap+margin){
+    left=rect.left-tipWidth-gap;
+    top=clampTooltip(rect.top,margin,vh-tipHeight-margin);
+  }else{
+    left=clampTooltip(rect.left,margin,vw-tipWidth-margin);
+    const below=rect.bottom+gap;
+    const above=rect.top-tipHeight-gap;
+    top=(vh-rect.bottom>=tipHeight+gap||vh-rect.bottom>=rect.top)?below:above;
+    top=clampTooltip(top,margin,vh-tipHeight-margin);
+  }
+  card.style.setProperty('--group-tooltip-left',`${Math.round(left)}px`);
+  card.style.setProperty('--group-tooltip-top',`${Math.round(top)}px`);
+}
+function bindGroupMajorTooltips(){
+  if(!window.__groupMajorTooltipGlobalBound){
+    window.__groupMajorTooltipGlobalBound=true;
+    window.addEventListener('resize',closeGroupMajorTooltips);
+    window.addEventListener('scroll',closeGroupMajorTooltips,true);
+  }
+  $$('.group-card').forEach(card=>{
+    if(card.dataset.boundGroupTooltip==='1')return;
+    card.dataset.boundGroupTooltip='1';
+    const open=()=>{positionGroupMajorTooltip(card);card.classList.add('group-tooltip-open');};
+    const refresh=()=>{if(card.classList.contains('group-tooltip-open'))positionGroupMajorTooltip(card);};
+    const close=()=>{card.classList.remove('group-tooltip-open');};
+    card.addEventListener('mouseenter',open);
+    card.addEventListener('mousemove',refresh);
+    card.addEventListener('mouseleave',close);
+    card.addEventListener('focusin',open);
+    card.addEventListener('focusout',e=>{if(!card.contains(e.relatedTarget))close();});
+  });
+}
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
+  bindGroupMajorTooltips();
   bindVolunteerButtons();
   bindClearMajorGroupButtons();
   bindMainMajorChecks();
