@@ -1263,7 +1263,7 @@ function createLayout(){
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="../haoshengya_login_landing.html" title="好生涯早规划登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="../haoshengya_login_landing.html?v=20260706-open-signup-r1" title="好生涯早规划登录页"></iframe>
     </div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
@@ -3297,7 +3297,7 @@ async function writeStudentRecord(path,method,payload){
 function updateAccountUI(){
   const accountBtn=$('#accountBtn');
   if(accountBtn){
-    accountBtn.textContent=auth.user?.email?'账号中心：'+auth.user.email.split('@')[0]:'登录/申请开通';
+    accountBtn.textContent=auth.user?.email?'账号中心：'+auth.user.email.split('@')[0]:'登录/注册';
     accountBtn.classList.toggle('logged-in',Boolean(auth.user));
   }
   const logoutBtn=$('#logoutHeaderBtn');
@@ -3321,14 +3321,14 @@ function updateStudentProfileMenu(){
   if(!menu)return;
   const name=currentStudent?.name||auth.user?.email?.split('@')[0]||'未登录';
   const summary=currentStudent?studentTopSummary(currentStudent):(auth.user?'尚未选择学生，点击进入学生档案':'登录后管理学生、志愿表和账号');
-  const meta=currentStudent?stageLabel(currentStudent.stage)+'｜'+studentTopSummary(currentStudent):(auth.user?'已登录，尚未选择当前学生。':'未登录，点击账号中心登录或申请开通。');
+  const meta=currentStudent?stageLabel(currentStudent.stage)+'｜'+studentTopSummary(currentStudent):(auth.user?'已登录，尚未选择当前学生。':'未登录，点击账号中心登录或注册。');
   const initial=studentProfileInitial();
   const email=auth.user?.email||'未登录';
   const count='志愿表 '+volunteerKeys.length+'/'+VOLUNTEER_LIMIT;
   [['#studentProfileAvatar',initial],['#studentProfileAvatarLarge',initial],['#studentProfileName',name],['#studentProfileNameLarge',name],['#studentProfileSummary',summary],['#studentProfileMeta',meta],['#studentProfileAccount','账号：'+email],['#studentProfileVolunteer',count]].forEach(function(pair){const el=$(pair[0]); if(el)el.textContent=pair[1];});
   const trigger=$('#studentProfileBtn');
   if(trigger){
-    trigger.title=currentStudent?currentStudent.name+'｜'+studentTopSummary(currentStudent):(auth.user?'账号：'+auth.user.email:'登录/申请开通');
+    trigger.title=currentStudent?currentStudent.name+'｜'+studentTopSummary(currentStudent):(auth.user?'账号：'+auth.user.email:'登录/注册');
     trigger.setAttribute('aria-expanded',menu.classList.contains('open')?'true':'false');
   }
 }
@@ -3383,17 +3383,17 @@ function showAccountModal(mode='login'){
   if(auth.user&&mode==='login'){showAccountCenter();return;}
   $('#modal').innerHTML='<h3>登录账号</h3><div class="modal-body">'+
     (supabaseConfigured()?'':'<div class="account-notice">数据库还没有配置。请先创建 Supabase 项目并执行 <code>supabase/schema.sql</code>。</div>')+
-    '<div class="account-notice"><b>系统内测中，不开放自由注册。</b><br>请使用管理员分配的账号登录；需要开通请提交申请，由管理员审核后分配规划师或学生权限。</div>'+
+    '<div class="account-notice"><b>内测阶段开放自由注册。</b><br>输入邮箱和密码即可注册登录；新账号默认按规划师权限启用，管理员后续可在后台改角色或禁用。</div>'+
     '<div class="account-form">'+
     '<label>邮箱<input id="accountEmail" type="email" value="" placeholder="you@example.com" autocomplete="off" autocapitalize="none" spellcheck="false"></label>'+
     '<label>密码<input id="accountPassword" type="password" placeholder="至少 6 位" autocomplete="new-password"></label>'+
     '</div>'+
-    '<div class="modal-actions"><button id="accessRequestBtn" type="button">申请开通</button><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')">取消</button><button id="accountSubmit" class="save">登录</button></div>'+
+    '<div class="modal-actions"><button id="accountRegisterBtn" type="button">立即注册</button><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')">取消</button><button id="accountSubmit" class="save">登录</button></div>'+
     '</div>';
   openModal();
   markAccountFieldsUserEditing();
   clearAnonymousAccountFields();
-  $('#accessRequestBtn')?.addEventListener('click',showAccessRequestModal);
+  $('#accountRegisterBtn')?.addEventListener('click',registerSupabase);
   $('#accountSubmit').addEventListener('click',()=>loginSupabase());
 }
 function showAccessRequestModal(){
@@ -3455,7 +3455,10 @@ function showAccountCenter(){
 }
 function showLoginModal(){showAccountModal('login');}
 async function registerSupabase(){
-  showAccessRequestModal();
+  if(!requireSupabase())return;
+  const email=($('#accountEmail')||$('#loginEmail')).value.trim();
+  const password=($('#accountPassword')||$('#loginPwd')).value;
+  try{await registerSupabaseWithCredentials(email,password,{notify:true,role:'planner'});}catch(err){}
 }
 async function loginSupabase(){
   if(!requireSupabase())return;
@@ -3470,9 +3473,9 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     if(!res.ok)throw new Error(await res.text());
     const data=await res.json();
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
-    await requireApprovedProfile();
     saveAuth();
-    await ensureUserProfile(data.user?.user_metadata?.display_name||'');
+    await ensureUserProfile(data.user?.user_metadata?.display_name||'',options.role||data.user?.user_metadata?.role||'planner');
+    await requireApprovedProfile();
     loadCurrentStudent();
     loadCurrentVolunteerDraft();
     closeModal();
@@ -3490,12 +3493,46 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     throw err;
   }
 }
+async function registerSupabaseWithCredentials(email,password,options={}){
+  try{
+    if(!email||!password)throw new Error('请输入邮箱和密码。');
+    if(String(password).length<6)throw new Error('密码至少需要 6 位。');
+    const res=await fetch(SUPABASE_URL+'/auth/v1/signup',{
+      method:'POST',
+      headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password,data:{role:options.role||'planner',display_name:email.split('@')[0]}})
+    });
+    if(!res.ok)throw new Error(await res.text());
+    const data=await res.json();
+    if(!data.access_token)throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
+    auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
+    saveAuth();
+    await ensureUserProfile(data.user?.user_metadata?.display_name||'',options.role||data.user?.user_metadata?.role||'planner');
+    await requireApprovedProfile();
+    loadCurrentStudent();
+    loadCurrentVolunteerDraft();
+    closeModal();
+    updateAccountUI();
+    updateAuthGate();
+    updateVolunteerUI();
+    render();
+    renderStudentPanel();
+    fetchNotes();
+    showModuleChoiceModal();
+    if(options.notify!==false)alert('注册成功，已自动登录。');
+    return true;
+  }catch(err){
+    if(options.notify!==false)alert('注册失败：'+err.message);
+    throw err;
+  }
+}
 async function handleLandingAuthMessage(event){
   if(event.origin!==window.location.origin||event.data?.source!=='haoshengya-login')return;
   const frame=$('#authLandingFrame')?.contentWindow;
   try{
     if(event.data.action==='register'){
-      showAccessRequestModal();
+      await registerSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:event.data.role||'planner'});
+      frame?.postMessage({source:'jiangsu-plan-auth',status:'ok',message:'注册成功，正在进入系统...'},event.origin);
       return;
     }
     if(event.data.action==='apply-access'){
@@ -3510,10 +3547,10 @@ async function handleLandingAuthMessage(event){
     frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:'登录失败：'+err.message},event.origin);
   }
 }
-async function ensureUserProfile(displayName=''){
+async function ensureUserProfile(displayName='',role='planner'){
   if(!auth.user?.id)return;
   try{
-    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:'viewer',status:'pending'})});
+    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:role||'planner',status:'active'})});
   }catch(err){console.warn('创建/更新用户资料失败',err);}
 }
 async function requireApprovedProfile(){
@@ -3524,7 +3561,7 @@ async function requireApprovedProfile(){
   if(!allowed){
     auth={accessToken:'',refreshToken:'',user:null};
     clearSavedAuth();
-    throw new Error('账号尚未由管理员开通或已停用。请联系管理员分配账号后再登录。');
+    throw new Error('账号资料未启用。请联系管理员检查 profiles 角色和状态。');
   }
 }
 function logoutSupabase(options={}){
@@ -3579,7 +3616,7 @@ function renderStudentPanel(){
     return;
   }
   if(!auth.user){
-    body.innerHTML='<div class="student-empty">请先使用管理员分配的账号登录；没有账号请申请开通。</div><div class="student-inline-actions" style="margin-top:12px"><button class="save" id="studentLoginNow">登录/申请开通</button></div>';
+    body.innerHTML='<div class="student-empty">请先使用邮箱和密码登录；没有账号可以直接注册。</div><div class="student-inline-actions" style="margin-top:12px"><button class="save" id="studentLoginNow">登录/注册</button></div>';
     $('#studentLoginNow')?.addEventListener('click',function(){showAccountModal('login');});
     return;
   }

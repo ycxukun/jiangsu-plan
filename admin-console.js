@@ -153,7 +153,7 @@ async function addPlanner(){
     }
     $('#plannerUserId').value='';$('#plannerEmail').value='';$('#plannerName').value='';
     await loadAll();
-  }catch(err){alert('添加规划师失败：'+friendlyError(err));}
+  }catch(err){alert('补授权失败：'+friendlyError(err));}
 }
 async function togglePlanner(id){
   const p=planners.find(x=>x.id===id);

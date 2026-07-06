@@ -912,11 +912,11 @@
             </div>
             <div class="login-actions">
               <button class="btn btn-primary login-btn workbench-login-btn" type="submit">登录工作台</button>
-              <button class="btn btn-secondary login-btn" id="landingRegisterBtn" type="button">申请开通</button>
+              <button class="btn btn-secondary login-btn" id="landingRegisterBtn" type="button">立即注册</button>
             </div>
           </form>
 
-          <p class="login-tip">系统处于内测阶段，不开放自由注册；请使用管理员分配的账号登录，或提交开通申请。</p>
+          <p class="login-tip">内测阶段开放邮箱注册；输入邮箱和密码后可直接注册登录。</p>
         </section>
 
         <section class="system-card" id="security">
@@ -963,9 +963,9 @@
     const nextPath = params.get('next') || '';
     let activeRole = 'consultant';
     const roleTips = {
-      '规划师端': ['请输入规划师账号', 'consultant', '内测阶段不开放自由注册；规划师账号由管理员开通。'],
-      '家长端': ['请输入家长手机号或专属账号', 'viewer', '家长端需由管理员绑定对应学生后开通。'],
-      '学生端': ['请输入学生账号或访问码', 'viewer', '学生端需由管理员绑定对应档案后开通。']
+      '规划师端': ['请输入邮箱账号', 'planner', '内测阶段开放注册；新账号默认可进入规划师工作台。'],
+      '家长端': ['请输入邮箱账号', 'planner', '内测阶段先统一按规划师权限注册，后续可由管理员调整角色。'],
+      '学生端': ['请输入邮箱账号', 'planner', '内测阶段先统一按规划师权限注册，后续可由管理员调整角色。']
     };
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1000,9 +1000,27 @@
       if (!nextPath || /^https?:\/\//i.test(nextPath) || nextPath.startsWith('//')) return './index.html';
       return nextPath;
     }
-    async function ensureStandaloneProfile(user, role) {
+    async function ensureStandaloneProfile(user, role = 'planner') {
       if (!user?.id) return;
       const accessToken = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || '{}').accessToken || '';
+      const profileBody = {
+        id: user.id,
+        email: user.email || '',
+        display_name: user.user_metadata?.display_name || user.email || '',
+        role: role || 'planner',
+        status: 'active'
+      };
+      const upsert = await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=id`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify(profileBody)
+      });
+      if (!upsert.ok) throw new Error(await upsert.text());
       const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=role,status&id=eq.${encodeURIComponent(user.id)}&limit=1`, {
         headers: {
           apikey: SUPABASE_ANON_KEY,
@@ -1015,7 +1033,7 @@
       const allowed = profile && profile.status === 'active' && ['admin', 'consultant', 'planner'].includes(profile.role);
       if (!allowed) {
         localStorage.removeItem(AUTH_STORAGE_KEY);
-        throw new Error('账号尚未由管理员开通或已停用。请联系管理员分配账号后再登录。');
+        throw new Error('账号资料未启用。请联系管理员检查 profiles 角色和状态。');
       }
     }
     async function standaloneLogin(email, pwd) {
@@ -1029,6 +1047,26 @@
       saveStandaloneAuth(data);
       await ensureStandaloneProfile(data.user, activeRole);
       tip.textContent = '登录成功，正在进入系统...';
+      window.location.href = safeNextUrl();
+    }
+    async function standaloneRegister(email, pwd) {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password: pwd,
+          data: { role: activeRole || 'planner', display_name: email.split('@')[0] }
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (!data.access_token) {
+        throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
+      }
+      saveStandaloneAuth(data);
+      await ensureStandaloneProfile(data.user, activeRole);
+      tip.textContent = '注册成功，正在进入系统...';
       window.location.href = safeNextUrl();
     }
     async function standaloneRecover(email) {
@@ -1068,11 +1106,24 @@
       sendAuthMessage({ action: 'login', email, password: pwd, role: activeRole });
     });
     registerBtn.addEventListener('click', () => {
-      if (!isEmbedded()) {
-        tip.textContent = '请联系管理员开通账号；申请信息建议包含姓名、联系方式、身份类型和对应学生。';
+      const email = account.value.trim();
+      const pwd = password.value;
+      if (!email || !pwd) {
+        tip.textContent = '请先输入邮箱和密码，再点击注册。';
         return;
       }
-      sendAuthMessage({ action: 'apply-access', role: activeRole });
+      if (pwd.length < 6) {
+        tip.textContent = '密码至少需要 6 位。';
+        return;
+      }
+      tip.textContent = '正在注册，请稍候...';
+      if (!isEmbedded()) {
+        standaloneRegister(email, pwd).catch(err => {
+          tip.textContent = '注册失败：' + err.message;
+        });
+        return;
+      }
+      sendAuthMessage({ action: 'register', email, password: pwd, role: activeRole });
     });
     forgotPasswordBtn.addEventListener('click', () => {
       const email = account.value.trim();

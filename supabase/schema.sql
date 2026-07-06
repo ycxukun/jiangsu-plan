@@ -60,8 +60,8 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
-alter table public.profiles alter column role set default 'viewer';
-alter table public.profiles alter column status set default 'pending';
+alter table public.profiles alter column role set default 'planner';
+alter table public.profiles alter column status set default 'active';
 alter table public.profiles drop constraint if exists profiles_status_check;
 alter table public.profiles add constraint profiles_status_check
   check (status in ('pending', 'active', 'trial', 'expired', 'suspended', 'rejected', 'deleted', 'disabled'));
@@ -555,7 +555,11 @@ using (public.can_view_profile(id));
 drop policy if exists "profiles_insert_self" on public.profiles;
 create policy "profiles_insert_self"
 on public.profiles for insert
-with check (id = auth.uid() and role = 'viewer' and status = 'pending');
+with check (
+  id = auth.uid()
+  and role::text in ('viewer', 'consultant', 'planner')
+  and status in ('active', 'pending')
+);
 
 drop policy if exists "profiles_admin_insert" on public.profiles;
 create policy "profiles_admin_insert"
@@ -568,7 +572,11 @@ on public.profiles for update
 using (id = auth.uid() or public.is_admin())
 with check (
   public.is_admin()
-  or (id = auth.uid() and role = 'viewer' and status = 'pending')
+  or (
+    id = auth.uid()
+    and role::text in ('viewer', 'consultant', 'planner')
+    and status in ('active', 'pending')
+  )
 );
 
 drop policy if exists "students_owner_all" on public.students;

@@ -67,11 +67,11 @@ button.save{background:var(--green);border-color:var(--green);color:#fff}button.
       <div class="panel-head"><h2>人员/规划师管理</h2><span class="badge" id="plannerCount">0 人</span></div>
       <div class="panel-body">
         <div class="form-grid">
-          <div class="admin-help">账号流程：规划师不开放自注册。先由管理员在 Supabase Auth 创建或邀请该邮箱，再在这里填写邮箱授权为规划师；用户 UUID 一般不用填。</div>
+          <div class="admin-help">账号流程：内测阶段允许邮箱密码自由注册。对方注册一次后会自动成为 active 规划师；这里主要用于按邮箱补授权、改角色、禁用账号和查看该规划师名下学生。</div>
           <label>邮箱<input id="plannerEmail" placeholder="规划师登录邮箱，例如 planner@example.com"></label>
           <label>用户 UUID（可选）<input id="plannerUserId" placeholder="一般不用填；系统会按邮箱查账号"></label>
           <label>显示名<input id="plannerName" placeholder="规划师姓名，可空"></label>
-          <button class="save" id="addPlannerBtn" type="button">授权/启用规划师</button>
+          <button class="save" id="addPlannerBtn" type="button">补授权/启用规划师</button>
         </div>
         <div id="plannerList" class="planner-list" style="margin-top:12px"></div>
       </div>
@@ -82,6 +82,6 @@ button.save{background:var(--green);border-color:var(--green);color:#fff}button.
     </section>
   </div>
 </main>
-<script src="./admin-console.js?v=20260706-admin-planner-filter-r1"></script>
+<script src="./admin-console.js?v=20260706-open-signup-r1"></script>
 </body>
 </html>
