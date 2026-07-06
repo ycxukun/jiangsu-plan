@@ -89,6 +89,7 @@ const VOLUNTEER_STORAGE_KEY='js-plan-volunteer-groups-v1';
 const VOLUNTEER_MAJOR_STORAGE_KEY='js-plan-volunteer-major-keys-v2';
 const VOLUNTEER_META_STORAGE_KEY='js-plan-volunteer-meta-v1';
 const VOLUNTEER_EDIT_FORM_STORAGE_KEY='js-plan-volunteer-edit-form-v1';
+const VOLUNTEER_TOGGLE_POSITION_KEY='js-plan-volunteer-toggle-position-v1';
 const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
@@ -1265,6 +1266,15 @@ function selectedStateBadgeHTML(s,g){
   const r=groupRiskState(s,g);
   return `<span class="tag selected-state-badge ${r.selected?'selected':'unselected'}" data-selected-state-key="${esc(r.groupId)}" title="${esc(r.selected?'已在右侧志愿表中':'尚未加入右侧志愿表')}">${esc(r.selectedText)}</span>`;
 }
+function groupRiskHeroContentHTML(s,g,key=keyGroup(s,g)){
+  const r=groupRiskState(s,g,key);
+  return `<div class="group-risk-hero-main"><b>${esc(r.probabilityText)}</b><strong>${esc(r.riskText)}</strong><span>${esc(r.riskDesc)}</span></div><em>${esc(r.selectedText)}</em>`;
+}
+function groupRiskHeroHTML(s,g,compact=false){
+  const key=keyGroup(s,g);
+  const r=groupRiskState(s,g,key);
+  return `<div class="group-risk-hero risk-${esc(r.riskLevel)} ${compact?'compact':''} ${r.selected?'selected':'unselected'}" data-risk-hero-key="${esc(key)}" data-risk-hero-compact="${compact?'1':'0'}" title="${esc(r.title)}">${groupRiskHeroContentHTML(s,g,key)}</div>`;
+}
 function groupMatchesRisk(s,g){
   return !state.riskFilter||groupRiskState(s,g).riskText===state.riskFilter;
 }
@@ -1752,6 +1762,76 @@ function schoolFacetCounts(){const m=new Map(); DB.forEach(s=>schoolFacetValues(
 function schoolMatchesLevelFacet(s){if(!state.selectedLevels.size)return true; const vals=schoolFacetValues(s); return [...state.selectedLevels].some(v=>vals.has(v));}
 function groupCountBy(field){const m=new Map(); DB.forEach(s=>s.groups.forEach(g=>{const key=String(g[field]??'').trim(); if(!isValidFacetValue(key))return; m.set(key,(m.get(key)||0)+1);})); return m;}
 function openStudentDirectory(){window.location.href='./students/index.html?from=undergraduate';}
+function clampVolunteerTogglePosition(left,top,btn){
+  const margin=10;
+  const width=btn?.offsetWidth||78;
+  const height=btn?.offsetHeight||132;
+  return {
+    left:Math.max(margin,Math.min(window.innerWidth-width-margin,left)),
+    top:Math.max(margin,Math.min(window.innerHeight-height-margin,top))
+  };
+}
+function readVolunteerTogglePosition(){
+  try{
+    const pos=JSON.parse(localStorage.getItem(VOLUNTEER_TOGGLE_POSITION_KEY)||'null');
+    const left=Number(pos?.left);
+    const top=Number(pos?.top);
+    return Number.isFinite(left)&&Number.isFinite(top)?{left,top}:null;
+  }catch(e){
+    return null;
+  }
+}
+function setVolunteerTogglePosition(btn,left,top){
+  btn.style.setProperty('left',`${left}px`,'important');
+  btn.style.setProperty('top',`${top}px`,'important');
+  btn.style.setProperty('right','auto','important');
+  btn.style.setProperty('transform','none','important');
+}
+function applyVolunteerTogglePosition(){
+  const btn=$('#volunteerPanelBtn');
+  const pos=btn?readVolunteerTogglePosition():null;
+  if(!btn||!pos)return;
+  const fixed=clampVolunteerTogglePosition(pos.left,pos.top,btn);
+  setVolunteerTogglePosition(btn,fixed.left,fixed.top);
+}
+function bindVolunteerToggleDrag(){
+  const btn=$('#volunteerPanelBtn');
+  if(!btn||btn.dataset.dragBound)return;
+  btn.dataset.dragBound='1';
+  btn.title='可拖动调整位置；点击打开志愿表';
+  applyVolunteerTogglePosition();
+  let drag=null;
+  btn.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    const rect=btn.getBoundingClientRect();
+    drag={id:e.pointerId,startX:e.clientX,startY:e.clientY,left:rect.left,top:rect.top,moved:false};
+    btn.setPointerCapture?.(e.pointerId);
+    btn.classList.add('dragging');
+  });
+  btn.addEventListener('pointermove',e=>{
+    if(!drag||drag.id!==e.pointerId)return;
+    const dx=e.clientX-drag.startX;
+    const dy=e.clientY-drag.startY;
+    if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;
+    if(!drag.moved)return;
+    e.preventDefault();
+    const next=clampVolunteerTogglePosition(drag.left+dx,drag.top+dy,btn);
+    setVolunteerTogglePosition(btn,next.left,next.top);
+  });
+  const finish=e=>{
+    if(!drag||drag.id!==e.pointerId)return;
+    const wasMoved=drag.moved;
+    drag=null;
+    btn.classList.remove('dragging');
+    if(!wasMoved)return;
+    const rect=btn.getBoundingClientRect();
+    localStorage.setItem(VOLUNTEER_TOGGLE_POSITION_KEY,JSON.stringify({left:rect.left,top:rect.top}));
+    btn.dataset.dragSuppressUntil=String(Date.now()+300);
+  };
+  btn.addEventListener('pointerup',finish);
+  btn.addEventListener('pointercancel',finish);
+  window.addEventListener('resize',applyVolunteerTogglePosition);
+}
 function bindEvents(){
   window.addEventListener('message',handleLandingAuthMessage);
   ['batchFilter','subjectFilter'].forEach(id=>$('#'+id).addEventListener('change',e=>{state[id.replace('Filter','')]=e.target.value; applyFilters();}));
@@ -1766,7 +1846,9 @@ function bindEvents(){
   $('#studentPanelBtn')?.addEventListener('click',openStudentDirectory);
   $('#accountBtn')?.addEventListener('click',showAccountModal);
   $('#logoutHeaderBtn')?.addEventListener('click',()=>logoutSupabase());
-  $('#volunteerPanelBtn')?.addEventListener('click',()=>{renderVolunteerPanel();openPanel('volunteerPanel')});
+  const volunteerPanelBtn=$('#volunteerPanelBtn');
+  volunteerPanelBtn?.addEventListener('click',()=>{if(Number(volunteerPanelBtn.dataset.dragSuppressUntil||0)>Date.now())return;renderVolunteerPanel();openPanel('volunteerPanel')});
+  bindVolunteerToggleDrag();
   $('#studentProfileBtn')?.addEventListener('click',e=>{e.stopPropagation();toggleStudentProfileMenu();});
   const studentProfileMenu=$('#studentProfileMenu');
   studentProfileMenu?.addEventListener('mouseenter',openStudentProfileMenu);
@@ -2193,6 +2275,16 @@ function buildClassPanel(){
   renderFacetPanel({panelId:'classPanel',bodyId:'classPanelBody',title:'专业大类筛选',searchPlaceholder:'搜索专业类，如 计算机 / 电子信息 / 土木',groups,counts,setRef:state.selectedClasses,buttonUpdater:updateClassButton,clearLabel:'清空专业大类'});
 }
 function updateProvinceButton(){const p=state.selectedProvinces.size,c=state.selectedCities.size; const btn=$('#provinceBtn'); if(!btn)return; if(!p&&!c){btn.textContent='全部省份';return;} if(c&&p===1&&state.selectedProvinces.has('江苏')){const arr=[...state.selectedCities]; btn.textContent=arr.length===1?`江苏：${arr[0]}`:`江苏：${arr[0]} +${arr.length-1}`;return;} btn.textContent=`地区 ${p}省${c?`/${c}市`:''}`;}
+function schoolMatchesRegionFacet(s){
+  const hasProvince=state.selectedProvinces.size>0;
+  const hasCity=state.selectedCities.size>0;
+  if(!hasProvince&&!hasCity)return true;
+  const province=String(s?.province||'').trim();
+  const city=String(s?.city||'').trim();
+  if(province==='江苏'&&hasCity)return state.selectedCities.has(city);
+  if(hasProvince)return state.selectedProvinces.has(province);
+  return false;
+}
 function updateLevelButton(){const n=state.selectedLevels.size; $('#levelBtn').textContent=selectedSummary('院校层次',state.selectedLevels,'院校层次');}
 function updateRequirementButton(){
   const btn=$('#requirementBtn');
@@ -2289,8 +2381,7 @@ function applyFilters(){
   DB.forEach(s=>{
     if(state.batch&&!guideFilter&&s.batch!==state.batch)return;
     if(state.subject&&s.subject!==state.subject)return;
-    if(state.selectedProvinces.size&&!state.selectedProvinces.has(s.province))return;
-    if(state.selectedCities.size&&!state.selectedCities.has(s.city))return;
+    if(!schoolMatchesRegionFacet(s))return;
     if(!schoolMatchesLevelFacet(s))return;
     const groups=s.groups.filter(g=>{if(!groupMatchesBatchGuideFilter(s,g))return false; if(!groupMatchesSpecialSelection(s,g))return false; if(!groupMatchesRequirement(g))return false; if(!groupMatchesScore(s,g))return false; if(!groupMatchesClass(g))return false; if(!groupMatchesRisk(s,g))return false; if(!groupMatchesSearch(s,g,q))return false; return true;});
     const visibleGroups=sortGroupsByWeightedMajorScore(groups);
@@ -2345,7 +2436,6 @@ function groupCleanTagsHTML(s,g,planDiff,quality,compact=false){
   const pieces=[];
   const push=x=>{if(x&&String(x).trim())pieces.push(x);};
   push(groupQualityBadge(quality));
-  push(admissionBandBadgeHTML(s,g));
   push(selectedStateBadgeHTML(s,g));
   push(foreignCoopCountBadgeHTML(g));
   push(groupMedicalBadge(g));
@@ -2429,14 +2519,14 @@ function groupCardHTML(s,g){
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
   const risk=groupRiskState(s,g);
-  return `<article class="group-card group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，${risk.riskText}${risk.probabilityText}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3><div class="group-card-status">${admissionBandBadgeHTML(s,g)}${groupChangeButtonHTML(s,g,'card')}</div></div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,true)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
+  return `<article class="group-card group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，${risk.riskText}${risk.probabilityText}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3><div class="group-card-status">${groupRiskHeroHTML(s,g,true)}${groupChangeButtonHTML(s,g,'card')}</div></div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,true)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
   const risk=groupRiskState(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(`${quality.title}；${risk.title}`)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,false)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(`${quality.title}；${risk.title}`)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,false)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div><div class="group-head-side">${groupRiskHeroHTML(s,g)}${groupChangeButtonHTML(s,g,'section')}</div></div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?` <span class="muted avg-years-inline">${m.avgYears}年均值</span>`:'';
@@ -3005,7 +3095,8 @@ function updateVolunteerUI(){
   if(btn){
     const counts=volunteerStrategyCounts(volunteerKeys);
     btn.innerHTML=`<span>志愿表 ${count}</span><small>${esc(volunteerRiskInline(counts))}</small><b>保存</b>`;
-    btn.title=`已选 ${count}/${VOLUNTEER_LIMIT} 个专业组；${volunteerRiskInline(counts)}`;
+    btn.title=`已选 ${count}/${VOLUNTEER_LIMIT} 个专业组；${volunteerRiskInline(counts)}；可拖动调整位置`;
+    applyVolunteerTogglePosition();
   }
   updateStudentProfileMenu();
   renderVolunteerStructureBar();
@@ -3034,6 +3125,17 @@ function updateVolunteerUI(){
     badge.title=risk.selected?'已在右侧志愿表中':'尚未加入右侧志愿表';
     badge.classList.toggle('selected',risk.selected);
     badge.classList.toggle('unselected',!risk.selected);
+  });
+  $$('[data-risk-hero-key]').forEach(hero=>{
+    const rec=getGroupRecord(hero.dataset.riskHeroKey);
+    if(!rec)return;
+    const risk=groupRiskState(rec.s,rec.g,hero.dataset.riskHeroKey);
+    hero.innerHTML=groupRiskHeroContentHTML(rec.s,rec.g,hero.dataset.riskHeroKey);
+    hero.title=risk.title;
+    hero.classList.toggle('selected',risk.selected);
+    hero.classList.toggle('unselected',!risk.selected);
+    ['risk-chong','risk-wen','risk-bao','risk-pending'].forEach(c=>hero.classList.remove(c));
+    hero.classList.add(`risk-${risk.riskLevel}`);
   });
 }
 function addVolunteerKey(key){
