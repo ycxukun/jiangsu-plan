@@ -466,10 +466,26 @@
   border-color:#d79b7d!important;
   background:#fffaf2!important;
 }
+.major-plan-info-section{
+  border-color:#bfd7ff!important;
+  background:#f8fbff!important;
+}
 .info-section h4{
   display:flex!important;
   align-items:center!important;
   gap:8px!important;
+}
+.major-plan-info-section h4::before{
+  content:"EXCEL";
+  display:inline-flex;
+  align-items:center;
+  height:20px;
+  padding:0 7px;
+  border:1px solid #a9c8ff;
+  border-radius:999px;
+  color:#1d4ed8;
+  font-size:10px;
+  font-family:var(--claude-sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"PingFang SC",sans-serif);
 }
 .foreign-coop-info-section h4::before{
   content:"COOP";

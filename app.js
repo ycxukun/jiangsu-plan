@@ -68,6 +68,7 @@ const MEDICAL_CODE_META={
 };
 let DB=Array.isArray(window.DB)?window.DB:[];
 let DETAILS=window.MAJOR_DETAILS||{};
+let MAJOR_EXTRA_FIELDS=window.MAJOR_EXTRA_FIELDS||{};
 let GROUP_NAMING=window.GROUP_NAMING||{};
 let GROUP_CHANGES=window.GROUP_CHANGES||{};
 let ASSASSIN_GROUP_RISKS=window.ASSASSIN_GROUP_RISKS||{};
@@ -2328,6 +2329,91 @@ function infoSectionHTML(title,pairs,extraClass=''){
   if(!body)return '';
   return `<section class="info-section ${extraClass}"><h4>${esc(title)}</h4><dl class="kv info-kv">${body}</dl></section>`;
 }
+function firstInfoValue(...vals){return vals.find(validInfoValue);}
+function formatDurationValue(v){
+  const raw=firstInfoValue(v);
+  if(!validInfoValue(raw))return '源表未提供';
+  const text=String(raw).trim();
+  if(/年|待定|详询|按/.test(text))return text;
+  return `${text} 年`;
+}
+function formatTuitionValue(v){
+  const raw=firstInfoValue(v);
+  if(!validInfoValue(raw))return '源表未提供';
+  const text=String(raw).trim();
+  if(/待定|免费|免学费|详询/.test(text))return text.replace(/元$/,'');
+  const amount=tuitionNumber(text);
+  if(amount!==null)return `${fmtNum(amount)} 元/年`;
+  return text;
+}
+function scoreRankText(score,rank){
+  if(!validInfoValue(score)&&!validInfoValue(rank))return '';
+  return `${validInfoValue(score)?fmtNum(score):'—'} / ${validInfoValue(rank)?fmtNum(rank):'—'}`;
+}
+function majorTrainingModeValue(d={}){
+  const text=[d.majorFullName,d.name,d.majorRemark,d.rawMajorLine,d.foreignCoopDurationAbroad,d.foreignCoopOtherInfo].filter(Boolean).join(' ');
+  const modes=[];
+  if(/[3三]\s*[+＋]\s*[2二]/.test(text))modes.push('3+2 分段培养');
+  if(/[4四]\s*[+＋]\s*[0零]/.test(text))modes.push('4+0 分段培养');
+  if(/[5五]\s*[+＋]\s*[0零]/.test(text))modes.push('5+0 分段培养');
+  if(!modes.length&&/分段培养|贯通培养|高本贯通/.test(text))modes.push('分段培养');
+  if(/中外合作|合作办学/.test(text))modes.push('中外合作办学');
+  if(/双学位|双学士|复合型人才/.test(text))modes.push('双学位/复合培养');
+  if(/培养模式详询|具体.*培养模式|学费.*要求/.test(text))modes.push('培养模式/学费要求详询院校');
+  return [...new Set(modes)].join('；');
+}
+function rawMajorLineForDetail(d={},ctx=null){
+  const raw=String(d.rawGroupMajors||ctx?.g?.rawGroupMajors||'');
+  if(!raw)return '';
+  const code=String(d.code||ctx?.m?.code||'').trim();
+  const base=String(d.undergraduateName||ctx?.m?.baseName||ctx?.m?.name||d.name||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const lines=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  if(code){
+    const codeRe=new RegExp(`^${code.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s`);
+    const hit=lines.find(line=>codeRe.test(line));
+    if(hit)return hit;
+  }
+  if(base)return lines.find(line=>new RegExp(base).test(line))||'';
+  return '';
+}
+function parseMajorLineMeta(line){
+  const hit=String(line||'').match(/【\s*([^，,】]+?)\s*[，,]\s*([^，,】]+?)\s*[，,]\s*([0-9]+)\s*人\s*】/);
+  if(!hit)return {};
+  return {duration:hit[1],tuition:hit[2],plan26:Number(hit[3])};
+}
+function normalizeMajorExtraBatch(v){
+  const text=String(v||'').trim();
+  if(!text)return '';
+  if(/提前/.test(text))return '提前本科批';
+  if(/专科|高职/.test(text))return '专科批';
+  if(/普通|本科/.test(text))return '普通批';
+  return text;
+}
+function normalizeMajorExtraSubject(v){
+  const text=String(v||'').trim();
+  if(/理科|物理/.test(text))return '物理';
+  if(/文科|历史/.test(text))return '历史';
+  return text;
+}
+function normalizeMajorExtraCode(v,width=0){
+  let text=String(v??'').trim().replace(/\s+/g,'').toUpperCase();
+  if(!text)return '';
+  if(/^\d+\.0$/.test(text))text=text.slice(0,-2);
+  if(width&&/^\d+$/.test(text))text=text.padStart(width,'0');
+  return text;
+}
+function majorExtraLookupKey(d={},ctx=null){
+  const batch=normalizeMajorExtraBatch(d.batch||ctx?.g?.batch||ctx?.s?.batch);
+  const subject=normalizeMajorExtraSubject(d.subject||ctx?.g?.subject||ctx?.s?.subject);
+  const group=normalizeMajorExtraCode(d.groupCode||d.schoolGroupCode||ctx?.g?.groupCode,6);
+  const code=normalizeMajorExtraCode(d.code||ctx?.m?.code);
+  return batch&&subject&&group&&code?`${batch}|${subject}|${group}|${code}`:'';
+}
+function majorExtraFieldsFor(d={},ctx=null){
+  MAJOR_EXTRA_FIELDS=window.MAJOR_EXTRA_FIELDS||MAJOR_EXTRA_FIELDS||{};
+  const key=majorExtraLookupKey(d,ctx);
+  return key?(MAJOR_EXTRA_FIELDS[key]||{}):{};
+}
 function normSchoolName(name){return String(name||'').replace(/[（）()\s]/g,'').replace(/学院$/,'').replace(/大学$/,'').toLowerCase();}
 function parentSchoolRows(){return window.SCHOOL_LIFE_INFO_DATA?.schools||[];}
 function parentSchoolInfo(name){
@@ -2415,7 +2501,28 @@ function groupInfoPairs(d={}){return [
   ['专业组',d.group],['院校专业组代码',d.groupCode||d.schoolGroupCode],['专业组显示代码',d.displayCode||d.rawGroupCode],['科类',d.subject],['批次',d.batch],['计划类别',d.planCategory],['再选要求',d.subjectRequirement],['26专业组计划',d.groupPlan26],['组内专业数',d.groupMajorCount],['专业组干净度',d.groupCleanliness],['专业组25最低分',d.groupScore25],['专业组25最低位次',d.groupRank25],['专业组原始专业明细',d.rawGroupMajors]
 ];}
 function majorBasePairs(d={}){return [
-  ['专业代码',d.code],['专业全称',d.majorFullName||d.name],['本科专业名称',d.undergraduateName],['专业备注',d.majorRemark],['专业层次',d.majorLevel],['专业类',d.majorClass],['学科门类',d.discipline],['学科专业',d.subjectMajor],['选科要求',d.subjectRequirement],['学制',d.duration||d.degreeYears],['学费',d.tuition],['是否新增',d.isNew],['专业水平标签',d.majorLevelTags],['软科评级',d.softRating],['软科专业排名',d.softRank||d.majorRank],['学科评估',d.disciplineEvaluation||d.disciplineEval4||d.disciplineEval5],['专业硕士点',d.majorMasterPrograms],['专业博士点',d.majorDoctorPrograms],['相似度/来源说明',d.similarity||d.sourceRule]
+  ...majorRecruitPairs(d),
+  ['专业水平标签',d.majorLevelTags],['软科评级',d.softRating],['软科专业排名',d.softRank||d.majorRank],['学科评估',d.disciplineEvaluation||d.disciplineEval4||d.disciplineEval5],['专业硕士点',d.majorMasterPrograms],['专业博士点',d.majorDoctorPrograms],['相似度/来源说明',d.similarity||d.sourceRule]
+];}
+function majorRecruitPairs(d={}){return [
+  ['专业代码',d.code],
+  ['专业全称',d.majorFullName||d.name],
+  ['本科专业名称',d.undergraduateName],
+  ['专业备注',d.majorRemark],
+  ['专业层次',d.majorLevel],
+  ['专业类',d.majorClass],
+  ['学科门类',d.discipline],
+  ['研究生学科专业',d.subjectMajor],
+  ['选科要求',d.subjectRequirement],
+  ['学制',formatDurationValue(d.duration||d.degreeYears)],
+  ['学费',formatTuitionValue(d.tuition)],
+  ['培养/合作模式',majorTrainingModeValue(d)],
+  ['2026计划',d.plan26],
+  ['2025最低分/位次',scoreRankText(d.score25,d.rank25)],
+  ['是否新增',d.isNew],
+  ['数据源Excel行',d.sourceExcelRow],
+  ['Excel补充来源',d.excelSource],
+  ['专业身份键',d.identityKey]
 ];}
 function majorProfilePairs(d={}){return [
   ['软科评级',d.softRating],
@@ -2554,14 +2661,33 @@ function fallbackMajorDetail(ctx,schoolKey,groupKey){
 function mergedMajorDetail(key,ctx){
   DETAILS=window.MAJOR_DETAILS||DETAILS||{};
   const coop=foreignCoopDetailByKey(key)||{};
-  return Object.assign({}, fallbackMajorDetail(ctx), DETAILS[key]||{}, coop);
+  const seed=Object.assign({}, fallbackMajorDetail(ctx), DETAILS[key]||{}, coop);
+  return enrichMajorDetail(Object.assign({}, seed, majorExtraFieldsFor(seed,ctx), coop),ctx);
+}
+function enrichMajorDetail(d,ctx){
+  const rawMajorLine=rawMajorLineForDetail(d,ctx);
+  const rowMeta=parseMajorLineMeta(rawMajorLine);
+  return {
+    ...d,
+    majorFullName:firstInfoValue(d.majorFullName,d.name,ctx?.m?.name),
+    undergraduateName:firstInfoValue(d.undergraduateName,ctx?.m?.baseName),
+    majorRemark:firstInfoValue(d.majorRemark,ctx?.m?.remark),
+    majorClass:firstInfoValue(d.majorClass,ctx?.m?.majorClass),
+    discipline:firstInfoValue(d.discipline,ctx?.m?.discipline),
+    subjectRequirement:firstInfoValue(d.subjectRequirement,ctx?.g?.requirement),
+    duration:firstInfoValue(d.duration,d.degreeYears,ctx?.m?.duration,rowMeta.duration),
+    tuition:firstInfoValue(d.tuition,ctx?.m?.tuition,rowMeta.tuition),
+    plan26:firstInfoValue(d.plan26,ctx?.m?.plan26,rowMeta.plan26),
+    rawMajorLine:firstInfoValue(d.rawMajorLine,rawMajorLine),
+    rawGroupMajors:firstInfoValue(d.rawGroupMajors,ctx?.g?.rawGroupMajors)
+  };
 }
 function showDetail(key,schoolKey,groupKey,mode='major'){
   const ctx=findMajorContext(key,groupKey);
   const d=mergedMajorDetail(key,ctx);
   if(mode==='major-base'){
     const title=d.majorFullName||d.name||ctx?.m?.name||'专业基础信息';
-    $('#modal').innerHTML=`<h3>${esc(title)}｜专业基础信息</h3><div class="modal-body"><div class="info-subtitle">对应表格中的专业基础信息：软科评级、软科排名、学科评估、专业水平、本专业硕士点、本专业博士点。</div>${infoSectionHTML('专业基础信息',majorProfilePairs(d),'major-info-section')}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+    $('#modal').innerHTML=`<h3>${esc(title)}｜专业详情</h3><div class="modal-body"><div class="info-subtitle">已同步 Excel 行级字段：专业代码、专业名称、专业备注、专业类、学制、学费、计划与录取数据。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${infoSectionHTML('专业招生基础信息',majorRecruitPairs(d),'major-plan-info-section')}${infoSectionHTML('专业学科基础信息',majorProfilePairs(d),'major-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
     openModal();
     return;
   }
@@ -2578,7 +2704,7 @@ function showDetail(key,schoolKey,groupKey,mode='major'){
   const heading=d.name||ctx?.m?.name||'专业信息';
   const riskSection=ctx?infoSectionHTML('专业风险与梯队提示',majorRiskDetailPairs(ctx.s,ctx.g,ctx.m),'major-risk-info-section'):'';
   const coopHero=foreignCoopHeroHTML(d);
-  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">专业档案信息已按“基础信息 / 中外合作 / 招录数据”分区展示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${coopHero}${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${parentSchoolInfoHTML(d.school||ctx?.s?.name,{city:d.city||ctx?.s?.city,address:d.address,level:ctx?.s?.level,schoolLevel:d.schoolLevel,publicPrivate:d.publicPrivate})}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section')}${infoSectionHTML('中外合作项目详情',foreignCoopInfoPairs(d),'foreign-coop-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
+  $('#modal').innerHTML=`<h3>${esc(heading)}</h3><div class="modal-body"><div class="info-subtitle">专业档案信息已按“基础信息 / 中外合作 / 招录数据”分区展示。<br>身份键：${esc(d.identityKey||key)}｜数据源行：${esc(d.sourceExcelRow||'')}</div>${coopHero}${riskSection}${infoSectionHTML('院校基础信息',schoolInfoPairs(null,d),'school-info-section')}${parentSchoolInfoHTML(d.school||ctx?.s?.name,{city:d.city||ctx?.s?.city,address:d.address,level:ctx?.s?.level,schoolLevel:d.schoolLevel,publicPrivate:d.publicPrivate})}${infoSectionHTML('专业组基础信息',groupInfoPairs(d),'group-info-section')}${infoSectionHTML('专业基础信息',majorBasePairs(d),'major-info-section major-plan-info-section')}${infoSectionHTML('中外合作项目详情',foreignCoopInfoPairs(d),'foreign-coop-info-section')}${infoSectionHTML('招生录取数据',admissionInfoPairs(d),'admission-info-section')}<div class="badges">${schoolNote?`<span class="note-badge">学校备注</span>`:''}${groupNote?`<span class="note-badge">专业组备注</span>`:''}${majorNote?`<span class="note-badge">专业备注</span>`:''}</div>${noteBlock('学校备注',schoolNote)}${noteBlock('专业组备注',groupNote)}${noteBlock('专业备注',majorNote)}<div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">关闭</button></div></div>`;
   openModal();
 }
 function noteBlock(title,text){return text?`<section class="metric" style="margin-top:12px"><b style="font-size:14px">${esc(title)}</b><span style="white-space:pre-wrap;color:#33443a">${esc(text)}</span></section>`:'';}
