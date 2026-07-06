@@ -17,6 +17,7 @@ add column if not exists high_school text,
 add column if not exists grade text,
 add column if not exists candidate_type text,
 add column if not exists first_subject text,
+add column if not exists subject_choices text[] not null default '{}',
 add column if not exists second_subjects text[] not null default '{}',
 add column if not exists class_type text,
 add column if not exists gaokao_score integer,
@@ -112,6 +113,21 @@ begin
       set second_subjects = subject_choices
       where coalesce(array_length(second_subjects, 1), 0) = 0
         and coalesce(array_length(subject_choices, 1), 0) > 0
+    $sql$;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'students' and column_name = 'subject_choices'
+  ) and exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'students' and column_name = 'second_subjects'
+  ) then
+    execute $sql$
+      update public.students
+      set subject_choices = second_subjects
+      where coalesce(array_length(subject_choices, 1), 0) = 0
+        and coalesce(array_length(second_subjects, 1), 0) > 0
     $sql$;
   end if;
 
