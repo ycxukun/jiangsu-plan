@@ -96,6 +96,22 @@ async function apiFetch(path,options={}){
   return text?JSON.parse(text):null;
 }
 
+function isSubjectChoicesColumnMissing(err){
+  const msg=String(err?.message||err);
+  return /subject_choices/i.test(msg)&&/(schema cache|column|does not exist|PGRST204|42703)/i.test(msg);
+}
+
+async function writeStudentRecord(path,method,payload){
+  try{
+    return await apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(payload)});
+  }catch(err){
+    if(!isSubjectChoicesColumnMissing(err))throw err;
+    const fallback={...payload};
+    delete fallback.subject_choices;
+    return apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)});
+  }
+}
+
 async function storageUpload(path,file){
   await refreshSessionIfNeeded();
   const encoded=path.split('/').map(encodeURIComponent).join('/');
@@ -561,6 +577,16 @@ function caseOptions(selected=''){
   return '<option value="">选择服务案例</option>'+data.cases.map(c=>`<option value="${esc(c.id)}" ${c.id===selected?'selected':''}>${esc(studentDisplay(studentById(c.student_id)))}｜${esc(c.service_type)}｜${esc(c.service_status)}</option>`).join('');
 }
 
+function casesForStudent(studentId){
+  return data.cases.filter(c=>!studentId||c.student_id===studentId);
+}
+
+function caseOptionsForUpload(selected='',studentId=''){
+  const rows=casesForStudent(studentId);
+  if(!rows.length)return '<option value="">暂无服务案例，可先挂到学生档案</option>';
+  return '<option value="">不关联服务案例，仅挂到学生档案</option>'+rows.map(c=>`<option value="${esc(c.id)}" ${c.id===selected?'selected':''}>${esc(studentDisplay(studentById(c.student_id)))}｜${esc(c.service_type)}｜${esc(c.service_status)}</option>`).join('');
+}
+
 function profileOptions(selected='',roles=[]){
   const rows=data.profiles.filter(p=>p.status==='active'&&(!roles.length||roles.includes(p.role)||roles.includes('*')));
   return '<option value="">未分配</option>'+rows.map(p=>`<option value="${esc(p.id)}" ${p.id===selected?'selected':''}>${esc(p.display_name||p.email)}｜${esc(roleText(p.role))}</option>`).join('');
@@ -600,7 +626,7 @@ async function submitQuickOrder(form){
     name:fd.get('customer_name'),relation_to_student:fd.get('relation_to_student'),mobile:fd.get('mobile'),wechat:fd.get('wechat'),source:fd.get('source'),sales_owner_id:auth.user.id,remark:fd.get('remark')
   })}))[0];
   const subjectChoices=String(fd.get('subject_choices')||'').split(/[、,，\s]+/).filter(Boolean);
-  const student=(await apiFetch('students',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({
+  const studentPayload={
     owner_id:auth.user.id,
     planner_id:fd.get('main_consultant_id')||auth.user.id,
     name:fd.get('student_name'),
@@ -619,7 +645,12 @@ async function submitQuickOrder(form){
     gaokao_rank:fd.get('rank')?Number(fd.get('rank')):null,
     parent_demand:fd.get('remark'),
     service_started_at:new Date().toISOString()
-  })}))[0];
+  };
+  const student=(await writeStudentRecord('students','POST',studentPayload))[0];
+  if(student){
+    student.subject_choices=subjectChoices;
+    student.second_subjects=student.second_subjects||subjectChoices;
+  }
   const order=(await apiFetch('crm_orders',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({
     customer_id:customer.id,student_id:student.id,service_type:[serviceType],amount_total:Number(fd.get('amount_total')||0),amount_paid:Number(fd.get('amount_paid')||0),payment_status:fd.get('payment_status'),order_status:'待分配',contract_status:'未签',source:fd.get('source'),sales_owner_id:auth.user.id,service_deadline:fd.get('service_deadline')||null,remark:fd.get('remark')
   })}))[0];
@@ -690,7 +721,11 @@ async function submitStudentForm(form){
     major_blacklist:fd.get('major_blacklist'),
     parent_demand:fd.get('parent_demand')
   };
-  const rows=await apiFetch(id?`students?id=eq.${encodeURIComponent(id)}`:'students',{method:id?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)});
+  const rows=await writeStudentRecord(id?`students?id=eq.${encodeURIComponent(id)}`:'students',id?'PATCH':'POST',payload);
+  if(rows?.[0]){
+    rows[0].subject_choices=choices;
+    rows[0].second_subjects=rows[0].second_subjects||choices;
+  }
   await logAudit(id?'修改学生档案':'创建学生档案','students',rows?.[0]?.id||id,null,payload);
   closeModal();
   await loadAll();
@@ -805,9 +840,13 @@ async function submitRisk(form){
 }
 
 function fileForm(planMode=false){
+  const currentCase=caseById(selectedCaseId);
+  const currentStudentId=currentCase?.student_id||selectedStudentId||'';
+  const hasCaseChoices=casesForStudent(currentStudentId).length>0;
   openModal(planMode?'上传方案版本':'上传附件',`
     <form id="${planMode?'planForm':'fileForm'}" class="form-grid">
-      <label>服务案例<select name="service_case_id" required>${caseOptions(selectedCaseId)}</select></label>
+      <label>学生档案<select name="student_id" required>${studentOptions(currentStudentId)}</select></label>
+      <label>服务案例<select name="service_case_id" ${planMode?'required':''}>${caseOptionsForUpload(selectedCaseId,currentStudentId)}</select>${hasCaseChoices?'':'<small>该学生暂无服务案例，附件会先保存到学生档案。</small>'}</label>
       <label>文件类型<select name="file_type"><option>${planMode?'志愿方案':'成绩截图'}</option><option>体检表</option><option>报名截图</option><option>付款截图</option><option>聊天记录</option><option>志愿方案</option><option>会议纪要</option><option>招生简章</option><option>政策文件</option><option>身份证明</option><option>其他</option></select></label>
       ${planMode?'<label>方案名称<input name="plan_name" required placeholder="张三普通批方案"></label><label>版本号<input name="version_no" value="V1"></label><label>方案类型<select name="plan_type"><option>初筛方案</option><option>普通批方案</option><option>综评方案</option><option>强基方案</option><option>提前批方案</option><option>中外合作方案</option><option>最终交付方案</option><option>其他</option></select></label><label>复核状态<select name="review_status"><option>未提交</option><option>待复核</option><option>复核通过</option><option>需修改</option><option>已驳回</option></select></label>':''}
       <label class="wide">选择文件<input name="file" type="file" required></label>
@@ -819,16 +858,19 @@ function fileForm(planMode=false){
 async function submitFile(form,planMode=false){
   const fd=new FormData(form);
   const c=caseById(fd.get('service_case_id'));
+  const studentId=c?.student_id||fd.get('student_id');
+  if(!studentId)throw new Error('请选择学生档案。');
+  if(planMode&&!c)throw new Error('上传方案版本必须先选择服务案例。');
   const file=fd.get('file');
   if(!file||!file.name)throw new Error('请选择文件。');
   const stamp=new Date().toISOString().replace(/[:.]/g,'-');
   const safe=file.name.replace(/[^\w.\-\u4e00-\u9fa5]+/g,'_');
-  const path=`students/${c.student_id}/${c.id}/${stamp}-${safe}`;
+  const path=`students/${studentId}/${c?.id||'student-files'}/${stamp}-${safe}`;
   await storageUpload(path,file);
-  const fileRows=await apiFetch('crm_file_attachments',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({service_case_id:c.id,student_id:c.student_id,file_name:file.name,file_type:fd.get('file_type'),file_path:path,mime_type:file.type||'application/octet-stream',file_size:file.size,uploaded_by:auth.user.id,remark:fd.get('remark')})});
+  const fileRows=await apiFetch('crm_file_attachments',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({service_case_id:c?.id||null,student_id:studentId,file_name:file.name,file_type:fd.get('file_type'),file_path:path,mime_type:file.type||'application/octet-stream',file_size:file.size,uploaded_by:auth.user.id,remark:fd.get('remark')})});
   if(planMode){
     const fileRow=fileRows[0];
-    const planRows=await apiFetch('crm_plan_versions',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({service_case_id:c.id,student_id:c.student_id,plan_name:fd.get('plan_name'),version_no:fd.get('version_no')||'V1',plan_type:fd.get('plan_type'),file_id:fileRow.id,created_by:auth.user.id,review_status:fd.get('review_status'),change_log:fd.get('remark')})});
+    const planRows=await apiFetch('crm_plan_versions',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({service_case_id:c.id,student_id:studentId,plan_name:fd.get('plan_name'),version_no:fd.get('version_no')||'V1',plan_type:fd.get('plan_type'),file_id:fileRow.id,created_by:auth.user.id,review_status:fd.get('review_status'),change_log:fd.get('remark')})});
     await logAudit('上传方案','crm_plan_versions',planRows?.[0]?.id,null,planRows?.[0]);
   }else{
     await logAudit('上传附件','crm_file_attachments',fileRows?.[0]?.id,null,fileRows?.[0]);
