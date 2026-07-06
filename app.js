@@ -2177,22 +2177,12 @@ function schoolHTML(s,groups,withCards){
   const planDiff=plan26-plan25;
   return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)} ${admissionPriorityBadge(s)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(displayRegionLabel(s))}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span></div>${foreignCoopSchoolAlertHTML(groups)}${admissionPriorityAlertHTML(s)}<div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
 }
-function groupMajorTooltipHTML(g){
-  const majors=Array.isArray(g?.majors)?g.majors:[];
-  if(!majors.length)return '';
-  const rows=majors.map((m,index)=>{
-    const plan=fmt(m.plan26);
-    const meta=[m.majorClass,plan==='—'?'':`计划${plan}`].filter(Boolean).join('｜');
-    return `<li><span class="group-major-tooltip-index">${index+1}</span><div><b>${esc(fmt(m.code))} ${esc(m.name||'未命名专业')}</b>${meta?`<small>${esc(meta)}</small>`:''}</div></li>`;
-  }).join('');
-  return `<div class="group-major-tooltip" role="tooltip" aria-hidden="true"><div class="group-major-tooltip-title">组内专业 ${majors.length} 个</div><ol>${rows}</ol></div>`;
-}
 function groupCardHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const topTags=[...(g.tags||[]).slice(0,3),...(g.majorClasses||[]).slice(0,3)];
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,true)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div>${groupMajorTooltipHTML(g)}</article>`;
+  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,true)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
@@ -2220,116 +2210,8 @@ function majorRowHTML(s,g,m){
   const majorNameButton=`<button class="major-name-link" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看${esc(m.name)}专业详情">${esc(m.name)}</button>`;
   return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked||qualificationBlocked?'当前学生档案不满足该专业组选科/体检/报考资格要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
-function clampTooltip(n,min,max){return Math.min(Math.max(n,min),Math.max(min,max));}
-function getGroupMajorTooltip(card){
-  if(!card)return null;
-  if(card.__groupMajorTooltip)return card.__groupMajorTooltip;
-  const tip=card.querySelector?.('.group-major-tooltip');
-  if(tip){
-    card.__groupMajorTooltip=tip;
-    tip.__groupMajorTooltipOwner=card;
-  }
-  return tip||null;
-}
-function mountGroupMajorTooltip(card){
-  const tip=getGroupMajorTooltip(card);
-  if(!tip)return null;
-  if(!tip.__groupTooltipHome){
-    tip.__groupTooltipHome={parent:tip.parentNode,next:tip.nextSibling};
-  }
-  if(tip.parentNode!==document.body)document.body.appendChild(tip);
-  tip.setAttribute('aria-hidden','false');
-  return tip;
-}
-function restoreGroupMajorTooltip(card){
-  const tip=getGroupMajorTooltip(card);
-  if(!tip)return;
-  tip.classList.remove('is-open','is-measuring');
-  tip.setAttribute('aria-hidden','true');
-  tip.style.removeProperty('--group-tooltip-left');
-  tip.style.removeProperty('--group-tooltip-top');
-  tip.style.removeProperty('max-height');
-  const home=tip.__groupTooltipHome;
-  if(home?.parent&&tip.parentNode!==home.parent){
-    home.parent.insertBefore(tip,home.next&&home.next.parentNode===home.parent?home.next:null);
-  }
-}
-function closeGroupMajorTooltips(exceptCard=null){
-  $$('.group-card.group-tooltip-open').forEach(card=>{
-    if(card===exceptCard)return;
-    card.classList.remove('group-tooltip-open');
-    card.style.removeProperty('--group-tooltip-left');
-    card.style.removeProperty('--group-tooltip-top');
-    restoreGroupMajorTooltip(card);
-  });
-  $$('.group-major-tooltip.is-open').forEach(tip=>{
-    const owner=tip.__groupMajorTooltipOwner;
-    if(owner&&owner!==exceptCard){
-      owner.classList.remove('group-tooltip-open');
-      restoreGroupMajorTooltip(owner);
-    }
-  });
-}
-function positionGroupMajorTooltip(card){
-  const tip=mountGroupMajorTooltip(card);
-  if(!tip)return;
-  const margin=12;
-  const gap=12;
-  const vw=window.innerWidth||document.documentElement.clientWidth||0;
-  const vh=window.innerHeight||document.documentElement.clientHeight||0;
-  const rect=card.getBoundingClientRect();
-  tip.style.maxHeight=`${Math.max(160,vh-margin*2)}px`;
-  tip.classList.add('is-measuring');
-  const tipWidth=Math.min(tip.offsetWidth||440,vw-margin*2);
-  const tipHeight=Math.min(tip.scrollHeight||tip.offsetHeight||240,vh-margin*2);
-  tip.classList.remove('is-measuring');
-  let left;
-  let top;
-  const rightSpace=vw-rect.right;
-  const leftSpace=rect.left;
-  if(rightSpace>=tipWidth+gap+margin){
-    left=rect.right+gap;
-    top=clampTooltip(rect.top,margin,vh-tipHeight-margin);
-  }else if(leftSpace>=tipWidth+gap+margin){
-    left=rect.left-tipWidth-gap;
-    top=clampTooltip(rect.top,margin,vh-tipHeight-margin);
-  }else{
-    left=clampTooltip(rect.left,margin,vw-tipWidth-margin);
-    const below=rect.bottom+gap;
-    const above=rect.top-tipHeight-gap;
-    top=(vh-rect.bottom>=tipHeight+gap||vh-rect.bottom>=rect.top)?below:above;
-    top=clampTooltip(top,margin,vh-tipHeight-margin);
-  }
-  tip.style.setProperty('--group-tooltip-left',`${Math.round(left)}px`);
-  tip.style.setProperty('--group-tooltip-top',`${Math.round(top)}px`);
-}
-function bindGroupMajorTooltips(){
-  if(!window.__groupMajorTooltipGlobalBound){
-    window.__groupMajorTooltipGlobalBound=true;
-    window.addEventListener('resize',closeGroupMajorTooltips);
-    window.addEventListener('scroll',closeGroupMajorTooltips,true);
-  }
-  $$('.group-card').forEach(card=>{
-    if(card.dataset.boundGroupTooltip==='1')return;
-    card.dataset.boundGroupTooltip='1';
-    const open=()=>{
-      closeGroupMajorTooltips(card);
-      positionGroupMajorTooltip(card);
-      card.classList.add('group-tooltip-open');
-      getGroupMajorTooltip(card)?.classList.add('is-open');
-    };
-    const refresh=()=>{if(card.classList.contains('group-tooltip-open'))positionGroupMajorTooltip(card);};
-    const close=()=>{card.classList.remove('group-tooltip-open');restoreGroupMajorTooltip(card);};
-    card.addEventListener('mouseenter',open);
-    card.addEventListener('mousemove',refresh);
-    card.addEventListener('mouseleave',close);
-    card.addEventListener('focusin',open);
-    card.addEventListener('focusout',e=>{if(!card.contains(e.relatedTarget))close();});
-  });
-}
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
-  bindGroupMajorTooltips();
   bindVolunteerButtons();
   bindClearMajorGroupButtons();
   bindMainMajorChecks();
