@@ -916,3 +916,200 @@ body.compact-mode .qualification-risk-label{
     grid-template-columns:repeat(auto-fill,minmax(330px,1fr))!important;
   }
 }
+
+/* V1.1.70 志愿专业表全屏可读版：避免宽屏被压成侧栏、专业卡片被省略。 */
+.app-shell .volunteer-panel,
+body.compact-mode .app-shell .volunteer-panel,
+.volunteer-panel,
+body.compact-mode .volunteer-panel{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  max-width:none!important;
+  height:100vh!important;
+  max-height:none!important;
+  border:0!important;
+  border-radius:0!important;
+  background:#f6f8f7!important;
+  transform:translateY(105%)!important;
+  z-index:120!important;
+}
+.app-shell .volunteer-panel.open,
+body.compact-mode .app-shell .volunteer-panel.open,
+.volunteer-panel.open,
+body.compact-mode .volunteer-panel.open{
+  transform:translateY(0)!important;
+}
+.volunteer-panel .panel-head{
+  position:sticky!important;
+  top:0!important;
+  z-index:24!important;
+  min-height:76px!important;
+  padding:14px 28px!important;
+  background:#fffdf8!important;
+  border-bottom:1px solid #e4d8c9!important;
+}
+.volunteer-panel .volunteer-workbench{
+  height:calc(100vh - 76px)!important;
+  max-height:none!important;
+  padding:16px 28px 34px!important;
+  overflow:auto!important;
+  background:#f6f8f7!important;
+}
+.volunteer-panel .volunteer-table-head,
+body.compact-mode .volunteer-panel .volunteer-table-head,
+.volunteer-panel .volunteer-table-row,
+body.compact-mode .volunteer-panel .volunteer-table-row{
+  width:100%!important;
+  grid-template-columns:72px minmax(250px,.68fr) minmax(780px,2.7fr) minmax(210px,.52fr) 72px!important;
+}
+.volunteer-panel .volunteer-table-head{
+  display:grid!important;
+  overflow:visible!important;
+}
+.volunteer-panel .volunteer-table-row{
+  min-height:0!important;
+  align-items:start!important;
+  overflow:visible!important;
+}
+.volunteer-panel .volunteer-order-col,
+.volunteer-panel .volunteer-group-col,
+.volunteer-panel .volunteer-major-col,
+.volunteer-panel .volunteer-data-col,
+.volunteer-panel .volunteer-action-col{
+  min-width:0!important;
+  overflow:visible!important;
+}
+.volunteer-panel .volunteer-major-col{
+  background:#fffdf8!important;
+}
+.volunteer-panel .volunteer-major-strip{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr))!important;
+  gap:8px!important;
+  margin:0 0 10px!important;
+}
+.volunteer-panel .volunteer-major-strip-item{
+  grid-template-columns:24px minmax(0,1fr) auto!important;
+  align-items:start!important;
+  min-height:58px!important;
+  padding:9px 10px!important;
+  overflow:visible!important;
+}
+.volunteer-panel .volunteer-major-name,
+.volunteer-panel .volunteer-pool-major-body{
+  min-width:0!important;
+  overflow:visible!important;
+}
+.volunteer-panel .volunteer-major-name b,
+.volunteer-panel .volunteer-pool-major-top{
+  display:flex!important;
+  align-items:flex-start!important;
+  flex-wrap:wrap!important;
+  gap:5px 6px!important;
+  min-width:0!important;
+  white-space:normal!important;
+  overflow:visible!important;
+}
+.volunteer-panel .volunteer-major-name b .major-name-text,
+.volunteer-panel .volunteer-pool-major-top b,
+.volunteer-panel .major-name-text,
+.volunteer-panel .volunteer-major-name small,
+.volunteer-panel .volunteer-pool-major-body small,
+.volunteer-panel .volunteer-major-grid.compact-grid .major-check small{
+  max-width:100%!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:normal!important;
+  word-break:break-word!important;
+  overflow-wrap:anywhere!important;
+}
+.volunteer-panel .volunteer-major-name small,
+.volunteer-panel .volunteer-pool-major-body small,
+.volunteer-panel .volunteer-major-grid.compact-grid .major-check small{
+  line-height:1.35!important;
+}
+.volunteer-panel .volunteer-major-grid.compact-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr))!important;
+  gap:8px!important;
+  margin-top:8px!important;
+  overflow:visible!important;
+}
+.volunteer-panel .volunteer-major-grid.compact-grid .major-check{
+  grid-template-columns:18px 24px minmax(0,1fr)!important;
+  align-items:start!important;
+  min-height:66px!important;
+  padding:9px 10px!important;
+  overflow:visible!important;
+}
+.volunteer-panel .risk-label,
+.volunteer-panel .medical-risk-label,
+.volunteer-panel .qualification-risk-label{
+  max-width:none!important;
+  white-space:nowrap!important;
+}
+.volunteer-panel .volunteer-major-mini-actions{
+  align-self:start!important;
+  flex:0 0 auto!important;
+}
+@media (max-width:1320px){
+  .volunteer-panel .volunteer-table-head{
+    display:none!important;
+  }
+  .volunteer-panel .volunteer-table-row,
+  body.compact-mode .volunteer-panel .volunteer-table-row{
+    grid-template-columns:72px minmax(260px,.8fr) minmax(520px,1.8fr)!important;
+  }
+  .volunteer-panel .volunteer-major-col,
+  .volunteer-panel .volunteer-data-col,
+  .volunteer-panel .volunteer-action-col{
+    grid-column:auto!important;
+  }
+  .volunteer-panel .volunteer-order-col{
+    grid-row:span 2!important;
+  }
+  .volunteer-panel .volunteer-group-col{
+    border-right:1px solid var(--line)!important;
+  }
+  .volunteer-panel .volunteer-data-col{
+    grid-column:2!important;
+  }
+  .volunteer-panel .volunteer-action-col{
+    grid-column:3!important;
+    flex-direction:row!important;
+    justify-content:flex-start!important;
+    border-top:1px solid var(--line)!important;
+  }
+}
+@media (max-width:860px){
+  .volunteer-panel .panel-head{
+    padding:12px 14px!important;
+  }
+  .volunteer-panel .volunteer-workbench{
+    padding:10px!important;
+  }
+  .volunteer-panel .volunteer-workbench-toolbar{
+    grid-template-columns:1fr 1fr!important;
+  }
+  .volunteer-panel .volunteer-workbench-toolbar input{
+    grid-column:1/-1!important;
+  }
+  .volunteer-panel .volunteer-table-row,
+  body.compact-mode .volunteer-panel .volunteer-table-row{
+    grid-template-columns:1fr!important;
+  }
+  .volunteer-panel .volunteer-order-col,
+  .volunteer-panel .volunteer-group-col,
+  .volunteer-panel .volunteer-major-col,
+  .volunteer-panel .volunteer-data-col,
+  .volunteer-panel .volunteer-action-col{
+    grid-column:1!important;
+    grid-row:auto!important;
+    border-right:0!important;
+  }
+  .volunteer-panel .volunteer-major-strip,
+  .volunteer-panel .volunteer-major-grid.compact-grid{
+    grid-template-columns:1fr!important;
+  }
+}
