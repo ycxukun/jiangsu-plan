@@ -1395,7 +1395,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="./haoshengya_login_landing.html?v=20260706-open-signup-r1" title="好生涯早规划登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="./haoshengya_login_landing.html?v=20260706-open-signup-r2" title="好生涯早规划登录页"></iframe>
     </div>
     <header class="topbar">
       <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><a id="contentCenterBtn" class="header-toggle content-toggle" href="./content/index.html">升学资讯</a><div class="version">${VERSION}</div><div id="studentProfileMenu" class="student-profile-menu"><button id="studentProfileBtn" class="student-profile-trigger" type="button" aria-expanded="false"><span id="studentProfileAvatar" class="student-profile-avatar">未</span><span class="student-profile-copy"><b id="studentProfileName">未选择学生</b><small id="studentProfileSummary">登录后管理学生、志愿表和账号</small></span><span class="student-profile-caret">⌄</span></button><div class="student-profile-dropdown"><div class="student-profile-card"><span id="studentProfileAvatarLarge" class="student-profile-avatar large">未</span><div><b id="studentProfileNameLarge">未选择学生</b><p id="studentProfileMeta">登录后可保存和加载志愿表。</p></div></div><div class="student-profile-mini"><span id="studentProfileAccount">账号：未登录</span><span id="studentProfileVolunteer">志愿表 0/40</span></div><div class="student-profile-actions"><button id="profileOpenStudents" type="button">学生档案</button><button id="profileOpenVolunteer" type="button">志愿表</button><button id="profileAccountCenter" type="button">账号中心</button><button id="profileSwitchAccount" type="button">切换账号</button><button id="profileLogout" class="danger" type="button">退出登录</button></div></div></div><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
@@ -3982,7 +3982,11 @@ async function requireApprovedProfile(){
   if(!auth.user?.id)return;
   const rows=await apiFetch(`profiles?select=role,status&id=eq.${encodeURIComponent(auth.user.id)}&limit=1`);
   const p=rows?.[0]||null;
-  const allowed=p&&p.status==='active'&&['admin','consultant','planner'].includes(p.role);
+  if(!p){
+    console.warn('未读取到账号 profiles 行，按内测开放注册默认规划师放行。');
+    return;
+  }
+  const allowed=p.status==='active'&&['admin','consultant','planner'].includes(p.role);
   if(!allowed){
     auth={accessToken:'',refreshToken:'',user:null};
     clearSavedAuth();

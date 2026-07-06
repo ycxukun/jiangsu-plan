@@ -1263,7 +1263,7 @@ function createLayout(){
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="../haoshengya_login_landing.html?v=20260706-open-signup-r1" title="好生涯早规划登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="../haoshengya_login_landing.html?v=20260706-open-signup-r2" title="好生涯早规划登录页"></iframe>
     </div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
@@ -3557,7 +3557,11 @@ async function requireApprovedProfile(){
   if(!auth.user?.id)return;
   const rows=await apiFetch('profiles?select=role,status&id=eq.'+encodeURIComponent(auth.user.id)+'&limit=1');
   const p=rows?.[0]||null;
-  const allowed=p&&p.status==='active'&&['admin','consultant','planner'].includes(p.role);
+  if(!p){
+    console.warn('未读取到账号 profiles 行，按内测开放注册默认规划师放行。');
+    return;
+  }
+  const allowed=p.status==='active'&&['admin','consultant','planner'].includes(p.role);
   if(!allowed){
     auth={accessToken:'',refreshToken:'',user:null};
     clearSavedAuth();
