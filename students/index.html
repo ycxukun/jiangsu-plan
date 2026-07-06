@@ -120,9 +120,105 @@ h1{margin:0;font-size:24px;letter-spacing:0}
 <link rel="stylesheet" href="../style-claude-inspired.css?v=20260704-ui-r3-retry" />
 <link rel="stylesheet" href="../style-claude-force.css?v=20260704-ui-r3-retry" />
 <link rel="stylesheet" href="../style-claude-typography.css?v=20260704-typography-r1" />
-<link rel="stylesheet" href="../style-claude-clean.css?v=20260704-coop-clean-r1" />
+<link rel="stylesheet" href="../style-claude-clean.css?v=20260706-wide-r2" />
+<style>
+body.students-page .topbar{
+  z-index:20!important;
+}
+body.students-page .hero,
+body.students-page .page{
+  width:min(1880px,calc(100vw - 48px))!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+body.students-page .hero{
+  padding-left:0!important;
+  padding-right:0!important;
+}
+body.students-page .page{
+  padding-left:0!important;
+  padding-right:0!important;
+}
+body.students-page .panel{
+  width:auto!important;
+  max-width:none!important;
+  position:relative!important;
+}
+body.students-page .content-grid{
+  grid-template-columns:minmax(420px,520px) minmax(0,1fr)!important;
+  gap:18px!important;
+  align-items:start!important;
+}
+body.students-page .student-list{
+  grid-template-columns:1fr!important;
+}
+body.students-page .student-card{
+  min-width:0!important;
+}
+body.students-page .student-card h3,
+body.students-page .student-card p,
+body.students-page .form-title-btn span{
+  overflow-wrap:anywhere!important;
+}
+@media(min-width:1680px){
+  body.students-page .hero,
+  body.students-page .page{
+    width:min(1960px,calc(100vw - 64px))!important;
+  }
+  body.students-page .toolbar{
+    grid-template-columns:minmax(420px,1fr) 180px 180px auto!important;
+    gap:12px!important;
+  }
+  body.students-page .content-grid{
+    grid-template-columns:clamp(460px,25vw,560px) minmax(0,1fr)!important;
+    gap:22px!important;
+  }
+  body.students-page .panel-body{
+    padding:18px 20px!important;
+  }
+  body.students-page .student-form-grid{
+    gap:12px!important;
+  }
+  body.students-page .student-list{
+    grid-template-columns:repeat(auto-fit,minmax(560px,1fr))!important;
+    gap:12px!important;
+  }
+  body.students-page .student-card{
+    padding:16px!important;
+  }
+}
+@media(min-width:2200px){
+  body.students-page .hero,
+  body.students-page .page{
+    width:min(2320px,calc(100vw - 88px))!important;
+  }
+  body.students-page .content-grid{
+    grid-template-columns:clamp(500px,22vw,620px) minmax(0,1fr)!important;
+  }
+  body.students-page .student-list{
+    grid-template-columns:repeat(auto-fit,minmax(620px,1fr))!important;
+  }
+}
+@media(max-width:900px){
+  body.students-page .hero,
+  body.students-page .page{
+    width:auto!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    padding-left:24px!important;
+    padding-right:24px!important;
+  }
+}
+@media(max-width:560px){
+  body.students-page .hero,
+  body.students-page .page{
+    padding-left:12px!important;
+    padding-right:12px!important;
+  }
+}
+</style>
 </head>
-<body>
+<body class="students-page">
 <header class="topbar">
   <div class="hero">
     <div>

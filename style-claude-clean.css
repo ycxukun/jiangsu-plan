@@ -838,10 +838,10 @@ body.compact-mode .qualification-risk-label{
   .major-name-link{
     line-height:1.55!important;
   }
-  .panel{
+  .app-shell .panel{
     width:min(720px,42vw)!important;
   }
-  .volunteer-panel{
+  .app-shell .volunteer-panel{
     width:min(1080px,58vw)!important;
   }
 }
