@@ -383,16 +383,8 @@ function planDeltaBadge(v){if(v===null||v===undefined||v==='')return ''; const c
 function groupNamingMeta(s,g){
   const rawMeta=GROUP_NAMING[keyGroup(s,g)]||null;
   const meta=cleanGroupNamingMeta(s,g,rawMeta);
-  const inferred=runtimeGroupNamingMeta(g);
-  if(!meta||meta.sourceYear!==2026)return inferred;
-  if(!inferred)return meta;
-  if(isWeakRuntimeGroupName(inferred.name))return meta;
-  return {
-    ...meta,
-    ...inferred,
-    sourceName:meta.name||'',
-    basis:`按当前专业组内“专业类”实时校正，不使用专业名称望文生义。${meta.basis?` ${meta.basis}`:''}`
-  };
+  if(meta&&meta.sourceYear===2026)return meta;
+  return runtimeGroupNamingMeta(g);
 }
 function cleanGroupNamingMeta(s,g,meta){
   if(!meta)return null;

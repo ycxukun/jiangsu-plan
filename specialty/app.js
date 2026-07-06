@@ -379,16 +379,8 @@ function planChangeInline(v){if(v===null||v===undefined||v==='')return '—'; re
 function planDeltaBadge(v){if(v===null||v===undefined||v==='')return ''; const cls=signedClass(v); const label=v>0?'计划增加':v<0?'计划减少':'计划持平'; return `<span class="badge ${v>0?'green':v<0?'red':''} ${cls}">${label} ${formatSigned(v)}</span>`;}
 function groupNamingMeta(s,g){
   const meta=GROUP_NAMING[keyGroup(s,g)]||null;
-  const inferred=runtimeGroupNamingMeta(g);
-  if(!meta||meta.sourceYear!==2026)return inferred;
-  if(!inferred)return meta;
-  if(isWeakRuntimeGroupName(inferred.name))return meta;
-  return {
-    ...meta,
-    ...inferred,
-    sourceName:meta.name||'',
-    basis:`按当前专业组内“专业类”实时校正，不使用专业名称望文生义。${meta.basis?` ${meta.basis}`:''}`
-  };
+  if(meta&&meta.sourceYear===2026)return meta;
+  return runtimeGroupNamingMeta(g);
 }
 function isWeakRuntimeGroupName(name){
   return /^(其他|其他未细分|试验班未细分|交叉学科)(组|复合组|等混合组)?/.test(String(name||''));
