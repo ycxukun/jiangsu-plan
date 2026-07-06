@@ -2747,6 +2747,31 @@ function localDateStamp(d=new Date()){
   const pad=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
 }
+function localDateTimeStamp(d=new Date()){
+  const pad=(n,len=2)=>String(n).padStart(len,'0');
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}-${pad(d.getMilliseconds(),3)}`;
+}
+function safeFileSegment(v,fallback='未填'){
+  const text=String(v??'').trim()||fallback;
+  return text.replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'').replace(/_+/g,'_').slice(0,60)||fallback;
+}
+function studentExportNo(){
+  const raw=currentStudent?.student_no;
+  if(raw!==null&&raw!==undefined&&String(raw).trim()){
+    const text=String(raw).trim();
+    return /^HSY/i.test(text)?text:`HSY${text.padStart(6,'0')}`;
+  }
+  const id=String(currentStudent?.id||'').replace(/-/g,'');
+  return id?`SID${id.slice(0,10)}`:'未填学号';
+}
+function volunteerFormExportNo(now=new Date()){
+  const id=String(currentVolunteerForm?.id||'').replace(/-/g,'');
+  if(id)return `VF${id.slice(0,12)}`;
+  return `草稿${localDateTimeStamp(now)}`;
+}
+function volunteerExportFileName(now=new Date()){
+  return `${safeFileSegment(studentExportNo(),'未填学号')}_${safeFileSegment(currentStudent?.name,'未填姓名')}_${localDateTimeStamp(now)}_${safeFileSegment(volunteerFormExportNo(now),'未保存志愿表')}.xls`;
+}
 function excelCell(v,style,opts={}){
   const isNum=typeof v==='number'&&Number.isFinite(v);
   const attrs=[];
@@ -2811,7 +2836,9 @@ function exportVolunteerXlsx(){
     alert(`导出前需要把每个专业组的专业填满：\n${invalid.slice(0,10).join('\n')}${invalid.length>10?'\n……':''}`);
     return;
   }
-  const date=localDateStamp();
+  const now=new Date();
+  const date=localDateStamp(now);
+  const exportFileName=volunteerExportFileName(now);
   const headers=['志愿序号','填报通道','院校专业组代码','专业组','专业组信息','专业志愿序号','专业代码','专业名称','资格匹配结果','2026计划','25计划','25最低分','25最低位次','3年平均分','3年平均位次','定位','服从调剂','备注','选择状态'];
   const widths=[58,112,82,170,320,72,76,280,260,76,72,76,92,86,110,70,78,220,92];
   const valueOrBlank=v=>v===null||v===undefined||v===''||Number.isNaN(v)?'':v;
@@ -2909,11 +2936,11 @@ function exportVolunteerXlsx(){
   const blob=new Blob(['\ufeff',workbook],{type:'application/vnd.ms-excel;charset=utf-8'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=`江苏志愿基础表_${date}.xls`;
+  a.download=exportFileName;
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
-  recordVolunteerExportIfPossible(rows.length);
+  recordVolunteerExportIfPossible(rows.length,exportFileName);
 }
 
 function bindGroupChangeButtons(){
@@ -3753,10 +3780,10 @@ async function loadVolunteerForm(form,options){
   openPanel('volunteerPanel');
   alert('已加载：'+form.title);
 }
-async function recordVolunteerExportIfPossible(rowCount){
+async function recordVolunteerExportIfPossible(rowCount,fileName=volunteerExportFileName()){
   if(!supabaseConfigured()||!auth.accessToken||!currentStudent||!currentVolunteerForm)return;
   try{
-    await apiFetch('volunteer_exports',{method:'POST',body:JSON.stringify({form_id:currentVolunteerForm.id,student_id:currentStudent.id,owner_id:auth.user.id,format:'xls',file_name:'江苏志愿基础表_'+localDateStamp()+'.xls',group_count:volunteerKeys.length,major_count:Object.values(volunteerMajorKeys).reduce(function(sum,keys){return sum+(Array.isArray(keys)?keys.length:0);},0),source_payload:{rowCount}})});
+    await apiFetch('volunteer_exports',{method:'POST',body:JSON.stringify({form_id:currentVolunteerForm.id,student_id:currentStudent.id,owner_id:auth.user.id,format:'xls',file_name:fileName,group_count:volunteerKeys.length,major_count:Object.values(volunteerMajorKeys).reduce(function(sum,keys){return sum+(Array.isArray(keys)?keys.length:0);},0),source_payload:{rowCount}})});
   }catch(err){console.warn('记录导出失败',err);}
 }
 
