@@ -381,7 +381,13 @@ function planChangeInline(v){if(v===null||v===undefined||v==='')return '—'; re
 function planDeltaBadge(v){if(v===null||v===undefined||v==='')return ''; const cls=signedClass(v); const label=v>0?'计划增加':v<0?'计划减少':'计划持平'; return `<span class="badge ${v>0?'green':v<0?'red':''} ${cls}">${label} ${formatSigned(v)}</span>`;}
 function groupNamingMeta(s,g){
   const meta=GROUP_NAMING[keyGroup(s,g)]||null;
-  return meta&&meta.sourceYear===2026?meta:null;
+  if(!meta||meta.sourceYear!==2026)return null;
+  const name=String(meta.name||'');
+  if(name&&authoritativeBatchGuideMeta(s,g).guideId!=='early-police'){
+    const cleanName=name.replace(/法政公安/g,'法政');
+    if(cleanName!==name)return {...meta,name:cleanName,category:String(meta.category||'').replace(/法政公安/g,'法政')};
+  }
+  return meta;
 }
 function classBucket(c){
   const t=String(c||'');
@@ -391,7 +397,8 @@ function classBucket(c){
   if(/临床医学|口腔|医学技术|基础医学|中医学|药学|护理/.test(t))return '医药';
   if(/数学|统计|物理|天文|力学/.test(t))return '数理基础';
   if(/金融|经济|财政|经贸|工商管理|管理科学|会计|财务|电子商务|物流|工业工程/.test(t))return '经管';
-  if(/法学|公安|马克思|政治|社会学/.test(t))return '法政公安';
+  if(/公安/.test(t))return '公安';
+  if(/法学|马克思|政治|社会学/.test(t))return '法政';
   if(/中国语言|外国语言|新闻传播|历史|哲学|图书|戏剧|艺术/.test(t))return '文史语言新闻';
   if(/材料/.test(t))return '材料';
   if(/化学|化工|制药/.test(t))return '化工';
@@ -1042,8 +1049,177 @@ function groupScoreLineHTML(s,g){
   if(p)return `预测分 ${esc(fmtNum(p.score))}｜预测位次 ${esc(fmtNum(p.rank))} <span class="note-badge" title="${esc(p.reason)}">估</span>`;
   return `25分 ${fmtNum(g.score25)}｜25位次 ${fmtNum(g.rank25)}`;
 }
+const PLAN_CATEGORY_GUIDE_PRIORITY=['early-sergeant','early-medical','early-military','early-police','early-maritime','early-special-plan','special-strong-base','special-comprehensive-a','special-comprehensive-b','early-other'];
+function batchGuideDefById(id){
+  if(!id||!window.BatchGuide)return null;
+  return (window.BatchGuide.GUIDE_DEFS||[]).find(def=>def.id===id)||null;
+}
+function normalizePlanBatchKey(v){
+  const t=String(v||'').trim();
+  if(!t)return '';
+  if(/提前/.test(t))return '提前本科批';
+  if(/普通批|本科批|本科院校/.test(t))return '本科批';
+  if(/专科|高职/.test(t))return '专科批';
+  return t;
+}
+function planCode(v,width){
+  let t=String(v??'').trim();
+  if(!t)return '';
+  if(/^\d+\.0$/.test(t))t=t.replace(/\.0$/,'');
+  if(width&&/^\d+$/.test(t))t=t.padStart(width,'0');
+  return t;
+}
+function planCategoryGuideId(v){
+  const t=String(v||'').trim();
+  if(!t)return '';
+  if(/定向培养军士|定向军士|军士生|士官/.test(t))return 'early-sergeant';
+  if(/农村订单定向医学生|医学定向|免费医学生|定向医学生|6医学定向/.test(t))return 'early-medical';
+  if(/军队院校|1军校|军校/.test(t))return 'early-military';
+  if(!/非公安/.test(t)&&/公安政法|2公安|公安院校|公安类/.test(t))return 'early-police';
+  if(/航海院校|3航海|航海/.test(t))return 'early-maritime';
+  if(/地方专项|高校专项|国家专项|农村专项|专项计划|4地方专项|5高校专项/.test(t))return 'early-special-plan';
+  if(/强基计划|强基/.test(t))return 'special-strong-base';
+  if(/8综评A|综评A|综合评价A|综合评价 A/.test(t))return 'special-comprehensive-a';
+  if(/综评B|综合评价B|综合评价 B/.test(t))return 'special-comprehensive-b';
+  if(/其他院校|7其他/.test(t))return 'early-other';
+  return '';
+}
+function planCategorySubject(s,g,d={}){
+  return String(s?.subject||g?.subject||d.subject||'').trim();
+}
+function planCategoryBatch(s,g,d={}){
+  return normalizePlanBatchKey(s?.batch||g?.batch||d.batch||'');
+}
+function planCategoryGroupCode(g,d={}){
+  return planCode(g?.groupCode||g?.schoolGroupCode||d.groupCode||d.schoolGroupCode||'',6);
+}
+function planCategoryMajorCode(m,d={}){
+  return planCode(m?.code||d.code||d.majorCode||'',2);
+}
+function planCategoryMajorKey(s,g,m,d={}){
+  const subject=planCategorySubject(s,g,d);
+  const batch=planCategoryBatch(s,g,d);
+  const groupCode=planCategoryGroupCode(g,d);
+  const majorCode=planCategoryMajorCode(m,d);
+  return subject&&batch&&groupCode&&majorCode?`${subject}|${batch}|${groupCode}|${majorCode}`:'';
+}
+function planCategoryGroupKey(s,g,d={}){
+  const subject=planCategorySubject(s,g,d);
+  const batch=planCategoryBatch(s,g,d);
+  const groupCode=planCategoryGroupCode(g,d);
+  return subject&&batch&&groupCode?`${subject}|${batch}|${groupCode}`:'';
+}
+function strictMajorCategoryValues(map,s,g,m){
+  const vals=[];
+  const push=v=>{
+    const t=String(v??'').trim();
+    if(t)vals.push(t);
+  };
+  if(!map)return vals;
+  const collect=major=>{
+    const d=major?detailOf(major):{};
+    const key=planCategoryMajorKey(s,g,major,d);
+    const value=key?map[key]:'';
+    push(value);
+    return Boolean(value);
+  };
+  if(m)collect(m);
+  else{
+    const majors=g?.majors||[];
+    if(!majors.length)return [];
+    if(!majors.every(collect))return [];
+  }
+  return unique(vals);
+}
+function strictGroupCategoryValues(map,s,g,m){
+  if(m||!map)return [];
+  const d=representativeDetailForGroup(g);
+  const key=planCategoryGroupKey(s,g,d);
+  const v=key?map[key]:'';
+  return v?unique([v]):[];
+}
+function legacyEarlyGroupCategoryValues(s,g,m){
+  if(m)return [];
+  const exactMap=window.EARLY_BATCH_CATEGORIES||{};
+  const subject=String(s?.subject||g?.subject||'').trim();
+  const groupCode=planCode(g?.groupCode||g?.schoolGroupCode||'',6);
+  const v=exactMap[`${subject}|${groupCode}`];
+  return v?unique([v]):[];
+}
+function detailPlanCategoryValues(s,g,m){
+  const vals=[];
+  const push=v=>{
+    const t=String(v??'').trim();
+    if(t)vals.push(t);
+  };
+  const collect=major=>{
+    const d=major?detailOf(major):{};
+    push(d.planCategory);
+    push(d.earlyBatchCategory);
+    push(d.advanceBatchCategory);
+    push(d.specialAdmissionCategory);
+    push(d['提前批类别']);
+  };
+  if(m)collect(m);
+  else (g?.majors||[]).forEach(collect);
+  return unique(vals);
+}
+function representativeDetailForGroup(g){
+  for(const major of (g?.majors||[])){
+    const d=detailOf(major);
+    if(d&&Object.keys(d).length)return d;
+  }
+  return {};
+}
+function groupPlanCategoryBuckets(s,g,m){
+  const primaryMajor=strictMajorCategoryValues(window.PLAN_CATEGORY_BY_MAJOR_312,s,g,m);
+  const primaryGroup=primaryMajor.length?[]:strictGroupCategoryValues(window.PLAN_CATEGORY_BY_GROUP_312,s,g,m);
+  const legacyGroup=(primaryMajor.length||primaryGroup.length)?[]:legacyEarlyGroupCategoryValues(s,g,m);
+  const expertMajor=(primaryMajor.length||primaryGroup.length||legacyGroup.length)?[]:strictMajorCategoryValues(window.PLAN_CATEGORY_BY_MAJOR_EXPERT,s,g,m);
+  const expertGroup=(primaryMajor.length||primaryGroup.length||legacyGroup.length||expertMajor.length)?[]:strictGroupCategoryValues(window.PLAN_CATEGORY_BY_GROUP_EXPERT,s,g,m);
+  const details=(primaryMajor.length||primaryGroup.length||legacyGroup.length||expertMajor.length||expertGroup.length)?[]:detailPlanCategoryValues(s,g,m);
+  return [
+    {source:'312-major',values:primaryMajor},
+    {source:'312-group',values:primaryGroup},
+    {source:'312-legacy-group',values:legacyGroup},
+    {source:'expert-major',values:expertMajor},
+    {source:'expert-group',values:expertGroup},
+    {source:'detail-plan-category',values:details}
+  ];
+}
+function pickPlanCategoryBucket(buckets){
+  return buckets.find(b=>b.values&&b.values.length)||{source:'',values:[]};
+}
+function groupPlanCategoryValues(s,g,m){
+  return pickPlanCategoryBucket(groupPlanCategoryBuckets(s,g,m)).values;
+}
+function authoritativeBatchGuideMeta(s,g,m){
+  const buckets=groupPlanCategoryBuckets(s,g,m);
+  const chosen=pickPlanCategoryBucket(buckets);
+  const values=chosen.values;
+  const ids=unique(values.map(planCategoryGuideId).filter(Boolean));
+  ids.sort((a,b)=>PLAN_CATEGORY_GUIDE_PRIORITY.indexOf(a)-PLAN_CATEGORY_GUIDE_PRIORITY.indexOf(b));
+  return {known:values.length>0,guideId:ids[0]||'',values,source:chosen.source,allValues:buckets.flatMap(b=>b.values||[])};
+}
+function batchGuideContext(s,g,m,meta=authoritativeBatchGuideMeta(s,g,m)){
+  const d=m?detailOf(m):{};
+  return {
+    school:s,
+    group:g,
+    major:m,
+    batch:planCategoryBatch(s,g,d),
+    planCategorySource:meta.source,
+    details:{
+      ...d,
+      planCategory:[d.planCategory,...meta.values].filter(Boolean).join(' ')
+    }
+  };
+}
 function batchGuideDef(s,g,m){
-  return window.BatchGuide?window.BatchGuide.detect({school:s,group:g,major:m,details:m?detailOf(m):null}):null;
+  if(!window.BatchGuide)return null;
+  const meta=authoritativeBatchGuideMeta(s,g,m);
+  if(meta.known)return batchGuideDefById(meta.guideId);
+  return window.BatchGuide.detect(batchGuideContext(s,g,m,meta));
 }
 function batchGuideFilterId(){
   const v=String(state.batch||'');
@@ -1069,6 +1245,15 @@ function batchGuideFilterLabel(def){
   const name=String(def.scope||def.channel||'').split('·').pop().trim().replace(/提前批$/,'');
   return `提前批-${name||def.channel}`;
 }
+function isEarlyBatchLike(s,g){
+  const batch=normalizePlanBatchKey(s?.batch||g?.batch||'');
+  if(batch==='提前本科批')return true;
+  const text=[
+    s?.batch,g?.batch,g?.groupName,g?.rawGroupName,g?.remark,
+    ...(Array.isArray(g?.tags)?g.tags:[])
+  ].filter(Boolean).join(' ');
+  return /提前|1军校|2公安|3航海|4地方专项|5高校专项|6医学定向|7其他/.test(text);
+}
 function batchGuideEligibleForBatch(def,s,g){
   if(!def)return false;
   if(def.id==='early-sergeant')return true;
@@ -1086,13 +1271,25 @@ function groupMatchesBatchGuideFilter(s,g){
   return !!def&&def.id===guideId&&batchGuideEligibleForBatch(def,s,g);
 }
 function batchGuideBadgeHTML(s,g,compact=false){
-  return window.BatchGuide?window.BatchGuide.badgeHTML({school:s,group:g},compact):'';
+  const def=batchGuideDef(s,g);
+  return def?`<span class="batch-guide-badge" title="${esc(def.summary)}">${esc(compact?def.channel:def.scope)}</span>`:'';
 }
 function batchGuideButtonsHTML(s,g,compact=false){
-  return window.BatchGuide?window.BatchGuide.buttonsHTML({school:s,group:g},compact):'';
+  const def=batchGuideDef(s,g);
+  return def?`<button class="batch-guide-btn" type="button" data-batch-guide="${esc(def.id)}" title="${esc(def.summary)}">${esc(compact?'指南':def.title)}</button>`:'';
 }
 function batchGuideVolunteerSummaryHTML(entries){
-  return window.BatchGuide?window.BatchGuide.channelSummaryHTML(entries):'';
+  const counts=new Map();
+  (entries||[]).forEach(entry=>{
+    const rec=entry.rec||{};
+    const def=batchGuideDef(rec.s,rec.g);
+    if(def)counts.set(def.id,{def,count:(counts.get(def.id)?.count||0)+1});
+  });
+  if(!counts.size)return '';
+  const items=[...counts.values()].map(x=>`<button type="button" data-batch-guide="${esc(x.def.id)}"><b>${esc(x.def.channel)}</b><span>${x.count} 组</span></button>`).join('');
+  const hasStandalone=[...counts.keys()].some(id=>/^special-/.test(id));
+  const warn=counts.size>1?`<p class="batch-channel-warn">${hasStandalone?'已出现多个特殊/提前批通道：强基、综评 A、综评 B 是单独通道；':'已出现多个提前批通道：'}本科提前批按军校、公安、航海、专项计划、其他院校、定向医学生分别核对；专科定向军士单独核对。</p>`:'';
+  return `<div class="batch-channel-summary"><div><strong>批次/特殊通道</strong><span>点击查看对应指南</span></div><div class="batch-channel-items">${items}</div>${warn}</div>`;
 }
 function batchGuideSavePayload(s,g){
   const def=batchGuideDef(s,g);
@@ -1577,6 +1774,27 @@ function groupSpecialTypeValues(s,g){
   });
   const text=String(parts.filter(Boolean).join(' '));
   const add=x=>{if(isValidFacetValue(x))vals.add(x);};
+  const guideMeta=authoritativeBatchGuideMeta(s,g);
+  const guideId=guideMeta.guideId;
+  const guideKnown=guideMeta.known;
+  if(guideId==='early-military')add('军校');
+  if(guideId==='early-police')add('公安');
+  if(guideId==='early-maritime')add('航海/飞行');
+  if(guideId==='early-special-plan')add('专项计划');
+  if(guideId==='early-other')add('其他院校提前批');
+  if(guideId==='early-medical')add('定向医学生');
+  if(guideId==='special-strong-base')add('强基计划');
+  if(guideId==='special-comprehensive-a')add('综评A');
+  if(guideId==='special-comprehensive-b')add('综评B');
+  if(['early-military','early-police','early-maritime'].includes(guideId))add('军警航海');
+  const schoolName=String(s?.name||'');
+  const earlyFallback=isEarlyBatchLike(s,g);
+  const policeSchool=/(公安大学|人民公安|人民警察大学|刑事警察|警察学院|公安学院|江苏警官学院|广东警官学院|湖北警官学院|湖南警察学院|云南警官学院|福建警察学院|江西警察学院|山东警察学院|四川警察学院|重庆警察学院|新疆警察学院|贵州警察学院|吉林警察学院|辽宁警察学院|广西警察学院|山西警察学院|河南警察学院)/.test(schoolName);
+  const policeMajor=(g?.majors||[]).some(m=>{
+    const d=DETAILS[m.key]||{};
+    const mt=[m.name,m.baseName,m.remark,m.majorClass,m.discipline,d.majorFullName,d.undergraduateName,d.majorRemark,d.subjectMajor].filter(Boolean).join(' ');
+    return /公安学|公安技术|治安学|侦查学|侦察学|经济犯罪侦查|禁毒学|涉外警务|警务指挥|公安政治工作|公安管理学|公安情报学|移民管理|出入境管理|犯罪学|刑事科学技术|网络安全与执法|交通管理工程|安全防范工程|公安视听技术|数据警务技术|警犬技术/.test(mt);
+  });
   (g?.tags||[]).forEach(t=>add(t));
   if(/中外合作|合作办学|中外合办|国际合作|4\+0|3\+1|2\+2|外方|双校园|中英|中澳|中美|中法|中德|中俄|中韩|中日/.test(text))add('中外合作');
   if(/联合培养|高职院校联合|本科与高职|分段培养|贯通培养|协同培养|联合办学|联合学院/.test(text))add('联合培养');
@@ -1591,12 +1809,12 @@ function groupSpecialTypeValues(s,g){
   if(/8综评A|综评A|综合评价A|综合评价 A/.test(text))add('综评A');
   if(/综评B|综合评价B|综合评价 B/.test(text))add('综评B');
   if(/民族班|预科|少数民族/.test(text))add('民族班/预科');
-  if(/军校|军队院校|军事类|国防科技大学|陆军|海军|空军|火箭军|武警/.test(text))add('军校');
-  if(/公安|警校|人民公安|刑事警察|警察学院|治安学|侦查学|公安学|公安技术|网络安全与执法/.test(text))add('公安');
+  if(!guideKnown&&earlyFallback&&/军校|军队院校|军事类|国防科技大学|陆军|海军|空军|火箭军|武警/.test(text))add('军校');
+  if(!guideKnown&&earlyFallback&&!/非公安类招生/.test(text)&&(policeMajor||(/公安政法|2公安|公安院校|公安类/.test(text)&&policeSchool)))add('公安');
   if(/司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('司法警校');
-  if(/航海|轮机|船舶电子电气|飞行技术|民航|空中交通管制|海事/.test(text))add('航海/飞行');
-  if(/7其他|其他院校|本科提前批|提前本科|飞行技术|民航|空中交通管制|消防|司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('其他院校提前批');
-  if(/军校|公安|警校|航海|轮机|飞行技术|民航|空中交通管制|司法警官|消防/.test(text))add('军警航海');
+  if(!guideKnown&&earlyFallback&&/航海|轮机|船舶电子电气|飞行技术|民航|空中交通管制|海事/.test(text))add('航海/飞行');
+  if(!guideKnown&&earlyFallback&&/7其他|其他院校|本科提前批|提前本科|飞行技术|民航|空中交通管制|消防|司法警官|中央司法警官|司法行政|司法警察|监狱学|刑事执行|行政执行/.test(text))add('其他院校提前批');
+  if(!guideKnown&&earlyFallback&&(/军校|军队院校|军事类|国防科技大学|陆军|海军|空军|火箭军|武警|航海|轮机|飞行技术|民航|空中交通管制|司法警官|消防/.test(text)||policeMajor||(!/非公安类招生/.test(text)&&/公安政法|2公安|公安院校|公安类/.test(text)&&policeSchool)))add('军警航海');
   if(/实验班|试验班|拔尖|强基|钱学森|英才|菁英|创新班|卓越班|领军|尖班|书院/.test(text))add('实验班/拔尖班');
   if(/双学士|双学位|本博|本硕|硕博|直博|长学制|八年制|九年制/.test(text))add('双学位/本博硕博');
   return vals;
@@ -2260,7 +2478,10 @@ function buildGroupIndex(){
 }
 function getGroupRecord(key){return groupIndex.get(key)||null;}
 function sortedMajors(g){return [...(g.majors||[])].sort((a,b)=>{const ar=majorRiskMeta(null,g,a).risk,br=majorRiskMeta(null,g,b).risk; if(Boolean(ar)!==Boolean(br))return ar?1:-1; return majorSortByThreeYear(a,b);});}
-function defaultMajorKeys(g){return sortedMajors(g).slice(0,MAX_MAJOR_PER_GROUP).map(m=>m.key);}
+function selectableVolunteerMajors(g){
+  return sortedMajors(g).filter(m=>!medicalRestrictionForMajor(m).blocked&&!qualificationRiskBlocksSelection(qualificationRiskForMajor(null,g,m)));
+}
+function defaultMajorKeys(g){return selectableVolunteerMajors(g).slice(0,MAX_MAJOR_PER_GROUP).map(m=>m.key);}
 function uniqueValidMajorKeys(keys,g){
   const valid=new Set((g.majors||[]).map(m=>m.key));
   const out=[];
@@ -2822,10 +3043,13 @@ function exportVolunteerXlsx(){
     const rec=getGroupRecord(key);
     if(!rec)continue;
     const total=(rec.g.majors||[]).length;
-    const required=Math.min(MAX_MAJOR_PER_GROUP,total);
+    const selectableCount=selectableVolunteerMajors(rec.g).length;
+    const required=Math.min(MAX_MAJOR_PER_GROUP,selectableCount);
     const selectedCount=selectedMajorOrder(key).length;
-    if(required>0&&selectedCount!==required){
-      invalid.push(`${i+1}. ${groupShortTitle(rec.s,rec.g)}：已选 ${selectedCount}/${required}`);
+    if(total>0&&required===0){
+      invalid.push(`${i+1}. ${groupShortTitle(rec.s,rec.g)}：当前学生档案下无可选专业`);
+    }else if(required>0&&selectedCount!==required){
+      invalid.push(`${i+1}. ${groupShortTitle(rec.s,rec.g)}：已选 ${selectedCount}/${required} 个可选专业`);
     }
   }
   if(invalid.length){

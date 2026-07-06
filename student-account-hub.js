@@ -437,7 +437,7 @@
     const observer = new MutationObserver(() => renderHub());
     ['accountBtn','studentPanelBtn','volunteerPanelBtn','logoutHeaderBtn'].forEach(id => {
       const el = sourceButton(id);
-      if(el) observer.observe(el, { childList:true, subtree:true, attributes:true, characterData:true });
+      if(el && el.nodeType === Node.ELEMENT_NODE) observer.observe(el, { childList:true, subtree:true, attributes:true, characterData:true });
     });
   }
 

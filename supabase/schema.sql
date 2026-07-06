@@ -180,6 +180,7 @@ create table if not exists public.students (
   target_majors text[] not null default '{}',
   medical_codes text[] not null default '{}',
   intake_payload jsonb not null default '{}'::jsonb,
+  service_started_at timestamptz not null default now(),
   note text,
   archived boolean not null default false,
   created_at timestamptz not null default now(),
@@ -197,6 +198,19 @@ add column if not exists student_no text;
 
 alter table if exists public.students
 add column if not exists intake_payload jsonb not null default '{}'::jsonb;
+
+alter table if exists public.students
+add column if not exists service_started_at timestamptz;
+
+update public.students
+set service_started_at = coalesce(service_started_at, created_at, now())
+where service_started_at is null;
+
+alter table if exists public.students
+alter column service_started_at set default now();
+
+alter table if exists public.students
+alter column service_started_at set not null;
 
 update public.students
 set planner_id = owner_id
@@ -372,6 +386,9 @@ create table if not exists public.volunteer_exports (
   source_payload jsonb not null default '{}'::jsonb
 );
 
+alter table if exists public.volunteer_exports
+add column if not exists form_id uuid references public.volunteer_forms(id) on delete set null;
+
 create index if not exists volunteer_exports_form_idx on public.volunteer_exports(form_id);
 create index if not exists volunteer_exports_owner_idx on public.volunteer_exports(owner_id, exported_at desc);
 
@@ -392,6 +409,31 @@ create index if not exists notes_scope_target_idx on public.notes(scope, target_
 drop trigger if exists notes_set_updated_at on public.notes;
 create trigger notes_set_updated_at
 before update on public.notes
+for each row execute function public.set_updated_at();
+
+-- 学生档案库：按学生和资料板块保存私有文件索引。
+create table if not exists public.student_archive_files (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references public.students(id) on delete cascade,
+  section text not null check (section in ('comprehensive_eval', 'strong_base', 'awards', 'specialties', 'other')),
+  title text not null,
+  summary text,
+  file_url text,
+  file_path text not null,
+  file_name text not null,
+  mime_type text,
+  file_size bigint,
+  uploaded_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists student_archive_files_student_idx on public.student_archive_files(student_id, section, created_at desc);
+create index if not exists student_archive_files_uploaded_by_idx on public.student_archive_files(uploaded_by, created_at desc);
+
+drop trigger if exists student_archive_files_set_updated_at on public.student_archive_files;
+create trigger student_archive_files_set_updated_at
+before update on public.student_archive_files
 for each row execute function public.set_updated_at();
 
 -- 关键业务操作审计。
@@ -416,12 +458,99 @@ alter table public.volunteer_form_groups enable row level security;
 alter table public.volunteer_form_majors enable row level security;
 alter table public.volunteer_exports enable row level security;
 alter table public.notes enable row level security;
+alter table public.student_archive_files enable row level security;
 alter table public.audit_logs enable row level security;
+
+create or replace function public.can_manage_student(target_student_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_consultant_or_admin()
+    or exists (
+      select 1
+      from public.students s
+      where s.id = target_student_id
+        and (s.owner_id = auth.uid() or s.planner_id = auth.uid())
+    );
+$$;
+
+create or replace function public.can_view_profile(target_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select target_profile_id = auth.uid()
+    or public.is_consultant_or_admin()
+    or exists (
+      select 1
+      from public.students s
+      where (s.owner_id = auth.uid() and s.planner_id = target_profile_id)
+         or (s.planner_id = auth.uid() and s.owner_id = target_profile_id)
+    );
+$$;
+
+create or replace function public.can_manage_volunteer_form(target_form_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_consultant_or_admin()
+    or exists (
+      select 1
+      from public.volunteer_forms f
+      where f.id = target_form_id
+        and (f.owner_id = auth.uid() or public.can_manage_student(f.student_id))
+    );
+$$;
+
+create or replace function public.can_manage_volunteer_group(target_group_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_consultant_or_admin()
+    or exists (
+      select 1
+      from public.volunteer_form_groups g
+      where g.id = target_group_id
+        and (g.owner_id = auth.uid() or public.can_manage_volunteer_form(g.form_id))
+    );
+$$;
+
+create or replace function public.can_manage_student_archive_object(object_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, storage
+as $$
+  with parts as (
+    select storage.foldername(object_name) as segs
+  )
+  select public.is_consultant_or_admin()
+    or exists (
+      select 1
+      from parts, public.students s
+      where parts.segs[1] = 'students'
+        and parts.segs[2] ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        and s.id::text = parts.segs[2]
+        and public.can_manage_student(s.id)
+    );
+$$;
 
 drop policy if exists "profiles_select_own_or_admin" on public.profiles;
 create policy "profiles_select_own_or_admin"
 on public.profiles for select
-using (id = auth.uid() or public.is_admin());
+using (public.can_view_profile(id));
 
 drop policy if exists "profiles_insert_self" on public.profiles;
 create policy "profiles_insert_self"
@@ -445,134 +574,32 @@ with check (
 drop policy if exists "students_owner_all" on public.students;
 create policy "students_owner_all"
 on public.students for all
-using (
-  public.is_admin()
-  or (public.is_consultant_or_admin() and (owner_id = auth.uid() or planner_id = auth.uid()))
-)
-with check (
-  public.is_admin()
-  or (public.is_consultant_or_admin() and (owner_id = auth.uid() or planner_id = auth.uid()))
-);
+using (public.can_manage_student(id))
+with check (public.is_consultant_or_admin() or owner_id = auth.uid() or planner_id = auth.uid());
 
 drop policy if exists "volunteer_forms_owner_all" on public.volunteer_forms;
 create policy "volunteer_forms_owner_all"
 on public.volunteer_forms for all
-using (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and (
-      owner_id = auth.uid()
-      or exists (
-        select 1 from public.students s
-        where s.id = student_id
-          and (s.owner_id = auth.uid() or s.planner_id = auth.uid())
-      )
-    )
-  )
-)
-with check (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and exists (
-      select 1 from public.students s
-      where s.id = student_id
-        and (s.owner_id = auth.uid() or s.planner_id = auth.uid() or s.owner_id = owner_id)
-    )
-  )
-);
+using (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_student(student_id))
+with check (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_student(student_id));
 
 drop policy if exists "volunteer_groups_owner_all" on public.volunteer_form_groups;
 create policy "volunteer_groups_owner_all"
 on public.volunteer_form_groups for all
-using (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and exists (
-      select 1
-      from public.volunteer_forms f
-      join public.students s on s.id = f.student_id
-      where f.id = form_id
-        and (f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid())
-    )
-  )
-)
-with check (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and exists (
-      select 1
-      from public.volunteer_forms f
-      join public.students s on s.id = f.student_id
-      where f.id = form_id
-        and (f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid() or f.owner_id = owner_id)
-    )
-  )
-);
+using (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_volunteer_form(form_id))
+with check (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_volunteer_form(form_id));
 
 drop policy if exists "volunteer_majors_owner_all" on public.volunteer_form_majors;
 create policy "volunteer_majors_owner_all"
 on public.volunteer_form_majors for all
-using (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and exists (
-      select 1
-      from public.volunteer_form_groups g
-      join public.volunteer_forms f on f.id = g.form_id
-      join public.students s on s.id = f.student_id
-      where g.id = form_group_id
-        and (g.owner_id = auth.uid() or f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid())
-    )
-  )
-)
-with check (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and exists (
-      select 1
-      from public.volunteer_form_groups g
-      join public.volunteer_forms f on f.id = g.form_id
-      join public.students s on s.id = f.student_id
-      where g.id = form_group_id
-        and (g.owner_id = auth.uid() or f.owner_id = auth.uid() or s.owner_id = auth.uid() or s.planner_id = auth.uid() or g.owner_id = owner_id)
-    )
-  )
-);
+using (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_volunteer_group(form_group_id))
+with check (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_volunteer_group(form_group_id));
 
 drop policy if exists "volunteer_exports_owner_insert_select" on public.volunteer_exports;
 create policy "volunteer_exports_owner_insert_select"
 on public.volunteer_exports for all
-using (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and (
-      owner_id = auth.uid()
-      or exists (
-        select 1 from public.students s
-        where s.id = student_id
-          and (s.owner_id = auth.uid() or s.planner_id = auth.uid())
-      )
-    )
-  )
-)
-with check (
-  public.is_admin()
-  or (
-    public.is_consultant_or_admin()
-    and exists (
-      select 1 from public.students s
-      where s.id = student_id
-        and (s.owner_id = auth.uid() or s.planner_id = auth.uid() or s.owner_id = owner_id)
-    )
-  )
-);
+using (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_volunteer_form(form_id))
+with check (public.is_consultant_or_admin() or owner_id = auth.uid() or public.can_manage_volunteer_form(form_id));
 
 -- notes 当前前端未登录也会读取，所以允许公开读；写入只允许登录用户。
 drop policy if exists "notes_public_read" on public.notes;
@@ -595,6 +622,12 @@ drop policy if exists "notes_auth_delete" on public.notes;
 create policy "notes_auth_delete"
 on public.notes for delete
 using (created_by = auth.uid() or public.is_admin());
+
+drop policy if exists "student_archive_files_planner_all" on public.student_archive_files;
+create policy "student_archive_files_planner_all"
+on public.student_archive_files for all
+using (public.can_manage_student(student_id))
+with check (public.can_manage_student(student_id));
 
 drop policy if exists "audit_logs_admin_read" on public.audit_logs;
 create policy "audit_logs_admin_read"
@@ -742,6 +775,36 @@ drop policy if exists "planning_posts_planner_delete" on public.planning_posts;
 create policy "planning_posts_planner_delete"
 on public.planning_posts for delete
 using (public.is_consultant_or_admin());
+
+-- Supabase Storage 学生档案私有文件 bucket。
+-- 学生资料不公开暴露；前端查看时生成临时签名链接。
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('student-archives', 'student-archives', false, 104857600, null)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "student_archive_files_read" on storage.objects;
+create policy "student_archive_files_read"
+on storage.objects for select
+using (bucket_id = 'student-archives' and public.can_manage_student_archive_object(name));
+
+drop policy if exists "student_archive_files_insert" on storage.objects;
+create policy "student_archive_files_insert"
+on storage.objects for insert
+with check (bucket_id = 'student-archives' and public.can_manage_student_archive_object(name));
+
+drop policy if exists "student_archive_files_update" on storage.objects;
+create policy "student_archive_files_update"
+on storage.objects for update
+using (bucket_id = 'student-archives' and public.can_manage_student_archive_object(name))
+with check (bucket_id = 'student-archives' and public.can_manage_student_archive_object(name));
+
+drop policy if exists "student_archive_files_delete" on storage.objects;
+create policy "student_archive_files_delete"
+on storage.objects for delete
+using (bucket_id = 'student-archives' and public.can_manage_student_archive_object(name));
 
 -- Supabase Storage 公开文件 bucket。
 -- 注意：如果 Dashboard 不允许 SQL 修改 storage.buckets，可在 Storage 页面手动创建 public bucket：planning-public，并将 MIME 类型限制留空或允许常见文件类型。

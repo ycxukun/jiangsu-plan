@@ -12,6 +12,15 @@ const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
 const STUDENT_CACHE_STORAGE_KEY='js-plan-student-cache-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
+const STUDENT_ARCHIVE_BUCKET='student-archives';
+const STUDENT_ARCHIVE_SECTIONS=[
+  {id:'comprehensive_eval',label:'综合评价'},
+  {id:'strong_base',label:'强基计划'},
+  {id:'awards',label:'奖项证书'},
+  {id:'specialties',label:'特长'},
+  {id:'other',label:'其他'}
+];
+const MAX_ARCHIVE_FILE_BYTES=100*1024*1024;
 
 const MEDICAL_CODE_META={
   '11':'严重心脏病等疾病：学校可不予录取','12':'重症支气管扩张、哮喘等：学校可不予录取','13':'严重血液、内分泌及代谢系统疾病：学校可不予录取','14':'重症或难治性癫痫等神经精神疾病：学校可不予录取','15':'慢性肝炎病人且肝功能不正常：学校可不予录取','16':'结核病相关情况：部分情形学校可不予录取',
@@ -24,11 +33,15 @@ const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let auth={accessToken:'',refreshToken:'',user:null};
 let students=[];
 let forms=[];
+let profiles=[];
 let currentStudent=null;
 let query='';
 let stageFilter='';
 let subjectFilter='';
 let readonlyNotice='';
+let archiveStudentId='';
+let archiveFiles=[];
+let initialArchiveOpened=false;
 function params(){return new URLSearchParams(location.search);}
 function defaultStage(){return params().get('from')==='specialty'?'specialty':'undergraduate';}
 function stageLabel(v){return v==='specialty'?'专科':'本科';}
@@ -152,6 +165,27 @@ function dbNumber(v){if(v===null||v===undefined||v==='')return null; const n=Num
 function dbInteger(v){const n=dbNumber(v); return n===null?null:Math.round(n);}
 function parseMedicalCodes(raw){const valid=new Set(Object.keys(MEDICAL_CODE_META));return String(raw||'').split(/[^0-9]+/).map(x=>x.trim()).filter(Boolean).filter(x=>valid.has(x));}
 function shortDateTime(v){if(!v)return ''; const d=new Date(v); if(Number.isNaN(d.getTime()))return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+function shortDate(v){if(!v)return ''; const d=new Date(v); if(Number.isNaN(d.getTime()))return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function formatSize(bytes){const n=Number(bytes)||0;if(n<1024)return `${n} B`;if(n<1024*1024)return `${(n/1024).toFixed(1)} KB`;return `${(n/1024/1024).toFixed(1)} MB`;}
+function safeFileExt(name){const ext=String(name||'').split('.').pop().toLowerCase();return /^[a-z0-9]{1,12}$/.test(ext)?ext:'bin';}
+function safePathSegment(value){return String(value||'file').trim().replace(/[^\w.-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,80)||'file';}
+function archiveSectionLabel(id){return STUDENT_ARCHIVE_SECTIONS.find(x=>x.id===id)?.label||'其他';}
+function isSafeArchiveFile(file){
+  if(!file)return false;
+  const ext=safeFileExt(file.name);
+  return new Set(['pdf','doc','docx','ppt','pptx','xls','xlsx','csv','txt','md','jpg','jpeg','png','webp','gif','zip','rar','7z']).has(ext);
+}
+function createArchiveStoragePath(student,section,file){
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  const ext=safeFileExt(file.name);
+  const base=safePathSegment(file.name.replace(/\.[^.]+$/,''));
+  return `students/${safePathSegment(student.id)}/${safePathSegment(section)}/${stamp}-${base}.${ext}`;
+}
+function plannerProfile(id){return profiles.find(p=>p.id===id)||null;}
+function plannerName(id){
+  const p=plannerProfile(id);
+  return p?.display_name||p?.email||'未关联规划师';
+}
 function authHeaders(extra={}){return {apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`,'Content-Type':'application/json',...extra};}
 async function apiFetch(path,options={},retried=false){
   if(!auth.accessToken)throw new Error('请先登录');
@@ -168,6 +202,30 @@ async function apiFetch(path,options={},retried=false){
   if(res.status===204)return null;
   const text=await res.text();
   return text?JSON.parse(text):null;
+}
+async function uploadArchiveStorageFile(file,path){
+  await refreshSessionIfNeeded();
+  const encoded=encodeURIComponent(path).replace(/%2F/g,'/');
+  const res=await fetch(`${SUPABASE_URL}/storage/v1/object/${STUDENT_ARCHIVE_BUCKET}/${encoded}`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'},body:file});
+  if(!res.ok)throw new Error(await res.text());
+  return path;
+}
+async function signedArchiveFileUrl(path){
+  await refreshSessionIfNeeded();
+  const encoded=encodeURIComponent(path).replace(/%2F/g,'/');
+  const res=await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${STUDENT_ARCHIVE_BUCKET}/${encoded}`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify({expiresIn:3600})});
+  if(!res.ok)throw new Error(await res.text());
+  const data=await res.json();
+  const signed=data.signedURL||data.signedUrl||data.url;
+  if(!signed)throw new Error('没有生成文件查看链接。');
+  return /^https?:\/\//.test(signed)?signed:`${SUPABASE_URL}/storage/v1${signed}`;
+}
+async function deleteArchiveStorageObject(path){
+  if(!path)return;
+  await refreshSessionIfNeeded();
+  const encoded=encodeURIComponent(path).replace(/%2F/g,'/');
+  const res=await fetch(`${SUPABASE_URL}/storage/v1/object/${STUDENT_ARCHIVE_BUCKET}/${encoded}`,{method:'DELETE',headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`}});
+  if(!res.ok)throw new Error(await res.text());
 }
 function isOptionalStudentColumnMissing(err){return /subject_choices|intake_payload|planner_id|student_no|schema cache|column/i.test(err?.message||String(err));}
 async function writeStudentRecord(path,method,payload){
@@ -210,14 +268,17 @@ async function fetchAll(){
     readonlyNotice='';
     const results=await Promise.all([
       apiFetch('students?select=*&archived=eq.false&order=updated_at.desc'),
-      apiFetch('volunteer_forms?select=id,student_id,title,status,stage,created_at,updated_at&order=updated_at.desc')
+      apiFetch('volunteer_forms?select=id,student_id,title,status,stage,created_at,updated_at&order=updated_at.desc'),
+      apiFetch('profiles?select=id,email,display_name,role,status').catch(()=>[])
     ]);
     students=results[0]||[];
     forms=results[1]||[];
+    profiles=results[2]||[];
     const fresh=students.find(s=>s.id===currentStudent?.id);
     if(fresh){currentStudent={...fresh,subject_choices:studentSubjectChoices(fresh)};saveCurrentStudent(currentStudent);}
     saveStudentCache();
     render();
+    openInitialArchiveIfNeeded();
   }catch(err){
     const msg=String(err.message||err);
     if(isJwtExpiredErrorText(msg)||/登录状态已过期/.test(msg)){
@@ -228,6 +289,7 @@ async function fetchAll(){
         forms=cached.forms||[];
         readonlyNotice=`登录状态已过期，当前显示 ${esc(shortDateTime(cached.saved_at)||'最近一次')} 的本机缓存。请返回本科或专科首页重新登录后再刷新同步。`;
         render();
+        openInitialArchiveIfNeeded();
         return;
       }
       auth.user=userBeforeRequest;
@@ -353,6 +415,7 @@ function studentCardHTML(s,savedForms){
     <div class="student-card-head"><div><h3>${esc(s.name)} <span class="student-no">${esc(studentNoText(s))}</span></h3><p>${esc(studentSummary(s))}</p></div><span class="badge">${esc(stageLabel(s.stage))}</span></div>
     <div class="card-actions">
       <button class="save" data-set-current="${esc(s.id)}" type="button">设为当前</button>
+      <a class="pill-btn" href="./archive.html?student=${encodeURIComponent(s.id)}">档案库</a>
       <button data-edit-student="${esc(s.id)}" type="button">编辑档案</button>
       <button data-intake-detail="${esc(s.id)}" type="button">采集详情</button>
       <a class="pill-btn" href="${esc(backUrlForStudent(s))}">去做志愿表</a>
@@ -445,6 +508,159 @@ function detailSectionHTML(title,rows){
 function detailFromKeys(data,pairs){
   return pairs.map(([label,key])=>[label,data?.[key]]);
 }
+function openInitialArchiveIfNeeded(){
+  if(initialArchiveOpened)return;
+  const id=params().get('student');
+  if(!id)return;
+  const exists=students.some(s=>s.id===id);
+  if(exists){
+    initialArchiveOpened=true;
+    openStudentArchive(id,false);
+  }
+}
+async function fetchStudentArchiveFiles(studentId){
+  return apiFetch(`student_archive_files?select=*&student_id=eq.${encodeURIComponent(studentId)}&order=created_at.desc`);
+}
+function archiveCounts(files){
+  const m=new Map(STUDENT_ARCHIVE_SECTIONS.map(x=>[x.id,0]));
+  (files||[]).forEach(f=>m.set(f.section,(m.get(f.section)||0)+1));
+  return m;
+}
+function archiveFilesForSection(section){
+  return archiveFiles.filter(f=>f.section===section);
+}
+function archiveFileHTML(file){
+  const title=file.title||file.file_name||'未命名文件';
+  return `<div class="archive-file">
+    <div><b>${esc(title)}</b><p>${esc(file.file_name||'文件')}｜${esc(formatSize(file.file_size))}｜上传 ${esc(shortDateTime(file.created_at))}${file.summary?`<br>${esc(file.summary)}`:''}</p></div>
+    <div class="archive-file-actions"><button type="button" data-view-archive-file="${esc(file.id)}">查看</button><button class="danger" type="button" data-delete-archive-file="${esc(file.id)}">删除</button></div>
+  </div>`;
+}
+function archiveSectionHTML(section,counts){
+  const files=archiveFilesForSection(section.id);
+  return `<section class="archive-section">
+    <div class="archive-section-head"><h3>${esc(section.label)}</h3><span class="badge">${counts.get(section.id)||0} 个文件</span></div>
+    <div class="archive-file-list">${files.length?files.map(archiveFileHTML).join(''):`<div class="archive-empty">暂无${esc(section.label)}资料。</div>`}</div>
+  </section>`;
+}
+function studentArchiveHTML(student){
+  const data=studentIntakePayload(student);
+  const savedForms=formGroups().get(student.id)||[];
+  const counts=archiveCounts(archiveFiles);
+  const planner=plannerName(student.planner_id||student.owner_id);
+  const serviceStart=student.service_started_at||student.created_at;
+  const intakeKeys=data?Object.keys(data).length:0;
+  return `<div class="archive-shell">
+    <div class="archive-hero">
+      <div>
+        <h3>${esc(student.name)} <span class="student-no">${esc(studentNoText(student))}</span></h3>
+        <p>${esc(studentSummary(student))}</p>
+        <div class="archive-actions" style="margin-top:10px">
+          <button class="save" type="button" data-set-current-from-archive="${esc(student.id)}">设为当前学生</button>
+          <button type="button" data-edit-student-from-archive="${esc(student.id)}">编辑基本信息</button>
+          <button type="button" data-intake-from-archive="${esc(student.id)}">查看采集详情</button>
+          <a href="${esc(backUrlForStudent(student))}">去做志愿表</a>
+          <a href="./intake-form-v6.6.7.html" target="_blank" rel="noopener">打开信息采集表</a>
+        </div>
+      </div>
+      <div class="archive-meta-grid">
+        <div><b>服务规划师</b><span>${esc(planner)}</span></div>
+        <div><b>开始服务</b><span>${esc(shortDate(serviceStart)||'未记录')}</span></div>
+        <div><b>采集字段</b><span>${esc(intakeKeys?`${intakeKeys} 项`:'未导入')}</span></div>
+        <div><b>志愿表</b><span>${esc(`${savedForms.length} 份`)}</span></div>
+      </div>
+    </div>
+    <div class="archive-section-grid">${STUDENT_ARCHIVE_SECTIONS.map(sec=>`<div class="archive-stat"><b>${esc(sec.label)}</b><span>${counts.get(sec.id)||0}</span></div>`).join('')}</div>
+    <div class="archive-upload">
+      <label>资料板块<select id="archiveUploadSection">${STUDENT_ARCHIVE_SECTIONS.map(sec=>`<option value="${esc(sec.id)}">${esc(sec.label)}</option>`).join('')}</select></label>
+      <label>资料标题<input id="archiveUploadTitle" placeholder="如 综评报名截图 / 竞赛证书"></label>
+      <label>文件<input id="archiveUploadFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.jpg,.jpeg,.png,.webp,.gif,.zip,.rar,.7z,application/pdf,image/*,text/*"></label>
+      <button id="archiveUploadBtn" class="save" type="button">上传到档案库</button>
+    </div>
+    ${detailSectionHTML('基本信息',[
+      ['学生',student.name],['手机号',student.phone],['批次',stageLabel(student.stage)],['选科',studentSubjectSummary(student)],['分数',student.score],['位次',student.rank],['体检代码',studentMedicalCodes(student)],['目标城市',student.target_cities],['目标专业',student.target_majors],['备注',student.note]
+    ])}
+    ${detailSectionHTML('已保存志愿表',savedForms.length?savedForms.map(f=>[f.title||'未命名志愿表',`${stageLabel(f.stage||student.stage)}｜${shortDateTime(f.updated_at||f.created_at)}`]):[['志愿表','暂无保存记录']])}
+    <div class="archive-files">${STUDENT_ARCHIVE_SECTIONS.map(sec=>archiveSectionHTML(sec,counts)).join('')}</div>
+  </div>`;
+}
+async function openStudentArchive(studentId,pushUrl=false){
+  const student=students.find(s=>s.id===studentId);
+  if(!student){alert('没有找到这个学生。请刷新后再试。');return;}
+  archiveStudentId=studentId;
+  if(pushUrl)history.pushState(null,'',`${location.pathname}?student=${encodeURIComponent(studentId)}`);
+  $('#modal').className='modal archive-modal';
+  $('#modal').innerHTML=`<h2>学生档案库｜${esc(student.name)}</h2><div class="modal-body"><div class="empty">正在读取档案库...</div></div>`;
+  $('#modalMask').classList.add('open');
+  try{
+    archiveFiles=await fetchStudentArchiveFiles(studentId);
+  }catch(err){
+    archiveFiles=[];
+    $('#modal .modal-body').innerHTML=`<div class="notice">读取档案库失败：${esc(err.message)}<br>请确认已执行最新版 Supabase schema，包含 student_archive_files 表和 student-archives bucket。</div>`;
+    return;
+  }
+  renderStudentArchive(student);
+}
+function renderStudentArchive(student){
+  $('#modal').className='modal archive-modal';
+  $('#modal').innerHTML=`<h2>学生档案库｜${esc(student.name)} <span class="student-no">${esc(studentNoText(student))}</span></h2><div class="modal-body">${studentArchiveHTML(student)}<div class="modal-actions"><button id="closeArchiveBtn" type="button">关闭</button></div></div>`;
+  bindArchiveActions(student);
+}
+function bindArchiveActions(student){
+  $('#closeArchiveBtn')?.addEventListener('click',closeModal);
+  $('[data-set-current-from-archive]')?.addEventListener('click',()=>{
+    const chosen={...student,subject_choices:studentSubjectChoices(student)};
+    saveLocalStudentSubjectChoices(chosen.id,chosen.subject_choices);
+    saveCurrentStudent(chosen);
+    render();
+    alert(`已设为当前学生：${chosen.name}`);
+  });
+  $('[data-edit-student-from-archive]')?.addEventListener('click',()=>showEditor(student));
+  $('[data-intake-from-archive]')?.addEventListener('click',()=>showIntakeDetail(student));
+  $('#archiveUploadBtn')?.addEventListener('click',()=>uploadArchiveFileForStudent(student));
+  $$('[data-view-archive-file]').forEach(btn=>btn.addEventListener('click',()=>viewArchiveFile(btn.dataset.viewArchiveFile)));
+  $$('[data-delete-archive-file]').forEach(btn=>btn.addEventListener('click',()=>deleteArchiveFile(btn.dataset.deleteArchiveFile,student)));
+}
+async function uploadArchiveFileForStudent(student){
+  const file=$('#archiveUploadFile')?.files?.[0];
+  const section=$('#archiveUploadSection')?.value||'other';
+  const title=$('#archiveUploadTitle')?.value.trim()||file?.name||'未命名资料';
+  if(!file){alert('请选择要上传的文件。');return;}
+  if(file.size>MAX_ARCHIVE_FILE_BYTES){alert(`文件过大：${formatSize(file.size)}，请控制在 100MB 以内。`);return;}
+  if(!isSafeArchiveFile(file)){alert('当前只允许 PDF、Word、PPT、Excel、CSV、TXT、Markdown、常见图片和压缩包。');return;}
+  try{
+    $('#archiveUploadBtn').disabled=true;
+    $('#archiveUploadBtn').textContent='上传中...';
+    const path=createArchiveStoragePath(student,section,file);
+    await uploadArchiveStorageFile(file,path);
+    await apiFetch('student_archive_files',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:student.id,section,title,summary:'',file_path:path,file_name:file.name,mime_type:file.type||'application/octet-stream',file_size:file.size,uploaded_by:auth.user.id})});
+    archiveFiles=await fetchStudentArchiveFiles(student.id);
+    renderStudentArchive(student);
+  }catch(err){alert('上传失败：'+err.message);}
+  finally{
+    const btn=$('#archiveUploadBtn');
+    if(btn){btn.disabled=false;btn.textContent='上传到档案库';}
+  }
+}
+async function viewArchiveFile(fileId){
+  const file=archiveFiles.find(f=>String(f.id)===String(fileId));
+  if(!file)return;
+  try{
+    const url=await signedArchiveFileUrl(file.file_path);
+    window.open(url,'_blank','noopener');
+  }catch(err){alert('打开文件失败：'+err.message);}
+}
+async function deleteArchiveFile(fileId,student){
+  const file=archiveFiles.find(f=>String(f.id)===String(fileId));
+  if(!file)return;
+  if(!confirm(`确定删除“${file.title||file.file_name||'这份资料'}”吗？`))return;
+  try{
+    await apiFetch(`student_archive_files?id=eq.${encodeURIComponent(fileId)}`,{method:'DELETE'});
+    try{await deleteArchiveStorageObject(file.file_path);}catch(err){console.warn('删除存储文件失败',err);}
+    archiveFiles=archiveFiles.filter(f=>String(f.id)!==String(fileId));
+    renderStudentArchive(student);
+  }catch(err){alert('删除失败：'+err.message);}
+}
 function showIntakeDetail(student){
   const data=studentIntakePayload(student);
   const fallbackSections=[
@@ -520,7 +736,14 @@ function showIntakeDetail(student){
   $('#modalMask').classList.add('open');
   $('#closeDetailBtn').addEventListener('click',closeModal);
 }
-function closeModal(){$('#modalMask').classList.remove('open');}
+function closeModal(){
+  $('#modalMask').classList.remove('open');
+  if(archiveStudentId){
+    archiveStudentId='';
+    archiveFiles=[];
+    if(params().get('student'))history.replaceState(null,'',location.pathname);
+  }
+}
 async function updateStudent(studentId){
   const name=$('#editStudentName').value.trim();
   if(!name){alert('请填写学生姓名。');return;}

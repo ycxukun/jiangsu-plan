@@ -19,7 +19,7 @@ const GUIDE_DEFS=[
     scope:'提前批 · 公安',
     summary:'公安院校和公安专业按公安提前批通道独立填报，需重点核对政审、体检、体测、面试和户籍/生源要求。',
     checks:['公安提前批属性','公安专业与普通专业区别','政审','面试','体检','体测','视力/身高','年龄','户籍或生源要求','公安联考与就业路径'],
-    trigger:/2公安|公安|警校|人民公安|刑事警察|警察学院|治安学|侦查学|公安学|公安技术|网络安全与执法|交通管理工程|禁毒学|涉外警务/
+    trigger:/2公安|公安|警校|人民公安|人民警察|刑事警察|警察学院|警官学院|公安学院|治安学|侦查学|公安学|公安技术|网络安全与执法|交通管理工程|禁毒学|涉外警务/
   },
   {
     id:'early-maritime',
@@ -111,21 +111,64 @@ function contextText(ctx={}){
   const m=ctx.major||ctx.m||{};
   const d=ctx.details||{};
   return [
+    ctx.batch,ctx.planCategorySource,
     s.name,s.level,s.batch,s.subject,s.schoolType,s.administration,
     g.groupName,g.displayCode,g.rawGroupName,g.remark,g.majorSummary,g.rawGroupMajors,(g.tags||[]).join(' '),(g.majorClasses||[]).join(' '),
     m.name,m.baseName,m.remark,m.majorClass,m.discipline,
     d.school,d.name,d.majorFullName,d.undergraduateName,d.majorRemark,d.planCategory,d.batch,d.recruitChapter,d.admissionRule,d.subjectMajor
   ].map(textOf).filter(Boolean).join(' ');
 }
+function isExplicitPoliceCategory(text){
+  const t=textOf(text);
+  return !/非公安/.test(t)&&/公安政法|2公安|公安院校|公安类/.test(t);
+}
+function isExplicitNonPoliceCategory(text){
+  const t=textOf(text);
+  return !isExplicitPoliceCategory(t)&&/本科院校|普通批|本科批|7其他|其他院校|1军校|军队院校|3航海|4地方专项|5高校专项|6医学定向|8综评A|综评A|综评B|强基/.test(t);
+}
+function isEarlyBatchContext(text){
+  return /提前|本科提前|提前本科|1军校|2公安|3航海|4地方专项|5高校专项|6医学定向|7其他/.test(textOf(text));
+}
+function isPoliceGuideContext(ctx={}){
+  const s=ctx.school||ctx.s||{};
+  const g=ctx.group||ctx.g||{};
+  const m=ctx.major||ctx.m||{};
+  const d=ctx.details||{};
+  const categoryText=[
+    ctx.planCategory,
+    d.planCategory,d.earlyBatchCategory,d.advanceBatchCategory,d.specialAdmissionCategory,d['提前批类别']
+  ].map(textOf).filter(Boolean).join(' ');
+  if(isExplicitPoliceCategory(categoryText))return true;
+  if(isExplicitNonPoliceCategory(categoryText))return false;
+  const batchText=[ctx.batch,s.batch,g.batch,d.batch,categoryText].map(textOf).filter(Boolean).join(' ');
+  if(!isEarlyBatchContext(batchText))return false;
+  const schoolText=[s.name,d.school].map(textOf).join(' ');
+  if(/消防救援|外交学院|国际关系学院/.test(schoolText))return false;
+  const majorText=[
+    g.groupName,g.rawGroupName,g.remark,g.rawGroupMajors,
+    ...(Array.isArray(g.majors)?g.majors.flatMap(x=>[x.name,x.baseName,x.majorClass,x.discipline,x.remark]):[]),
+    m.name,m.baseName,m.remark,m.majorClass,m.discipline,
+    d.name,d.majorFullName,d.undergraduateName,d.majorRemark,d.subjectMajor
+  ].map(textOf).filter(Boolean).join(' ');
+  if(/非公安类招生/.test(`${schoolText} ${majorText}`))return false;
+  const policeSchool=/公安大学|人民公安|人民警察大学|刑事警察|警察学院|公安学院|江苏警官学院|广东警官学院|湖北警官学院|湖南警察学院|云南警官学院|福建警察学院|江西警察学院|山东警察学院|四川警察学院|重庆警察学院|新疆警察学院|贵州警察学院|吉林警察学院|辽宁警察学院|广西警察学院|山西警察学院|河南警察学院/.test(schoolText);
+  const policeMajor=/公安学|公安技术|治安学|侦查学|侦察学|经济犯罪侦查|禁毒学|涉外警务|警务指挥|公安政治工作|公安管理学|公安情报学|移民管理|出入境管理|犯罪学|刑事科学技术|网络安全与执法|交通管理工程|安全防范工程|公安视听技术|数据警务技术|警犬技术/.test(majorText);
+  return policeMajor||(policeSchool&&/面向.*公安|入警|政审|政治考察|体能测试|面试|公安机关/.test(majorText));
+}
+function validGuideMatch(def,ctx={}){
+  if(!def)return false;
+  if(def.id==='early-police')return isPoliceGuideContext(ctx);
+  return true;
+}
 function detect(ctx={}){
   const text=contextText(ctx);
-  const matches=GUIDE_DEFS.filter(d=>d.trigger.test(text));
+  const matches=GUIDE_DEFS.filter(d=>d.trigger.test(text)&&validGuideMatch(d,ctx));
   if(!matches.length)return null;
   return matches.sort((a,b)=>GUIDE_PRIORITY.indexOf(a.id)-GUIDE_PRIORITY.indexOf(b.id))[0];
 }
 function allMatches(ctx={}){
   const text=contextText(ctx);
-  const matches=GUIDE_DEFS.filter(d=>d.trigger.test(text));
+  const matches=GUIDE_DEFS.filter(d=>d.trigger.test(text)&&validGuideMatch(d,ctx));
   if(!matches.length)return [];
   const sorted=matches.sort((a,b)=>GUIDE_PRIORITY.indexOf(a.id)-GUIDE_PRIORITY.indexOf(b.id));
   return [sorted[0]];
