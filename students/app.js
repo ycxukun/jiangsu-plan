@@ -20,6 +20,10 @@ const STUDENT_ARCHIVE_SECTIONS=[
   {id:'specialties',label:'特长'},
   {id:'other',label:'其他'}
 ];
+const INTAKE_FORM_PATHS={
+  undergraduate:'./intake-form-v6.6.7.html',
+  specialty:'./intake-form-specialty-2026.html'
+};
 const MAX_ARCHIVE_FILE_BYTES=100*1024*1024;
 
 const MEDICAL_CODE_META={
@@ -47,6 +51,7 @@ function defaultStage(){return params().get('from')==='specialty'?'specialty':'u
 function stageLabel(v){return v==='specialty'?'专科':'本科';}
 function subjectLabel(v){return v==='history'?'历史':'物理';}
 function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergraduate';}
+function intakeFormPathForStage(v){return INTAKE_FORM_PATHS[stageValue(v)]||INTAKE_FORM_PATHS.undergraduate;}
 function subjectTypeValue(v){return v==='history'||v==='历史'?'history':'physics';}
 function storageJSON(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){return fallback;}}
 function loadSavedAuth(){const data=storageJSON(AUTH_STORAGE_KEY,{}); if(data?.accessToken&&data?.user)auth={accessToken:data.accessToken,refreshToken:data.refreshToken||'',user:data.user};}
@@ -386,8 +391,23 @@ function filteredStudents(){
     return true;
   });
 }
+function syncContextLinks(){
+  const from=defaultStage();
+  const intakeLink=$('#openIntakeFormLink');
+  if(intakeLink){
+    intakeLink.href=intakeFormPathForStage(from);
+    intakeLink.textContent=from==='specialty'?'打开专科采集表':'打开本科采集表';
+  }
+  const subtitle=$('#pageSubtitle');
+  if(subtitle){
+    subtitle.textContent=from==='specialty'
+      ?'集中管理专科学生、分数、选科、采集表和已保存志愿表。'
+      :'集中管理本科学生、分数、选科、采集表和已保存志愿表。';
+  }
+}
 function render(){
   const from=defaultStage();
+  syncContextLinks();
   $('#defaultStageBadge').textContent=stageLabel(from);
   $('#stageFilter').value=stageFilter;
   $('#subjectFilter').value=subjectFilter;
@@ -560,7 +580,7 @@ function studentArchiveHTML(student){
           <button type="button" data-edit-student-from-archive="${esc(student.id)}">编辑基本信息</button>
           <button type="button" data-intake-from-archive="${esc(student.id)}">查看采集详情</button>
           <a href="${esc(backUrlForStudent(student))}">去做志愿表</a>
-          <a href="./intake-form-v6.6.7.html" target="_blank" rel="noopener">打开信息采集表</a>
+          <a href="${esc(intakeFormPathForStage(student.stage))}" target="_blank" rel="noopener">打开${esc(stageLabel(student.stage))}信息采集表</a>
         </div>
       </div>
       <div class="archive-meta-grid">
@@ -685,6 +705,7 @@ function showIntakeDetail(student){
       ['出生日期',data['出生日期']],
       ['就读学校',data['就读学校']],
       ['班级',data['班级']],
+      ['规划师/沟通老师',data['规划师']||data['沟通老师']],
       ['家长电话',data['家长电话']||student.phone],
       ['备用电话',data['备用电话']],
       ['高考省份',data['高考省份']||student.province],
@@ -699,31 +720,37 @@ function showIntakeDetail(student){
       ['数学',data['数学']],
       ['外语',data['外语']],
       ['历次模考',data['历次模考']],
-      ['成绩结构判断',data['成绩结构判断']]
+      ['成绩结构判断',data['成绩结构判断']],
+      ['专科路径适配说明',data['专科路径适配说明']]
     ]),
     detailSectionHTML('体检与限制',[
-      ['体检快捷代码',data['体检快捷代码']||student.medical_codes],
+      ['体检代码',data['体检快捷代码']||data['体检受限代码']||data['体检快捷项']||student.medical_codes],
       ['口语测试',data['口语测试']],
+      ['体检风险等级',data['体检风险等级']],
       ['体检限制补充',data['体检限制补充']],
-      ['体检需避开专业',data['体检需避开专业']]
+      ['体检需避开专业',data['体检需避开专业']],
+      ['其他特殊类型',data['其他特殊类型']],
+      ['资格核验说明',data['资格核验说明']]
     ]),
     detailSectionHTML('家庭诉求',detailFromKeys(data,[
       ['家庭核心诉求排序','家庭核心诉求排序'],['学校专业取舍','学校专业取舍'],['就业偏好','就业偏好'],['最终决策人','最终决策人'],
-      ['家长核心诉求原话','家长核心诉求原话'],['学生本人诉求原话','学生本人诉求原话'],['家庭内部冲突点','家庭内部冲突点'],['家庭资源职业背景','家庭资源职业背景']
+      ['家庭基本说明','家庭基本说明'],['家长核心诉求原话','家长核心诉求原话'],['学生本人诉求原话','学生本人诉求原话'],['家庭内部冲突点','家庭内部冲突点'],['家庭资源职业背景','家庭资源职业背景'],
+      ['学生签字/确认','学生签字'],['家长签字/确认','家长签字']
     ])),
     detailSectionHTML('地域与院校',detailFromKeys(data,[
       ['意向地区排序','意向地区排序'],['坚决不去地区排序','坚决不去地区排序'],['地域偏好补充说明','地域偏好补充说明'],
       ['院校层次偏好','院校层次偏好'],['意向院校','意向院校'],['明确排斥院校','明确排斥院校'],
-      ['是否接受中外合作院校','是否接受中外合作院校'],['是否接受港澳院校','是否接受港澳院校'],['年预算上限','年预算上限']
+      ['院校层次','院校层次'],['是否接受中外合作院校','是否接受中外合作院校'],['是否接受中外合作','是否接受中外合作'],['是否接受港澳院校','是否接受港澳院校'],['年预算上限','年预算上限'],
+      ['是否接受分段培养','是否接受分段培养'],['分段培养类型','分段培养类型'],['是否接受转段不确定性','是否接受转段不确定性']
     ])),
     detailSectionHTML('专业偏好',detailFromKeys(data,[
       ['意向专业类排序','意向专业类排序'],['意向专业类','意向专业类'],['专业白名单','专业白名单'],['专业灰名单','专业灰名单'],
-      ['专业黑名单','专业黑名单'],['专业选择原因','专业选择原因']
+      ['专业黑名单','专业黑名单'],['专业选择原因','专业选择原因'],['规划师匹配适合方向','规划师匹配适合的专业方向'],['学生家长确定排序','学生和家长确定的专业方向排序']
     ])),
     detailSectionHTML('风险与规划结论',detailFromKeys(data,[
       ['是否接受调剂','是否接受调剂'],['整体风险偏好','整体风险偏好'],['是否接受大类分流','是否接受大类分流'],
       ['不能接受的最差结果','不能接受的最差结果'],['可以妥协的条件','可以妥协的条件'],['规划师初步判断','规划师初步判断'],
-      ['初步适合方向','初步适合方向'],['下一次必须追问的问题','下一次必须追问的问题'],['需要补充材料','需要补充材料'],['沟通备注或录音文件名','沟通备注或录音文件名']
+      ['初步适合方向','初步适合方向'],['初步院校层次策略','初步院校层次策略'],['是否考虑专升本','是否考虑专升本'],['下一次必须追问的问题','下一次必须追问的问题'],['需要补充材料','需要补充材料'],['沟通备注或录音文件名','沟通备注或录音文件名'],['沟通备注','沟通备注'],['确认人','确认人']
     ]))
   ]:fallbackSections;
   $('#modal').className='modal detail-modal';
@@ -771,6 +798,12 @@ function intakeSubjectChoices(data){
   [['化学',/化/],['生物',/生/],['政治',/政/],['地理',/地/]].forEach(([name,re])=>{if(re.test(xk)&&!out.includes(name))out.push(name);});
   return out;
 }
+function intakeStage(data){
+  const explicit=[data?.['采集表类型'],data?.['批次'],data?.['报考层次'],data?.['本科/专科'],data?.['填报阶段']].map(x=>String(x||'')).join(' ');
+  if(/specialty|专科|高职|第二阶段/i.test(explicit))return 'specialty';
+  const specialtyKeys=['专科路径适配说明','是否接受分段培养','分段培养类型','是否接受转段不确定性','是否考虑专升本','资格核验说明'];
+  return specialtyKeys.some(k=>Object.prototype.hasOwnProperty.call(data||{},k))?'specialty':'undergraduate';
+}
 function intakeTargetMajors(data){
   const ordered=intakeArray(data,'意向专业类排序');
   const checked=intakeArray(data,'意向专业类');
@@ -784,9 +817,10 @@ function intakeTargetCities(data){
 }
 function intakeNote(data){
   const pairs=[
-    ['就读学校','就读学校'],['班级','班级'],['沟通老师','沟通老师'],['家长诉求','家长核心诉求原话'],['学生诉求','学生本人诉求原话'],
+    ['就读学校','就读学校'],['班级','班级'],['沟通老师','沟通老师'],['规划师','规划师'],['家庭说明','家庭基本说明'],['家长诉求','家长核心诉求原话'],['学生诉求','学生本人诉求原话'],
+    ['专科路径','专科路径适配说明'],['资格核验','资格核验说明'],['分段培养','是否接受分段培养'],['转段不确定性','是否接受转段不确定性'],['专升本','是否考虑专升本'],
     ['专业白名单','专业白名单'],['专业灰名单','专业灰名单'],['专业黑名单','专业黑名单'],['院校意向','意向院校'],['排斥院校','明确排斥院校'],
-    ['规划师判断','规划师初步判断'],['补充材料','需要补充材料'],['采集备注','沟通备注或录音文件名']
+    ['规划师判断','规划师初步判断'],['规划师方向','规划师匹配适合的专业方向'],['确定排序','学生和家长确定的专业方向排序'],['院校策略','初步院校层次策略'],['补充材料','需要补充材料'],['采集备注','沟通备注或录音文件名'],['沟通备注','沟通备注']
   ];
   return pairs.map(([label,key])=>intakeText(data,key)?`${label}：${intakeText(data,key)}`:'').filter(Boolean).join('\n').slice(0,6000);
 }
@@ -806,15 +840,15 @@ function intakePayload(data){
     phone:intakeText(data,'家长电话')||intakeText(data,'备用电话')||null,
     gender:['男','女'].includes(intakeText(data,'性别'))?intakeText(data,'性别'):'未知',
     province:intakeText(data,'高考省份')||'江苏',
-    stage:'undergraduate',
+    stage:intakeStage(data),
     subject_type:intakeSubjectType(data),
     subject_choices:subjectChoices,
     score:dbInteger(intakeText(data,'总分')),
     rank:dbInteger(intakeText(data,'位次')),
     target_cities:intakeTargetCities(data),
     target_majors:intakeTargetMajors(data),
-    medical_codes:parseMedicalCodes([...(Array.isArray(data['体检快捷代码'])?data['体检快捷代码']:[]),intakeText(data,'体检限制补充'),intakeText(data,'体检需避开专业')].join(' ')),
-    intake_payload:data,
+    medical_codes:parseMedicalCodes([...(Array.isArray(data['体检快捷代码'])?data['体检快捷代码']:[]),...(Array.isArray(data['体检快捷项'])?data['体检快捷项']:[]),intakeText(data,'体检受限代码'),intakeText(data,'体检限制补充'),intakeText(data,'体检需避开专业')].join(' ')),
+    intake_payload:{...data,采集表类型:intakeStage(data)==='specialty'?'specialty':'undergraduate'},
     note:intakeNote(data)
   };
   const no=intakeStudentNo(data);

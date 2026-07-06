@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026年第二阶段志愿填报信息采集表｜专科网页版</title>
+<style>
+:root{
+  --bg:#f5f6f8;--card:#fff;--text:#1d1d1f;--muted:#6b7280;--line:#e5e7eb;--line2:#cbd5e1;
+  --blue:#0a7cff;--blue2:#eef6ff;--green:#16a34a;--green2:#f0fdf4;--red:#dc2626;--red2:#fff1f2;
+  --amber:#d97706;--amber2:#fffbeb;--purple:#7c3aed;--purple2:#f5f3ff;--slate:#475569;
+  --shadow:0 14px 38px rgba(15,23,42,.06);--shadow2:0 8px 24px rgba(15,23,42,.05);
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:radial-gradient(circle at top,#fff 0,#f7f8fb 40%,#f5f6f8 100%);font-size:14px;line-height:1.6}
+button{border:1px solid rgba(15,23,42,.08);background:#fff;color:#111827;border-radius:999px;padding:9px 13px;font-weight:750;cursor:pointer;white-space:nowrap;box-shadow:0 4px 14px rgba(15,23,42,.035)}
+button:hover{border-color:#b8d7ff;background:#f8fbff}.primary{background:linear-gradient(180deg,#1492ff,#0071e3);color:#fff;border-color:transparent;box-shadow:0 8px 20px rgba(0,113,227,.22)}.dark{background:#111827;color:#fff}.danger{background:#fff5f5;color:#b91c1c;border-color:#fecaca}.small{padding:5px 9px;font-size:12px}
+input,select,textarea{width:100%;border:1px solid rgba(15,23,42,.10);background:rgba(255,255,255,.95);border-radius:14px;padding:10px 11px;font-size:14px;color:#111827;outline:none;transition:.15s border,.15s box-shadow}select{padding-right:28px}textarea{min-height:86px;resize:vertical;line-height:1.55}input:focus,select:focus,textarea:focus{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(37,99,235,.10)}input.invalid,select.invalid,textarea.invalid{border-color:#ef4444;background:#fff7f7}input.warning,select.warning,textarea.warning{border-color:#f59e0b;background:#fffbeb}
+.library-shell{min-height:100vh;padding:28px 20px 48px}.library-container{max-width:1360px;margin:0 auto}.library-hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;background:rgba(255,255,255,.82);border:1px solid rgba(203,213,225,.85);box-shadow:var(--shadow);backdrop-filter:blur(18px);border-radius:28px;padding:24px}.kicker{font-size:12px;font-weight:900;color:var(--blue);letter-spacing:.08em;margin-bottom:5px}.hero-title{font-size:30px;line-height:1.18;font-weight:950;letter-spacing:-.04em;color:#0f172a}.hero-sub{margin-top:8px;color:#64748b;max-width:820px;font-size:14px;line-height:1.7}.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:18px 0}.stat-card{background:#fff;border:1px solid #dbe3ef;border-radius:20px;padding:15px;box-shadow:var(--shadow2)}.stat-label{font-size:12px;color:#64748b;font-weight:800}.stat-num{font-size:28px;font-weight:950;color:#0f172a;margin-top:2px}.library-panel{background:#fff;border:1px solid #dbe3ef;border-radius:24px;box-shadow:var(--shadow);overflow:hidden}.toolbar{padding:14px 16px;display:flex;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;background:#f8fafc}.filters{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.filters input{width:280px;height:38px}.filters select{width:140px;height:38px;padding:0 12px}.table-wrap{overflow:auto}.library-table{width:100%;min-width:1020px;border-collapse:separate;border-spacing:0}.library-table th{background:#f8fafc;color:#475569;font-size:12px;text-align:left;padding:12px;border-bottom:1px solid #e2e8f0;white-space:nowrap}.library-table td{padding:12px;border-bottom:1px solid #edf2f7;vertical-align:middle}.library-table tbody tr:hover{background:#f8fafc}.student-name{font-weight:950;color:#0f172a}.student-sub{font-size:12px;color:#64748b;margin-top:2px}.status-badge{display:inline-flex;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;border:1px solid #dbe3ef;background:#fff}.status-badge.采集中{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}.status-badge.待补材料{background:#fffbeb;color:#b45309;border-color:#fde68a}.status-badge.待复核{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe}.status-badge.已完成{background:#ecfdf5;color:#047857;border-color:#a7f3d0}.empty{padding:42px 20px;text-align:center;color:#64748b}.empty b{display:block;color:#0f172a;font-size:18px;margin-bottom:6px}.fileinput{display:none}
+header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.74);border-bottom:1px solid rgba(0,0,0,.06);backdrop-filter:blur(22px) saturate(1.15)}.top{max-width:1500px;margin:0 auto;padding:13px 22px;display:flex;justify-content:space-between;align-items:center;gap:18px}.title{font-size:22px;font-weight:900;line-height:1.25;letter-spacing:-.03em}.sub{font-size:12px;color:var(--muted);line-height:1.55;margin-top:2px}.filebar{max-width:1500px;margin:0 auto;padding:10px 22px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:72px;z-index:24}.current-title{font-weight:950;color:#0f172a}.current-meta{font-size:12px;color:#64748b;margin-top:2px}.filebar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.autosave{font-size:12px;color:#64748b;font-weight:700}.autosave.unsaved{color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;padding:4px 9px}
+.wrap{max-width:1500px;margin:0 auto;padding:20px 22px;display:grid;grid-template-columns:238px minmax(0,1fr) 335px;gap:18px}.side,.right{position:sticky;top:132px;align-self:start;background:rgba(255,255,255,.84);border:1px solid rgba(15,23,42,.08);border-radius:24px;padding:15px;box-shadow:var(--shadow2);backdrop-filter:blur(16px)}nav a{display:block;color:#475467;text-decoration:none;padding:8px 9px;border-radius:12px;font-size:13px;line-height:1.35;margin-bottom:3px;border:1px solid transparent}nav a:hover,nav a.active{background:#f0f7ff;color:#005eb8;font-weight:900;border-color:#dbeafe}.mini{font-size:12px;color:#64748b;line-height:1.65}.progress{height:8px;background:#ececf1;border-radius:999px;overflow:hidden;margin:9px 0}.progress div{height:100%;background:linear-gradient(90deg,#64b5ff,#0071e3);width:0%}.pillrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.pill{display:inline-flex;border-radius:999px;padding:5px 8px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:11px;font-weight:800}.pill.err{background:var(--red2);color:#991b1b;border-color:#fecaca}.pill.warn{background:var(--amber2);color:#92400e;border-color:#fde68a}.notice,.note,.warnnote,.oknote{border-radius:18px;padding:11px 13px;font-size:13px;line-height:1.7;margin-bottom:14px}.notice,.note{background:#f0f7ff;border:1px solid #bfdbfe;color:#1e3a8a}.warnnote{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412}.oknote{background:#ecfdf5;border:1px solid #a7f3d0;color:#047857}.status{display:none;margin-bottom:14px;border-radius:15px;padding:9px 12px;font-size:13px}.status.ok{display:block;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}.status.err{display:block;background:#fff1f2;color:#b91c1c;border:1px solid #fecaca}
+section{position:relative;overflow:hidden;background:rgba(255,255,255,.86);border:1px solid rgba(15,23,42,.08);border-radius:28px;padding:0 20px 20px;margin-bottom:18px;box-shadow:var(--shadow);scroll-margin-top:132px}section::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#dbeafe,#bfdbfe)}.section-title{margin:0 -20px 18px;padding:22px 22px 14px;border-bottom:1px solid rgba(0,0,0,.05);background:linear-gradient(180deg,#fbfbfd,#fff);display:flex;gap:12px;align-items:flex-start}.icon{width:40px;height:40px;border-radius:14px;background:linear-gradient(180deg,#0a84ff,#0071e3);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;flex:0 0 auto}h2{font-size:25px;line-height:1.25;margin:0;letter-spacing:-.04em}.desc{font-size:12px;color:#6e6e73;line-height:1.65;margin-top:3px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.label{font-size:12px;font-weight:800;color:#344054;margin-bottom:5px}.req{color:var(--red)}.fieldmsg{font-size:12px;color:#b91c1c;margin-top:4px;display:none}.fieldmsg.show{display:block}.subtle{font-size:12px;color:#667085;line-height:1.55;margin-top:5px}.block-break{display:flex;align-items:center;gap:12px;margin:4px 0 18px;color:#8e8e93;font-size:12px;font-weight:800;letter-spacing:.08em}.block-break::before,.block-break::after{content:"";height:1px;background:#dbe3ef;flex:1}.block-break span{padding:5px 10px;border:1px solid #ececf1;border-radius:999px;background:#fff;color:#64748b}
+.checkgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.check{position:relative;display:flex;gap:8px;align-items:flex-start;border:1px solid rgba(15,23,42,.08);border-radius:16px;padding:9px 10px;background:#fff;font-size:13px;min-height:40px;line-height:1.45;cursor:pointer}.check:hover{border-color:#93c5fd;background:#f8fbff}.check input{width:16px;height:16px;margin:2px 0 0;accent-color:var(--blue);flex:0 0 auto}.check:has(input:checked){background:#f4f9ff;border-color:#93c5fd;color:#1d4ed8;font-weight:850}.check.warn{background:#fff8ec;border-color:#fcd34d;color:#92400e}.check.red{background:#fff1f2;border-color:#fecaca;color:#991b1b}.tag{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:11px;font-weight:850}.tag.blue{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}.tag.green{background:#ecfdf5;color:#047857;border-color:#a7f3d0}.tag.warn{background:#fffbeb;color:#92400e;border-color:#fde68a}.tag.red{background:#fff1f2;color:#991b1b;border-color:#fecaca}
+.order-widget,.tree-widget,.region-widget,.selected-box{border:1px solid #e2e8f0;background:#fafbfe;border-radius:22px;padding:14px;margin:8px 0 14px}.option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.option-card{border:1px solid rgba(15,23,42,.08);border-radius:16px;background:#fff;padding:9px 10px;font-size:13px;text-align:left;cursor:pointer;min-height:38px}.option-card:hover{border-color:#93c5fd;background:#f8fbff}.option-card.selected{background:#f4f9ff;border-color:#93c5fd;color:#1d4ed8;font-weight:900}.selected-rail{margin-top:11px;border:1px dashed #bfdbfe;background:#fff;border-radius:16px;padding:10px;min-height:46px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}.selected-rail.empty{color:#94a3b8;font-size:13px;font-weight:700}.rank-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:999px;padding:6px 8px;font-size:12px;font-weight:850}.rank-chip input{width:38px;height:28px;border-radius:999px;text-align:center;padding:0;font-size:12px;font-weight:900;background:#fff}.rank-chip button{padding:2px 6px;box-shadow:none}.rank-chip .remove{color:#991b1b;border-color:#fecaca;background:#fff5f5}.rail-help{font-size:12px;color:#667085;line-height:1.55;margin-top:6px}
+.region-map{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;border-radius:20px;background:linear-gradient(135deg,#ecfeff,#f8fafc);border:1px solid #bae6fd;padding:14px}.region-group{border:1px solid rgba(148,163,184,.28);background:rgba(255,255,255,.92);border-radius:18px;padding:12px}.region-group h4{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between}.region-group h4 span{font-size:11px;color:#64748b;background:#f1f5f9;border-radius:999px;padding:2px 7px}.region-grid{display:flex;flex-wrap:wrap;gap:7px}.pref-province{display:inline-flex;gap:7px;align-items:center;border:1px solid #d0d5dd;background:#fff;border-radius:999px;padding:6px 7px 6px 10px;font-size:12px;font-weight:900;color:#344054}.pref-province.is-like{background:#ecfdf5;border-color:#34d399;color:#065f46}.pref-province.is-reject{background:#e2e8f0;border-color:#94a3b8;color:#475569;opacity:.72}.pref-actions{display:inline-flex;gap:4px}.pref-actions button{width:22px;height:22px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:13px;box-shadow:none}.pref-action.like.active{background:#16a34a;color:#fff}.pref-action.reject.active{background:#475569;color:#fff}.region-results{display:grid;gap:10px;margin-top:12px}.region-row{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:10px}.region-row.like{border-color:#bbf7d0;background:#f7fff9}.region-row.reject{border-color:#cbd5e1;background:#f8fafc}.region-row-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.region-row-title b{font-size:13px}
+.tree-stack{display:grid;gap:9px}.tree-group{border:1px solid rgba(15,23,42,.08);background:#fff;border-radius:18px;overflow:hidden}.tree-group[open]{border-color:#bfdbfe;background:#f8fbff;box-shadow:0 10px 24px rgba(37,99,235,.06)}.tree-group summary{list-style:none;cursor:pointer;padding:13px 14px;font-size:14px;font-weight:950;display:flex;justify-content:space-between;gap:10px;align-items:center}.tree-group summary::-webkit-details-marker{display:none}.tree-count{font-size:11px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:3px 7px;font-weight:850}.tree-body{padding:0 14px 14px}.tree-note{font-size:12px;color:#667085;margin:0 0 10px;line-height:1.6}.major-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:8px}.major-searchbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;margin:0 0 12px}.major-choice{display:grid;grid-template-columns:18px minmax(0,1fr);gap:5px 8px;min-height:64px}.major-choice input{grid-column:1}.major-main{grid-column:2;font-weight:900}.major-meta{grid-column:2;display:flex;gap:5px;flex-wrap:wrap}.major-choice.hidden-by-search{display:none!important}.selected-status{margin-top:16px;border:1px solid #bfdbfe;background:#f8fbff;border-radius:20px;padding:13px}.selected-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}.selected-head b{font-size:14px}.output{display:none;background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow)}.output.show{display:block}.output textarea{height:230px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;background:#f8fafc}.issuebox{display:grid;gap:8px;max-height:360px;overflow:auto}.issue{font-size:12px;line-height:1.52;border-radius:14px;padding:8px 9px;border:1px solid}.issue.error{background:#fff1f2;color:#991b1b;border-color:#fecaca}.issue.warn{background:#fffbeb;color:#92400e;border-color:#fde68a}.help-panel{border:1px solid #dbeafe;background:linear-gradient(180deg,#f8fbff,#fff);border-radius:20px;padding:13px}.help-title{font-size:15px;font-weight:950;margin-bottom:7px}.help-body{font-size:12px;color:#344054;line-height:1.75;white-space:pre-line}.help-foot{margin-top:9px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b}.stickybar{position:sticky;bottom:12px;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border:1px solid rgba(15,23,42,.08);border-radius:22px;padding:12px;box-shadow:0 14px 38px rgba(15,23,42,.13);display:flex;justify-content:space-between;gap:12px;align-items:center}.quicklist{margin:0;padding-left:18px}.quicklist li{font-size:12px;line-height:1.7;color:#475467;margin-bottom:2px}.helper-title{font-size:13px;font-weight:950;margin:14px 0 7px}
+.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.38);z-index:100;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.modal-card{width:min(720px,94vw);max-height:84vh;overflow:auto;background:#fff;border-radius:24px;border:1px solid #dbe3ef;box-shadow:0 26px 80px rgba(15,23,42,.24)}.modal-head{padding:16px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:12px;align-items:center}.modal-title{font-weight:950;font-size:18px}.modal-body{padding:16px 18px}.guard-note{border:1px solid #fed7aa;background:#fff7ed;color:#7c2d12;border-radius:16px;padding:12px 14px;line-height:1.7}.guard-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
+@media(max-width:1240px){.wrap{grid-template-columns:220px minmax(0,1fr)}.right{position:relative;top:auto;grid-column:1/-1;order:-1}.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.library-hero,.top,.filebar,.stickybar{display:block}.actions,.filebar-actions{justify-content:flex-start;margin-top:12px}.wrap{grid-template-columns:1fr;padding:14px}.side{position:relative;top:auto}.grid,.grid2,.grid4,.checkgrid,.region-map{grid-template-columns:1fr}.filters input{width:100%}.toolbar{display:block}.stats{grid-template-columns:repeat(2,1fr)}section{padding:0 16px 16px}.section-title{margin:0 -16px 16px;padding:18px}.major-searchbar{grid-template-columns:1fr}.title{font-size:20px}h2{font-size:22px}}
+@media print{header,.filebar,.side,.right,.stickybar,.output,.library-shell,.notice,.actions{display:none!important}.form-view{display:block!important}.wrap{display:block;padding:0}section{break-inside:avoid;box-shadow:none;border-color:#d1d5db}body{background:#fff;font-size:12px}}
+</style>
+</head>
+<body>
+<div id="libraryView" class="library-shell">
+  <div class="library-container">
+    <div class="library-hero">
+      <div>
+        <div class="kicker">本地离线版 · 2026 届 · 第二阶段专科填报</div>
+        <div class="hero-title">学生档案库｜第二阶段信息采集表</div>
+        <div class="hero-sub">用于采集专科批、定向培养军士、定向医学、高职与本科分段培养、中外合作等第二阶段填报信息。数据只保存在当前浏览器本地，建议每日导出全部档案备份。</div>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="createStudentRecord()">新建学生</button>
+        <button onclick="triggerImportStudent()">导入学生 JSON</button>
+        <button onclick="exportLibrarySummary()">导出学生总表</button>
+        <button onclick="exportLibraryBackup()">导出全部档案</button>
+        <button onclick="triggerImportLibrary()">导入全部档案</button>
+        <input id="studentImportFile" class="fileinput" type="file" accept=".json,application/json" onchange="importStudentJSON(event)">
+        <input id="libraryImportFile" class="fileinput" type="file" accept=".json,application/json" onchange="importLibraryBackup(event)">
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">学生总数</div><div class="stat-num" id="statTotal">0</div></div>
+      <div class="stat-card"><div class="stat-label">采集中</div><div class="stat-num" id="statCollecting">0</div></div>
+      <div class="stat-card"><div class="stat-label">待补材料</div><div class="stat-num" id="statTodo">0</div></div>
+      <div class="stat-card"><div class="stat-label">已完成</div><div class="stat-num" id="statDone">0</div></div>
+      <div class="stat-card"><div class="stat-label">今日更新</div><div class="stat-num" id="statToday">0</div></div>
+    </div>
+    <div class="library-panel">
+      <div class="toolbar">
+        <div class="filters">
+          <input id="librarySearch" placeholder="搜索学生、学校、专业、特殊事项" oninput="renderStudentLibrary()">
+          <select id="libraryStatusFilter" onchange="renderStudentLibrary()"><option value="">全部状态</option><option>采集中</option><option>待补材料</option><option>待复核</option><option>已完成</option><option>已归档</option></select>
+          <button onclick="setQuickFilter('all')">全部</button><button onclick="setQuickFilter('unfinished')">未完成</button><button onclick="setQuickFilter('today')">今日更新</button>
+        </div>
+        <div class="mini" id="libraryCountText">共 0 个学生</div>
+      </div>
+      <div class="table-wrap">
+        <table class="library-table"><thead><tr><th>学生</th><th>学校</th><th>选科</th><th>分数/位次</th><th>专业主线</th><th>特殊类型</th><th>状态</th><th>最近更新</th><th>操作</th></tr></thead><tbody id="libraryTableBody"></tbody></table>
+        <div id="libraryEmpty" class="empty"><b>当前还没有学生档案</b>点击“新建学生”创建第一个专科填报档案。</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="formView" class="form-view" style="display:none">
+<header>
+  <div class="top">
+    <div>
+      <div class="kicker">2026 届 · 第二阶段 · 专科版</div>
+      <div class="title">第二阶段志愿填报信息采集表｜专科网页版</div>
+      <div class="sub">覆盖专科批、分段培养、定向医学、定向培养军士、专科专业大类与家庭底线确认。</div>
+    </div>
+    <div class="actions">
+      <button onclick="guardReturnToLibrary()">返回档案库</button><button class="primary" onclick="saveCurrentStudent(true,'手动保存')">保存档案</button><button onclick="generateBrief()">一键摘要</button><button onclick="exportParentWord()">家长版 Word</button><button onclick="exportPlannerWord()">规划师版 Word</button><button onclick="exportJSON()">JSON</button><button onclick="window.print()">打印 / PDF</button><button class="danger" onclick="clearCurrentForm()">清空</button>
+    </div>
+  </div>
+</header>
+<div class="filebar">
+  <div><div class="current-title" id="currentStudentTitle">当前学生：未选择</div><div class="current-meta" id="currentStudentMeta">请从档案库打开学生档案。</div></div>
+  <div class="filebar-actions"><span id="autosaveInfo" class="autosave">未保存</span><select id="currentStudentStatus" onchange="saveCurrentStudent(true,'修改状态')"><option>采集中</option><option>待补材料</option><option>待复核</option><option>已完成</option><option>已归档</option></select><button onclick="triggerImportStudent()">导入 JSON</button><button onclick="exportCurrentStudentOnly()">导出当前学生 JSON</button></div>
+</div>
+<div class="wrap">
+  <aside class="side">
+    <b>填写进度</b><div class="progress"><div id="progressBar"></div></div><div id="progressText" class="mini">必填项完成度：0%</div><div class="pillrow"><span id="errorPill" class="pill err">错误 0</span><span id="warnPill" class="pill warn">提醒 0</span></div>
+    <nav id="toc" style="margin-top:14px"><a href="#sec-basic">一、基础信息</a><a href="#sec-score">二、成绩与学科</a><a href="#sec-physical">三、体检与特殊</a><a href="#sec-region">四、地域偏好</a><a href="#sec-school">五、院校与培养方式</a><a href="#sec-major">六、专科专业偏好</a><a href="#sec-risk">七、专业院校底线</a><a href="#sec-summary">八、规划师结论</a></nav>
+    <div class="note" style="margin-top:14px"><b>口径：</b>专科阶段先确认能不能去、能不能学、能不能转段，再做院校专业匹配。</div>
+  </aside>
+  <main>
+    <div class="notice"><b>使用方式：</b>所有排序项可直接改序号；专业类按专科专业目录大类展开；导出 Word 可直接交家长核对。</div>
+    <div id="status" class="status"></div>
+    <div id="outputBox" class="output"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px"><div><b id="outputTitle">导出内容</b><div id="outputName" class="mini"></div></div><div><button onclick="copyOutput()">复制</button><button class="dark" onclick="downloadLast()">下载</button></div></div><textarea id="outputText" readonly></textarea></div>
+    <form id="intakeForm">
+      <section id="sec-basic"><div class="section-title"><div class="icon">1</div><div><h2>一、基础信息</h2><div class="desc">对应纸质表首页的学生、学校、电话、政治面貌、户籍等字段。</div></div></div>
+        <div class="grid">
+          <label data-help-title="来访日期" data-help="记录本次沟通日期，便于版本追踪。"><div class="label">来访日期</div><input name="来访日期" type="date"></label>
+          <label data-help-title="规划师" data-help="记录负责老师。"><div class="label">规划师 / 沟通老师</div><input name="规划师" placeholder="如：胥老师"></label>
+          <label data-help-title="学生姓名" data-help="学生档案核心字段。"><div class="label">学生姓名 <span class="req">*</span></div><input name="学生姓名" data-required><div class="fieldmsg" data-for="学生姓名"></div></label>
+          <label><div class="label">性别</div><select name="性别"><option></option><option>男</option><option>女</option></select></label>
+          <label><div class="label">出生日期（阳历）</div><input name="出生日期" type="date"></label>
+          <label><div class="label">就读学校 <span class="req">*</span></div><input name="就读学校" data-required><div class="fieldmsg" data-for="就读学校"></div></label>
+          <label><div class="label">班级</div><input name="班级" placeholder="如：高三16班"></label>
+          <label><div class="label">家长电话 <span class="req">*</span></div><input name="家长电话" data-required placeholder="11位手机号"><div class="fieldmsg" data-for="家长电话"></div></label>
+          <label><div class="label">备用电话</div><input name="备用电话" placeholder="另一位家长电话"><div class="fieldmsg" data-for="备用电话"></div></label>
+          <label><div class="label">政治面貌</div><select name="政治面貌"><option></option><option>群众</option><option>团员</option><option>党员</option></select></label>
+          <label><div class="label">高考省份</div><input name="高考省份" value="江苏"></label>
+          <label><div class="label">户籍所在地（精确到区）</div><input name="户籍所在地" placeholder="省 / 市 / 区县"></label>
+        </div>
+        <div class="grid2" style="margin-top:14px"><label><div class="label">家庭基本说明</div><textarea name="家庭基本说明" placeholder="家庭决策人、费用、通勤、是否希望省内等。"></textarea></label><label><div class="label">其他说明</div><textarea name="基础其他说明"></textarea></label></div>
+      </section>
+      <div class="block-break"><span>下一板块</span></div>
+      <section id="sec-score"><div class="section-title"><div class="icon">2</div><div><h2>二、成绩与学科</h2><div class="desc">专科填报仍以省位次为准，同时记录优势学科和喜欢学科排序。</div></div></div>
+        <div class="note"><b>校验口径：</b>总分按 0-750；语数外 0-150；选考科目 0-100。位次请填写省位次，不要填校排名。</div>
+        <div class="grid4">
+          <label><div class="label">选科 <span class="req">*</span></div><input name="选科" data-required placeholder="如：物化生 / 史政地"><div class="fieldmsg" data-for="选科"></div></label>
+          <label><div class="label">总分 / 预估分 <span class="req">*</span></div><input name="总分" data-required placeholder="0-750"><div class="fieldmsg" data-for="总分"></div></label>
+          <label><div class="label">位次 / 预估位次 <span class="req">*</span></div><input name="位次" data-required placeholder="省位次"><div class="fieldmsg" data-for="位次"></div></label>
+          <label><div class="label">高考语种</div><input name="高考语种" placeholder="英语 / 日语等"></label>
+          <label><div class="label">语文</div><input name="语文" placeholder="0-150"><div class="fieldmsg" data-for="语文"></div></label><label><div class="label">数学</div><input name="数学" placeholder="0-150"><div class="fieldmsg" data-for="数学"></div></label><label><div class="label">外语</div><input name="外语" placeholder="0-150"><div class="fieldmsg" data-for="外语"></div></label><label><div class="label">物理</div><input name="物理" placeholder="0-100"><div class="fieldmsg" data-for="物理"></div></label><label><div class="label">历史</div><input name="历史" placeholder="0-100"><div class="fieldmsg" data-for="历史"></div></label><label><div class="label">政治</div><input name="政治" placeholder="0-100"><div class="fieldmsg" data-for="政治"></div></label><label><div class="label">化学</div><input name="化学" placeholder="0-100"><div class="fieldmsg" data-for="化学"></div></label><label><div class="label">生物</div><input name="生物" placeholder="0-100"><div class="fieldmsg" data-for="生物"></div></label><label><div class="label">地理</div><input name="地理" placeholder="0-100"><div class="fieldmsg" data-for="地理"></div></label>
+        </div>
+        <div id="goodSubjectWidget"></div><div id="likeSubjectWidget"></div>
+        <div class="grid2"><label><div class="label">成绩结构判断</div><textarea name="成绩结构判断" placeholder="数学、语文表达、动手能力、英语等结构说明。"></textarea></label><label><div class="label">专科路径适配说明</div><textarea name="专科路径适配说明" placeholder="偏就业、转段、专升本、技能型、军士、医学、轨道交通等。"></textarea></label></div>
+      </section>
+      <div class="block-break"><span>下一板块</span></div>
+      <section id="sec-physical"><div class="section-title"><div class="icon">3</div><div><h2>三、体检与特殊类型</h2><div class="desc">专科专业对视力、色觉、身高、军士体检、医学体检等仍需重点核验。</div></div></div>
+        <div class="grid"><label><div class="label">体检受限代码</div><input name="体检受限代码" placeholder="如：21、22、24、35"><div class="subtle">可直接填体检表代码，也可在下方勾选常见项。</div></label><label><div class="label">口语测试</div><select name="口语测试"><option></option><option>已参加</option><option>未参加</option><option>不确定</option><option>不需要</option></select></label><label><div class="label">体检风险等级</div><select name="体检风险等级"><option></option><option>无明显限制</option><option>需核验</option><option>高风险</option></select></label></div>
+        <div class="label" style="margin-top:14px">常见体检快捷项</div><div class="checkgrid" id="physicalChecks"></div>
+        <div class="label" style="margin-top:14px">其他特殊类型</div><div class="checkgrid" id="specialChecks"></div>
+        <div class="grid2" style="margin-top:14px"><label><div class="label">体检限制补充</div><textarea name="体检限制补充" placeholder="色弱、色盲、视力、身高、体重、听力、嗅觉、病史等。"></textarea></label><label><div class="label">资格核验说明</div><textarea name="资格核验说明" placeholder="定向医学、定向培养军士、户籍、体检、政审、面试、体测等。"></textarea></label></div>
+      </section>
+      <div class="block-break"><span>下一板块</span></div>
+      <section id="sec-region"><div class="section-title"><div class="icon">4</div><div><h2>四、地域偏好</h2><div class="desc">合并“意向地区”和“坚决不去地区”：每个省份可标记 ✓ 想去 或 × 不想去。</div></div></div><div id="regionWidget"></div><label><div class="label">地域偏好补充说明</div><textarea name="地域偏好补充说明" placeholder="是否只考虑江苏/江浙沪；是否为公办/分段培养/好专业破例。"></textarea></label></section>
+      <div class="block-break"><span>下一板块</span></div>
+      <section id="sec-school"><div class="section-title"><div class="icon">5</div><div><h2>五、院校层次与培养方式</h2><div class="desc">专科阶段重点确认公办、民办、中外合作、分段培养、预算与转段接受度。</div></div></div>
+        <div class="label">院校层次</div><div class="checkgrid" id="schoolLevelChecks"></div>
+        <div class="grid4" style="margin-top:14px"><label><div class="label">是否接受中外合作</div><select name="是否接受中外合作"><option></option><option>是</option><option>否</option><option>看预算</option><option>待沟通</option></select></label><label><div class="label">年预算上限</div><input name="年预算上限" placeholder="如：3万以内 / 10万以内"></label><label><div class="label">是否接受分段培养</div><select name="是否接受分段培养"><option></option><option>是</option><option>否</option><option>只接受3+2</option><option>只接受5+0</option><option>待沟通</option></select></label><label><div class="label">是否接受转段不确定性</div><select name="是否接受转段不确定性"><option></option><option>接受</option><option>不接受</option><option>看具体规则</option><option>待沟通</option></select></label></div>
+        <div class="label" style="margin-top:14px">分段培养类型</div><div class="checkgrid" id="segmentChecks"></div>
+        <div class="grid2" style="margin-top:14px"><label><div class="label">意向院校</div><textarea name="意向院校" placeholder="家长或学生提到的专科院校。"></textarea></label><label><div class="label">明确排斥院校</div><textarea name="明确排斥院校" placeholder="不接受的学校、校区或性质。"></textarea></label></div>
+      </section>
+      <div class="block-break"><span>下一板块</span></div>
+      <section id="sec-major"><div class="section-title"><div class="icon">6</div><div><h2>六、专科专业偏好</h2><div class="desc">按专科专业目录大类展开，采集“意向专业类”和排序。</div></div></div>
+        <div class="warnnote"><b>专科口径：</b>这里采集到“专业类”层级。正式填报时还要核验具体专业名称、学校所在城市、校区、学费、实训条件、就业证书、专升本/转段规则和体检要求。</div>
+        <div class="major-searchbar"><input id="majorSearch" placeholder="搜索专业类，例如：护理、计算机、轨道、财务、教育" oninput="filterMajors()"><button type="button" onclick="toggleOnlySelectedMajors()" id="onlySelectedBtn">只看已选</button><button type="button" onclick="clearMajorSearch()">清除筛选</button></div>
+        <div id="majorGroups"></div>
+        <div class="selected-status"><div class="selected-head"><div><b>已选专业类排序</b><div id="majorSelectedCount" class="mini">已选 0 个</div></div><small class="mini">可直接修改序号排序，也可删除。</small></div><div id="majorSelectedRail" class="selected-rail empty">已选专业会显示在这里。</div></div>
+        <div class="grid2" style="margin-top:14px"><label><div class="label">专业白名单</div><textarea name="专业白名单" placeholder="优先考虑的具体专业或专业类。"></textarea></label><label><div class="label">专业灰名单</div><textarea name="专业灰名单" placeholder="可接受但需要看学校、城市、收费和就业。"></textarea></label><label><div class="label">专业黑名单 / 坚决不学</div><textarea name="专业黑名单" placeholder="坚决避开的专业或场景，如护理、民航、化工、土建、幼教等。"></textarea></label><label><div class="label">专业选择原因</div><textarea name="专业选择原因" placeholder="兴趣、就业、升学、证书、家庭资源、身体条件等。"></textarea></label></div>
+      </section>
+      <div class="block-break"><span>下一板块</span></div>
+      <section id="sec-risk"><div class="section-title"><div class="icon">7</div><div><h2>七、专业院校底线</h2><div class="desc">记录不能接受的最差结果、转专业/专升本/转段风险、院校性质底线。</div></div></div>
+        <div id="riskWidget"></div>
+        <div class="grid"><label><div class="label">整体风险偏好</div><select name="整体风险偏好"><option></option><option>激进冲高型</option><option>平衡型</option><option>稳妥保专业型</option><option>极度避险型</option><option>待沟通</option></select></label><label><div class="label">是否接受调剂 / 专业组最差专业</div><select name="是否接受调剂"><option></option><option>坚决不接受</option><option>可接受小幅调剂</option><option>只要公办可接受</option><option>只要城市好可接受</option><option>需要看具体专业组</option><option>待沟通</option></select></label><label><div class="label">是否考虑专升本</div><select name="是否考虑专升本"><option></option><option>强烈考虑</option><option>有机会就考</option><option>不考虑</option><option>待沟通</option></select></label></div>
+        <div class="grid2" style="margin-top:14px"><label><div class="label">不能接受的最差结果</div><textarea name="不能接受的最差结果" placeholder="如：民办高收费、护理、偏远地区、化工、土建、校企合作等。"></textarea></label><label><div class="label">可以妥协的条件</div><textarea name="可以妥协的条件" placeholder="如：为公办可出省；为3+2可降专业；为轨交可接受外省。"></textarea></label><label><div class="label">学生签字 / 确认</div><input name="学生签字" placeholder="可填：已口头确认 / 待确认"></label><label><div class="label">家长签字 / 确认</div><input name="家长签字" placeholder="可填：已口头确认 / 待确认"></label></div>
+      </section>
+      <div class="block-break"><span>下一板块</span></div>
+      <section id="sec-summary"><div class="section-title"><div class="icon">8</div><div><h2>八、规划师结论</h2><div class="desc">对应纸质表底部“规划师匹配适合的专业方向”和“学生家长确定排序”。</div></div></div>
+        <div class="grid2"><label><div class="label">规划师匹配适合的专业方向</div><textarea name="规划师匹配适合的专业方向" placeholder="如：护理/康复/眼视光；计算机/电子信息；轨道交通；财务会计；学前教育等。"></textarea></label><label><div class="label">学生和家长确定的专业方向排序</div><textarea name="学生和家长确定的专业方向排序" placeholder="按最终沟通顺序填写。"></textarea></label><label><div class="label">初步院校层次策略</div><textarea name="初步院校层次策略" placeholder="公办优先、3+2优先、民办兜底、城市优先等。"></textarea></label><label><div class="label">需要补充材料 / 下次追问</div><textarea name="需要补充材料" placeholder="体检表、一分一段、专科计划表、军士/定向医学资格、费用确认、转段规则等。"></textarea></label><label><div class="label">沟通备注</div><textarea name="沟通备注"></textarea></label><label><div class="label">确认人</div><input name="确认人" placeholder="家长 / 学生 / 规划师"></label></div>
+      </section>
+      <div class="stickybar"><div><b>当前表单</b><div id="draftInfo" class="mini">请先保存档案。</div></div><div class="actions"><button type="button" onclick="generateBrief()">一键摘要</button><button type="button" onclick="generateTodo()">待补材料</button><button type="button" onclick="exportParentWord()">家长版 Word</button><button type="submit" class="primary">校验并保存</button></div></div>
+    </form>
+  </main>
+  <div class="right"><div class="help-panel"><div class="help-title" id="helpTitle">右侧说明面板</div><div class="help-body" id="helpBody">鼠标悬浮字段、选项、省份或专业类，这里显示说明。</div><div class="help-foot" id="helpFoot">说明用于初筛；正式填报以当年招生计划、专业组、章程、体检要求和转段规则为准。</div></div><div class="helper-title">实时校验</div><div id="issueList" class="issuebox"><div class="oknote">暂无明显问题。</div></div><div class="helper-title">第二阶段追问卡</div><ul class="quicklist"><li>位次是否为省位次。</li><li>公办、民办、中外合作的费用边界。</li><li>是否接受3+2或5+0分段培养。</li><li>军士/定向医学是否满足户籍、体检、政审、面试。</li><li>专业组内最差专业能否接受。</li><li>是否把专升本作为核心目标。</li></ul></div>
+</div>
+</div>
+<div id="guardModal" class="modal"><div class="modal-card"><div class="modal-head"><div class="modal-title">当前档案有未保存修改</div></div><div class="modal-body"><div class="guard-note" id="guardText">请确认是否保存后继续。</div><div class="guard-actions"><button class="primary" onclick="resolveGuard('save')">保存并继续</button><button onclick="resolveGuard('discard')">不保存继续</button><button onclick="resolveGuard('cancel')">取消</button></div></div></div></div>
+<script>
+const LIB_KEY="phase2_specialty_intake_library_2026_v1";
+const DRAFT_KEY="phase2_specialty_intake_draft_2026_v1";
+let currentStudentId=null, quickFilter="all", issues={errors:[],warnings:[]}, lastFile={filename:"",content:"",type:"text/plain"};
+let orderedState={好学科排序:[],喜欢学科排序:[],意向地区排序:[],坚决不去地区排序:[],意向专业类排序:[],风险底线排序:[]};
+let unsavedDirty=false,pendingGuardAction=null,onlySelectedMajors=false;
+const provinces=["江苏","安徽","北京","重庆","福建","广东","广西","甘肃","贵州","河北","河南","海南","湖北","湖南","黑龙江","吉林","江西","辽宁","内蒙古","宁夏","青海","上海","山东","山西","四川","陕西","天津","西藏","新疆","云南","浙江"];
+const regionGroups=[{name:"华东",items:["江苏","上海","浙江","安徽","福建","江西","山东"]},{name:"华北",items:["北京","天津","河北","山西","内蒙古"]},{name:"华南",items:["广东","广西","海南"]},{name:"华中",items:["河南","湖北","湖南"]},{name:"西南",items:["重庆","四川","贵州","云南","西藏"]},{name:"西北",items:["陕西","甘肃","青海","宁夏","新疆"]},{name:"东北",items:["辽宁","吉林","黑龙江"]}];
+const subjects=["语文","历史","数学","政治","外语","地理","物理","音乐","化学","美术","生物","体育","信息技术"];
+const physicalItems=["21 色弱","22 色盲","23 单色识别异常","24 裸眼视力<5.0","25 裸眼视力<4.8","26 公安/军警体检","31-33 不宜就读类","34 矫正>400度","35 矫正>800度","36 单眼限制","37 听力限制","38 嗅觉/口吃/步态","39 医学慎选"];
+const specialItems=["定向医学","定向培养军士","艺术类","体育类","航海类","空乘/民航服务","高职提前招生相关","其他特殊类型"];
+const schoolLevels=["公办","民办","中外合作","高职与本科分段培养","职业本科","校企合作","高收费专业"];
+const segmentItems=["3+2（3年大专院校就读，2年本科院校就读）","5+0（5年大专院校就读）","其他分段培养"];
+const riskItems=["民办高收费风险","专业组含不喜欢专业","分段培养转段不确定","专升本竞争压力","实训/就业环境不能接受","异地校区/偏远校区","体检限制误报","军士/医学资格不通过","中外合作费用超预算","就业岗位需要证书或夜班"];
+const specialtyGroups=[
+{name:"农林牧渔大类",items:["农业类","林业类","畜牧业类","渔业类"]},
+{name:"资源环境与安全大类",items:["资源勘查类","地质类","测绘地理信息类","石油与天然气类","煤炭类","金属与非金属矿类","气象类","环境保护类","安全类"]},
+{name:"能源动力与材料大类",items:["电力技术类","热能与发电工程类","新能源发电工程类","黑色金属材料类","有色金属材料类","非金属材料类","建筑材料类"]},
+{name:"土木建筑大类",items:["建筑设计类","城乡规划与管理类","土建施工类","建筑设备类","建设工程管理类","市政工程类","房地产类"]},
+{name:"水利大类",items:["水文水资源类","水利工程与管理类","水利水电设备类","水土保持与水环境类"]},
+{name:"装备制造大类",items:["机械设计制造类","机电设备类","自动化类","轨道装备类","船舶与海洋工程装备类","航空装备类","汽车制造类"]},
+{name:"生物与化工大类",items:["生物技术类","化工技术类"]},
+{name:"轻工纺织大类",items:["轻化工类","包装类","印刷类","纺织服务类"]},
+{name:"食品药品与粮食大类",items:["食品类","药品与医疗器械类","粮食类"]},
+{name:"交通运输大类",items:["铁道运输类","道路运输类","水上运输类","航空运输类","管道运输类","城市轨道交通类","邮政类"]},
+{name:"电子与信息大类",items:["电子信息类","计算机类","通信类","集成电路类"]},
+{name:"医药卫生大类",items:["临床医学类","护理类","药学类","中医药类","医学技术类","康复治疗类","公共卫生与卫生管理类","健康管理与促进类","眼视光类"]},
+{name:"财经商贸大类",items:["财政税务类","金融类","财务会计类","统计类","经济贸易类","工商管理类","电子商务类","物流类"]},
+{name:"旅游大类",items:["旅游类","餐饮类"]},
+{name:"文化艺术大类",items:["艺术设计类","表演艺术类","民族文化艺术类","文化服务类"]},
+{name:"新闻传播大类",items:["新闻出版类","广播影视类"]},
+{name:"教育与体育大类",items:["教育类","语言类","体育类"]},
+{name:"公安与司法大类",items:["公安管理类","公安技术类","侦查类","法律实务类","法律执行类","司法技术类","安全防范类"]},
+{name:"公共管理与服务大类",items:["公共事业类","公共管理类","公共服务类","文秘类"]}
+];
+const majorHelp={"护理类":"护理类通常涉及夜班、轮班、医院实习和职业资格，需确认学生是否接受护理岗位场景。","临床医学类":"专科临床医学需核验地区、执业路径、升学和就业限制，体检要求也要严格核查。","眼视光类":"眼视光方向就业清晰，但需看设备实训、证书、城市和体检要求。","计算机类":"计算机类要看代码能力、数学基础、实训条件、校企合作质量和就业城市。","电子信息类":"电子信息类偏工程和制造业，就业需看地区产业链、动手能力和电路基础。","电力技术类":"电力技术类与电网、电厂、新能源运维相关，需关注体检、就业地点和岗位环境。","城市轨道交通类":"轨道交通类对身体条件、班制、岗位地点和订单班规则要逐校核验。","航空运输类":"民航、空乘、机场运行等方向常涉及身高、视力、形象、口语和面试。","铁道运输类":"铁道方向需关注岗位班制、身高视力、订单培养和就业去向。","财务会计类":"财会方向就业面宽，但需看学生细致程度、证书规划和专升本意愿。","教育类":"教育类尤其学前教育需确认是否接受幼教场景、普通话、才艺和地区就业。","公安技术类":"公安司法方向需重点核验政审、体检、面试、体测和招录路径。","法律实务类":"法律实务专科出口与升学、基层岗位、文书能力和地区平台关系较大。","药品与医疗器械类":"需核验色觉、化学基础、药企/药房/器械岗位环境和证书要求。","食品类":"食品方向涉及检验、生产、质控和工厂环境，体检与色觉需复核。","建筑设计类":"建筑设计、室内、规划等方向需要审美、软件学习和作品能力。","土建施工类":"土建施工偏工地和一线环境，需确认是否接受户外、施工和行业周期。","机械设计制造类":"机械类强调动手、图纸、设备和制造业环境，适合愿意进工厂或设备岗位的学生。","自动化类":"自动化类衔接智能制造、设备运维、控制和工业现场，需看电学与动手能力。"};
+function $(id){return document.getElementById(id)}function qa(s,root=document){return Array.from(root.querySelectorAll(s))}function q(s,root=document){return root.querySelector(s)}function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}function today(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`}function nowIso(){return new Date().toISOString()}function fmt(iso){if(!iso)return"-";const d=new Date(iso),p=n=>String(n).padStart(2,"0");return isNaN(d)?iso:`${d.getMonth()+1}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`}
+function isToday(iso){const d=new Date(iso),n=new Date();return !isNaN(d)&&d.toDateString()===n.toDateString()}function val(name){const x=q(`[name="${CSS.escape(name)}"]`);return x?String(x.value||"").trim():""}function setVal(name,v){const x=q(`[name="${CSS.escape(name)}"]`);if(x)x.value=v||""}function checked(name){return qa(`input[name="${CSS.escape(name)}"]:checked`).map(x=>x.value)}function showStatus(msg,ok=true){const s=$("status");if(!s)return;s.textContent=msg;s.className="status "+(ok?"ok":"err")}
+function setHelp(title,body,foot){$("helpTitle").textContent=title||"说明";$("helpBody").textContent=body||"暂无说明。";$("helpFoot").textContent=foot||"说明用于初筛；正式填报以当年招生计划、专业组、章程、体检要求和转段规则为准。"}
+function initHelp(){document.addEventListener("mouseover",e=>{const t=e.target.closest("[data-help]");if(t)setHelp(t.dataset.helpTitle||t.textContent.trim(),t.dataset.help,t.dataset.helpFoot)})}
+function makeChecks(id,name,items){$(id).innerHTML=items.map(it=>`<label class="check" data-help-title="${esc(it)}" data-help="${esc(it)}：请结合学生身体条件、费用、就业、升学和家庭接受度确认。"><input type="checkbox" name="${esc(name)}" value="${esc(it)}"><span>${esc(it)}</span></label>`).join("")}
+function makeOrderedWidget(id,key,title,items,max){orderedState[key]=orderedState[key]||[];$(id).innerHTML=`<div class="order-widget"><div class="label">${esc(title)}</div><div class="option-grid">${items.map(it=>`<button type="button" class="option-card" data-order-key="${esc(key)}" data-order-max="${max||0}" data-value="${esc(it)}" data-help-title="${esc(it)}" data-help="点击加入排序，可直接在下方修改序号。">${esc(it)}</button>`).join("")}</div><div id="rail_${key}" class="selected-rail empty">点击上方选项后，会在这里形成排序。</div><div class="rail-help">${max?`最多选择 ${max} 项；`:""}可直接修改数字排序或删除。</div></div>`;renderRail(key)}
+function renderRail(key){const rail=$("rail_"+key);if(!rail)return;const arr=orderedState[key]||[];qa(`[data-order-key="${CSS.escape(key)}"]`).forEach(b=>b.classList.toggle("selected",arr.includes(b.dataset.value)));if(!arr.length){rail.classList.add("empty");rail.innerHTML="点击上方选项后，会在这里形成排序。";return}rail.classList.remove("empty");rail.innerHTML=arr.map((v,i)=>`<span class="rank-chip"><input type="number" min="1" max="${arr.length}" value="${i+1}" onchange="setOrderedRank('${key}',${i},this.value)" onclick="this.select()"><span>${esc(v)}</span><button type="button" class="remove" onclick="removeOrdered('${key}',${i})">×</button></span>`).join("")}
+function addOrdered(key,value,max){const arr=orderedState[key]||[];if(arr.includes(value))return;if(max&&arr.length>=max){showStatus(`“${key}”最多选择 ${max} 项。`,false);return}arr.push(value);orderedState[key]=arr;renderRail(key);markDirty();validateAll()}
+function setOrderedRank(key,i,value){const arr=orderedState[key]||[];let target=parseInt(value,10);if(!Number.isFinite(target))target=i+1;target=Math.max(1,Math.min(arr.length,target));const [item]=arr.splice(i,1);arr.splice(target-1,0,item);orderedState[key]=arr;renderRail(key);markDirty()}
+function removeOrdered(key,i){const arr=orderedState[key]||[];arr.splice(i,1);orderedState[key]=arr;renderRail(key);markDirty();validateAll()}
+function initOrderClicks(){document.addEventListener("click",e=>{const b=e.target.closest(".option-card[data-order-key]");if(!b)return;addOrdered(b.dataset.orderKey,b.dataset.value,Number(b.dataset.orderMax||0))})}
+function makeRegionWidget(){const html=regionGroups.map(g=>`<div class="region-group"><h4>${esc(g.name)}<span>${g.items.length}项</span></h4><div class="region-grid">${g.items.map(p=>`<span class="pref-province" data-province="${esc(p)}" data-help-title="${esc(p)}" data-help="点击 ✓ 作为意向地区；点击 × 作为坚决不去地区。"><span>${esc(p)}</span><span class="pref-actions"><button type="button" class="pref-action like" data-region-act="like" data-province="${esc(p)}">✓</button><button type="button" class="pref-action reject" data-region-act="reject" data-province="${esc(p)}">×</button></span></span>`).join("")}</div></div>`).join("");$("regionWidget").innerHTML=`<div class="region-widget"><div class="region-map">${html}</div><div class="region-results"><div class="region-row like"><div class="region-row-title"><b>✓ 意向地区</b><small id="likeRegionCount">0 个</small></div><div id="rail_意向地区排序" class="selected-rail empty">点击省份右侧 ✓ 后显示在这里。</div></div><div class="region-row reject"><div class="region-row-title"><b>× 坚决不去地区</b><small id="rejectRegionCount">0 个</small></div><div id="rail_坚决不去地区排序" class="selected-rail empty">点击省份右侧 × 后显示在这里。</div></div></div></div>`;renderRegion()}
+function setRegionPref(p,mode){let like=orderedState.意向地区排序||[],reject=orderedState.坚决不去地区排序||[];if(mode==="like"){const ex=like.includes(p);like=like.filter(x=>x!==p);reject=reject.filter(x=>x!==p);if(!ex)like.push(p)}else{const ex=reject.includes(p);like=like.filter(x=>x!==p);reject=reject.filter(x=>x!==p);if(!ex)reject.push(p)}orderedState.意向地区排序=like;orderedState.坚决不去地区排序=reject;renderRegion();markDirty();validateAll()}
+function renderRegion(){qa("[data-province]").forEach(el=>{const p=el.dataset.province;if(!p)return;el.classList.toggle("is-like",(orderedState.意向地区排序||[]).includes(p));el.classList.toggle("is-reject",(orderedState.坚决不去地区排序||[]).includes(p));const like=el.querySelector(".like"),rej=el.querySelector(".reject");if(like)like.classList.toggle("active",(orderedState.意向地区排序||[]).includes(p));if(rej)rej.classList.toggle("active",(orderedState.坚决不去地区排序||[]).includes(p));});renderRail("意向地区排序");renderRail("坚决不去地区排序");if($("likeRegionCount"))$("likeRegionCount").textContent=(orderedState.意向地区排序||[]).length+" 个";if($("rejectRegionCount"))$("rejectRegionCount").textContent=(orderedState.坚决不去地区排序||[]).length+" 个"}
+function initRegionClicks(){document.addEventListener("click",e=>{const b=e.target.closest("[data-region-act]");if(!b)return;setRegionPref(b.dataset.province,b.dataset.regionAct)})}
+function makeMajorGroups(){const groupHtml=specialtyGroups.map(g=>`<details class="tree-group" data-major-group="${esc(g.name)}"><summary><span>${esc(g.name)}</span><span class="tree-count">${g.items.length}类</span></summary><div class="tree-body"><p class="tree-note">展开后勾选专业类。正式方案需继续核验具体专业、院校、校区、体检和收费。</p><div class="major-grid">${g.items.map(it=>{const help=majorHelp[it]||`${it}属于${g.name}。采集阶段记录意向，正式填报前需核验具体专业名称、学费、就业场景、体检和专升本/转段路径。`;return `<label class="check major-choice" data-major-name="${esc(it)}" data-major-group-name="${esc(g.name)}" data-help-title="${esc(it)}" data-help="${esc(help)}"><input type="checkbox" name="意向专业类" value="${esc(it)}"><span class="major-main">${esc(it)}</span><span class="major-meta"><span class="tag blue">${esc(g.name.replace('大类',''))}</span>${/医|药|护理|眼视光|公安|航空|轨道|铁道|航海|水上/.test(it)?'<span class="tag warn">需核验体检/岗位</span>':''}</span></label>`}).join("")}</div></div></details>`).join("");$("majorGroups").innerHTML=`<div class="tree-widget"><div class="tree-stack">${groupHtml}</div></div>`;renderMajorSelected()}
+function selectedMajors(){return qa('input[name="意向专业类"]:checked').map(x=>x.value)}
+function ensureMajorOrder(){const sel=selectedMajors();let arr=orderedState.意向专业类排序||[];arr=arr.filter(x=>sel.includes(x));sel.forEach(x=>{if(!arr.includes(x))arr.push(x)});orderedState.意向专业类排序=arr;return arr}
+function renderMajorSelected(){const rail=$("majorSelectedRail");if(!rail)return;const arr=ensureMajorOrder();$("majorSelectedCount").textContent=`已选 ${arr.length} 个`;if(!arr.length){rail.classList.add("empty");rail.innerHTML="已选专业会显示在这里。";return}rail.classList.remove("empty");rail.innerHTML=arr.map((v,i)=>`<span class="rank-chip"><input type="number" min="1" max="${arr.length}" value="${i+1}" onchange="setMajorRank(${i},this.value)" onclick="this.select()"><span>${esc(v)}</span><button type="button" class="remove" onclick="removeMajor(${i})">×</button></span>`).join("")}
+function setMajorRank(i,value){const arr=orderedState.意向专业类排序||[];let target=parseInt(value,10);if(!Number.isFinite(target))target=i+1;target=Math.max(1,Math.min(arr.length,target));const [item]=arr.splice(i,1);arr.splice(target-1,0,item);orderedState.意向专业类排序=arr;renderMajorSelected();markDirty()}
+function removeMajor(i){const arr=orderedState.意向专业类排序||[];const v=arr[i];qa('input[name="意向专业类"]').forEach(x=>{if(x.value===v)x.checked=false});arr.splice(i,1);orderedState.意向专业类排序=arr;renderMajorSelected();markDirty();validateAll();filterMajors()}
+function filterMajors(){const kw=($("majorSearch")?.value||"").trim().toLowerCase();qa(".major-choice").forEach(label=>{const name=(label.dataset.majorName||"").toLowerCase(),group=(label.dataset.majorGroupName||"").toLowerCase(),checked=label.querySelector("input")?.checked;const hide=(kw&&!name.includes(kw)&&!group.includes(kw))||(onlySelectedMajors&&!checked);label.classList.toggle("hidden-by-search",hide)});qa("[data-major-group]").forEach(d=>{const visible=qa(".major-choice:not(.hidden-by-search)",d).length;d.style.display=visible?"block":"none"})}
+function toggleOnlySelectedMajors(){onlySelectedMajors=!onlySelectedMajors;$("onlySelectedBtn").textContent=onlySelectedMajors?"显示全部":"只看已选";filterMajors()}function clearMajorSearch(){if($("majorSearch"))$("majorSearch").value="";onlySelectedMajors=false;$("onlySelectedBtn").textContent="只看已选";filterMajors()}
+function getLibrary(){try{const raw=localStorage.getItem(LIB_KEY);return raw?JSON.parse(raw):{version:"phase2-v1",students:[]}}catch(e){return{version:"phase2-v1",students:[]}}}function setLibrary(lib){lib.updatedAt=nowIso();localStorage.setItem(LIB_KEY,JSON.stringify(lib))}
+function deriveMeta(data){data=data||{};const majors=Array.isArray(data.意向专业类排序)&&data.意向专业类排序.length?data.意向专业类排序:(Array.isArray(data.意向专业类)?data.意向专业类:[]);const special=[...(Array.isArray(data.其他特殊类型)?data.其他特殊类型:[]),data.是否接受分段培养?`分段:${data.是否接受分段培养}`:""].filter(Boolean).join("、")||"-";return{name:data.学生姓名||"未命名学生",school:data.就读学校||"-",subject:data.选科||"-",score:data.总分||"-",rank:data.位次||"-",major:(data.专业白名单||majors.slice(0,3).join(" / ")||"-"),special}}
+function findStudent(id){const lib=getLibrary();const idx=lib.students.findIndex(x=>x.id===id);return{lib,idx,student:idx>=0?lib.students[idx]:null}}
+function renderStudentLibrary(){const lib=getLibrary(),qv=($("librarySearch")?.value||"").toLowerCase(),stf=$("libraryStatusFilter")?.value||"";let rows=lib.students.slice().sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));rows=rows.filter(st=>{const m=deriveMeta(st.data);const hay=[m.name,m.school,m.subject,m.score,m.rank,m.major,m.special,st.status,JSON.stringify(st.data||{})].join(" ").toLowerCase();if(qv&&!hay.includes(qv))return false;if(stf&&st.status!==stf)return false;if(quickFilter==="unfinished"&&["已完成","已归档"].includes(st.status))return false;if(quickFilter==="today"&&!isToday(st.updatedAt))return false;return true});$("libraryTableBody").innerHTML=rows.map(st=>{const m=deriveMeta(st.data);return`<tr><td><div class="student-name">${esc(m.name)}</div><div class="student-sub">创建：${esc(fmt(st.createdAt))}</div></td><td>${esc(m.school)}</td><td>${esc(m.subject)}</td><td>${esc(m.score)} / ${esc(m.rank)}</td><td>${esc(m.major)}</td><td>${esc(m.special)}</td><td><span class="status-badge ${esc(st.status||'采集中')}">${esc(st.status||'采集中')}</span></td><td>${esc(fmt(st.updatedAt))}</td><td><div class="actions"><button class="primary small" onclick="guardOpenStudent('${st.id}')">打开</button><button class="small" onclick="exportStudentById('${st.id}')">导出</button><button class="danger small" onclick="deleteStudent('${st.id}')">删除</button></div></td></tr>`}).join("");$("libraryEmpty").style.display=rows.length?"none":"block";$("libraryCountText").textContent=`共 ${rows.length} / ${lib.students.length} 个学生`;renderStats(lib)}
+function renderStats(lib=getLibrary()){const c=s=>lib.students.filter(x=>x.status===s).length;$("statTotal").textContent=lib.students.length;$("statCollecting").textContent=c("采集中");$("statTodo").textContent=c("待补材料");$("statDone").textContent=c("已完成");$("statToday").textContent=lib.students.filter(x=>isToday(x.updatedAt)).length}
+function setQuickFilter(v){quickFilter=v;renderStudentLibrary()}function makeId(){return"stu_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8)}
+function resetForm(){q("#intakeForm").reset();Object.keys(orderedState).forEach(k=>orderedState[k]=[]);setVal("来访日期",today());setVal("高考省份","江苏");renderAllRails();qa('input[name="意向专业类"]').forEach(x=>x.checked=false);renderMajorSelected();validateAll()}
+function createStudentRecord(){const name=prompt("请输入学生姓名：");if(name===null)return;resetForm();setVal("学生姓名",name.trim()||"未命名学生");const data=collect();const st={id:makeId(),status:"采集中",createdAt:nowIso(),updatedAt:nowIso(),data,snapshots:[]};const lib=getLibrary();lib.students.push(st);setLibrary(lib);openStudent(st.id)}
+function openStudent(id){const {student}=findStudent(id);if(!student){alert("未找到该学生档案。");renderStudentLibrary();return}currentStudentId=id;applyData(student.data||{});$("currentStudentStatus").value=student.status||"采集中";updateCurrentBar(student);$("libraryView").style.display="none";$("formView").style.display="block";unsavedDirty=false;updateUnsaved();window.scrollTo({top:0,behavior:"smooth"})}
+function guardOpenStudent(id){if(currentStudentId&&unsavedDirty){requestGuard(()=>openStudent(id),"切换学生档案")}else openStudent(id)}function guardReturnToLibrary(){if(unsavedDirty){requestGuard(()=>showLibrary(),"返回档案库")}else showLibrary()}function showLibrary(){currentStudentId=null;$("formView").style.display="none";$("libraryView").style.display="block";unsavedDirty=false;updateUnsaved();renderStudentLibrary();window.scrollTo({top:0,behavior:"smooth"})}
+function updateCurrentBar(student){const m=deriveMeta(student.data||collect());$("currentStudentTitle").textContent=`当前学生：${m.name}｜${m.school}｜${m.subject}`;$("currentStudentMeta").textContent=`分数/位次：${m.score} / ${m.rank}｜专业主线：${m.major}｜最近保存：${fmt(student.updatedAt)}`;$("autosaveInfo").textContent=`已保存：${fmt(student.updatedAt)}`;$("draftInfo").textContent=`当前档案：${m.name}｜状态：${student.status||'采集中'}`}
+function saveCurrentStudent(snapshot=false,reason="自动保存"){if(!currentStudentId){localStorage.setItem(DRAFT_KEY,JSON.stringify(collect()));showStatus("已保存为临时草稿；建议先新建学生档案。",true);return false}const {lib,idx,student}=findStudent(currentStudentId);if(idx<0)return false;const data=collect();if(snapshot){student.snapshots=student.snapshots||[];student.snapshots.unshift({time:nowIso(),reason,data:JSON.parse(JSON.stringify(data))});student.snapshots=student.snapshots.slice(0,8)}student.data=data;student.status=$("currentStudentStatus").value||student.status||"采集中";student.updatedAt=nowIso();lib.students[idx]=student;setLibrary(lib);updateCurrentBar(student);renderStudentLibrary();unsavedDirty=false;updateUnsaved();if(snapshot)showStatus("已保存档案。",true);return true}
+let autosaveTimer=null;function markDirty(){unsavedDirty=true;updateUnsaved();clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveCurrentStudent(false,"自动保存"),900)}function updateUnsaved(){const el=$("autosaveInfo");if(!el)return;el.classList.toggle("unsaved",unsavedDirty);if(unsavedDirty)el.textContent="有未保存修改"}
+function requestGuard(action,context){pendingGuardAction=action;$("guardText").innerHTML=`即将执行：<b>${esc(context)}</b><br>当前档案有未保存修改，请确认。`;$("guardModal").classList.add("show")}function resolveGuard(mode){$("guardModal").classList.remove("show");if(!pendingGuardAction)return;if(mode==="cancel"){pendingGuardAction=null;return}if(mode==="save")saveCurrentStudent(true,"离开前保存");unsavedDirty=false;updateUnsaved();const a=pendingGuardAction;pendingGuardAction=null;a()}
+function collect(){const data={};qa("#intakeForm input,#intakeForm select,#intakeForm textarea").forEach(x=>{if(!x.name)return;if(x.type==="checkbox"){data[x.name]=data[x.name]||[];if(x.checked)data[x.name].push(x.value)}else data[x.name]=x.value||""});Object.keys(orderedState).forEach(k=>data[k]=orderedState[k]||[]);return data}
+function applyData(data){qa("#intakeForm input,#intakeForm select,#intakeForm textarea").forEach(x=>{if(!x.name)return;if(x.type==="checkbox")x.checked=Array.isArray(data[x.name])&&data[x.name].includes(x.value);else x.value=data[x.name]||""});Object.keys(orderedState).forEach(k=>orderedState[k]=Array.isArray(data[k])?data[k]:[]);renderAllRails();renderRegion();renderMajorSelected();filterMajors();validateAll()}
+function renderAllRails(){Object.keys(orderedState).forEach(renderRail);renderRegion();renderMajorSelected()}
+function clearMarks(){qa("input,select,textarea").forEach(x=>x.classList.remove("invalid","warning"));qa(".fieldmsg").forEach(x=>{x.textContent="";x.classList.remove("show")})}function addIssue(type,field,msg){issues[type].push({field,msg})}function mark(field,type,msg){const x=q(`[name="${CSS.escape(field)}"]`);if(x)x.classList.add(type==="errors"?"invalid":"warning");const m=q(`.fieldmsg[data-for="${CSS.escape(field)}"]`);if(m){m.textContent=msg;m.classList.add("show")}}
+function isNum(v){return /^\d+(\.\d+)?$/.test(String(v||"").trim())}function hasTextAny(text,arr){return arr.some(x=>text.includes(x))}
+function validateAll(){issues={errors:[],warnings:[]};clearMarks();qa("[data-required]").forEach(x=>{if(!String(x.value||"").trim())addIssue("errors",x.name,`${x.name}为必填项。`)});const p=val("家长电话");if(p&&!/^1[3-9]\d{9}$/.test(p))addIssue("errors","家长电话","手机号格式应为11位大陆手机号。");const p2=val("备用电话");if(p2&&!/^1[3-9]\d{9}$/.test(p2))addIssue("errors","备用电话","备用电话格式应为11位大陆手机号。");const total=val("总分");if(total&&(!isNum(total)||+total<0||+total>750))addIssue("errors","总分","总分应在0-750之间。");const rank=val("位次");if(rank&&(!/^\d+$/.test(rank)||+rank<1))addIssue("errors","位次","位次应为正整数，且应填写省位次。");[["语文",150],["数学",150],["外语",150],["物理",100],["历史",100],["政治",100],["化学",100],["生物",100],["地理",100]].forEach(([n,max])=>{const v=val(n);if(v&&(!isNum(v)||+v<0||+v>max))addIssue("errors",n,`${n}分数应在0-${max}之间。`)});const major=selectedMajors().join(" ")+" "+val("专业白名单")+" "+val("专业黑名单");const physical=checked("体检快捷项").join(" ")+" "+val("体检受限代码")+" "+val("体检限制补充");if(!selectedMajors().length&&!val("专业白名单"))addIssue("warnings","专业白名单","尚未选择意向专业类或填写专业白名单。");if(!val("专业黑名单"))addIssue("warnings","专业黑名单","建议补充坚决不学的专业或场景。");if((val("是否接受中外合作")==="是"||val("是否接受中外合作")==="看预算")&&!val("年预算上限"))addIssue("warnings","年预算上限","已考虑中外合作，但未填写预算上限。");if(/^是|只接受/.test(val("是否接受分段培养"))&&!checked("分段培养类型").length)addIssue("warnings","是否接受分段培养","已接受分段培养，但未选择3+2或5+0类型。");if(checked("其他特殊类型").includes("定向培养军士")&&!val("资格核验说明"))addIssue("warnings","资格核验说明","定向培养军士需补充体检、政审、面试、户籍等资格核验。 ");if(checked("其他特殊类型").includes("定向医学")&&!val("户籍所在地"))addIssue("warnings","户籍所在地","定向医学通常需核验户籍区域，请精确到区县。 ");if(hasTextAny(major,["护理","临床","药学","中医","医学","眼视光","公安","航空","铁道","轨道","水上","航海"])&&!physical.trim())addIssue("warnings","体检受限代码","已涉及医药卫生、公安司法或交通类方向，建议补充体检信息。 ");const both=(orderedState.意向地区排序||[]).filter(x=>(orderedState.坚决不去地区排序||[]).includes(x));if(both.length)addIssue("errors","地域偏好补充说明",`同一地区同时出现在想去和不想去：${both.join("、")}。`);if(!val("是否接受调剂"))addIssue("warnings","是否接受调剂","尚未确认是否接受专业组内最差专业。 ");issues.errors.forEach(i=>mark(i.field,"errors",i.msg));issues.warnings.forEach(i=>{const x=q(`[name="${CSS.escape(i.field)}"]`);if(!x||!x.classList.contains("invalid"))mark(i.field,"warnings",i.msg)});renderIssues();updateProgress();renderMajorSelected();return issues}
+function renderIssues(){if($("errorPill"))$("errorPill").textContent=`错误 ${issues.errors.length}`;if($("warnPill"))$("warnPill").textContent=`提醒 ${issues.warnings.length}`;const items=[...issues.errors.map(i=>({...i,type:"error"})),...issues.warnings.map(i=>({...i,type:"warn"}))];$("issueList").innerHTML=items.length?items.map(i=>`<div class="issue ${i.type}"><b>${i.type==="error"?"错误":"提醒"}｜${esc(i.field)}</b><br>${esc(i.msg)}</div>`).join(""):`<div class="oknote">暂无明显问题。</div>`}
+function updateProgress(){const req=qa("[data-required]"),done=req.filter(x=>String(x.value||"").trim()).length,pct=req.length?Math.round(done/req.length*100):0;$("progressBar").style.width=pct+"%";$("progressText").textContent=`必填项完成度：${pct}%`}
+function generateTodoList(data=collect()){const todo=[];if(!data.位次)todo.push("补充省位次或预估位次。");if(!data.体检受限代码&&!data.体检限制补充)todo.push("补充体检表或体检限制代码。");if(!Array.isArray(data.意向地区排序)||!data.意向地区排序.length)todo.push("确认意向地区排序。");if(!Array.isArray(data.坚决不去地区排序)||!data.坚决不去地区排序.length)todo.push("确认是否存在坚决不去地区。");if(!data.是否接受分段培养)todo.push("确认是否接受3+2/5+0分段培养。");if(!data.是否接受调剂)todo.push("确认是否接受专业组最差专业。");if(!data.专业黑名单)todo.push("补充坚决不学的专业方向。");if(!data.规划师匹配适合的专业方向)todo.push("补充规划师匹配方向。");return todo}
+function generateBrief(){validateAll();const d=collect();const m=deriveMeta(d);const lines=[`# 第二阶段专科填报信息摘要`,``,`学生：${m.name}｜学校：${m.school}｜选科：${m.subject}｜总分/位次：${m.score} / ${m.rank}`,``,`## 一、特殊类型`,`${checked("其他特殊类型").join("、")||"无/待补"}`,`体检：${d.体检受限代码||"未填"}；${d.体检限制补充||""}`,``,`## 二、地域`,`意向：${(d.意向地区排序||[]).join(" > ")||"待补"}`,`不去：${(d.坚决不去地区排序||[]).join(" > ")||"待确认"}`,``,`## 三、院校与培养方式`,`院校层次：${checked("院校层次").join("、")||"待补"}；中外合作：${d.是否接受中外合作||"待确认"}；分段培养：${d.是否接受分段培养||"待确认"}；类型：${checked("分段培养类型").join("、")||"未选"}`,``,`## 四、专业主线`,`意向专业类：${(d.意向专业类排序||[]).join(" > ")||checked("意向专业类").join("、")||"待补"}`,`白名单：${d.专业白名单||"待补"}`,`黑名单：${d.专业黑名单||"待补"}`,``,`## 五、风险底线`,`风险排序：${(d.风险底线排序||[]).join(" > ")||"待补"}`,`调剂：${d.是否接受调剂||"待确认"}；专升本：${d.是否考虑专升本||"待确认"}`,`不能接受：${d.不能接受的最差结果||"待补"}`,``,`## 六、规划师结论`,`${d.规划师匹配适合的专业方向||"待填写"}`,`确定排序：${d.学生和家长确定的专业方向排序||"待填写"}`,``,`## 七、待补材料`,...(generateTodoList(d).length?generateTodoList(d).map((x,i)=>`${i+1}. ${x}`):["暂无明显待补项。"])];showOutput("一键摘要",`第二阶段专科摘要_${m.name}_${today()}.md`,lines.join("\n"),"text/markdown;charset=utf-8")}
+function generateTodo(){const d=collect();const content=[`# 待补材料清单`,`学生：${d.学生姓名||"待补"}`,``,...generateTodoList(d).map((x,i)=>`${i+1}. ${x}`)].join("\n");showOutput("待补材料",`待补材料_${d.学生姓名||"未命名"}_${today()}.md`,content,"text/markdown;charset=utf-8")}
+function wordRows(rows){const used=rows.filter(r=>String(r[1]||"").trim());if(!used.length)return"";let out="<table><tbody>";for(let i=0;i<used.length;i+=2){const a=used[i],b=used[i+1];out+=`<tr><th>${esc(a[0])}</th><td>${esc(a[1])}</td>${b?`<th>${esc(b[0])}</th><td>${esc(b[1])}</td>`:"<th></th><td></td>"}</tr>`}return out+"</tbody></table>"}function arr(v,sep="、"){return Array.isArray(v)?v.join(sep):String(v||"")}
+function buildWord(data,planner=false){const m=deriveMeta(data);const sec=(title,rows)=>`<h2>${esc(title)}</h2>${wordRows(rows)||"<p>暂无</p>"}`;const issuesText=[...issues.errors,...issues.warnings].map(i=>`${i.field}：${i.msg}`).join("；");return `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:841.95pt 595.35pt;margin:32pt}body{font-family:"Microsoft YaHei",SimSun,Arial;font-size:9pt;color:#111827}h1{text-align:center;font-size:16pt}h2{font-size:11pt;background:#eef6ff;border-left:4pt solid #0a7cff;padding:4pt 6pt}table{width:100%;border-collapse:collapse;margin-bottom:7pt;table-layout:fixed}th,td{border:1px solid #d1d5db;padding:4pt 5pt;vertical-align:top;word-break:break-word}th{background:#f8fafc;text-align:left;width:16%;font-weight:bold}.note{border:1px solid #bfdbfe;background:#eff6ff;padding:6pt;margin-bottom:7pt}</style></head><body><h1>第二阶段志愿填报信息采集表（专科版）</h1><div class="note">学生：${esc(m.name)}｜导出日期：${today()}｜${planner?"规划师版：含内部校验与结论":"家长版：用于客观信息核对"}</div>${sec("一、基础信息",[["学生姓名",data.学生姓名],["性别",data.性别],["出生日期",data.出生日期],["就读学校",data.就读学校],["家长电话",data.家长电话],["政治面貌",data.政治面貌],["户籍所在地",data.户籍所在地],["其他说明",data.基础其他说明]])}${sec("二、成绩与学科",[["选科",data.选科],["总分",data.总分],["位次",data.位次],["高考语种",data.高考语种],["口语测试",data.口语测试],["优势学科排序",arr(data.好学科排序," > ")],["喜欢学科排序",arr(data.喜欢学科排序," > ")],["成绩结构判断",data.成绩结构判断]])}${sec("三、体检与特殊类型",[["体检代码",data.体检受限代码||arr(data.体检快捷项)],["体检补充",data.体检限制补充],["特殊类型",arr(data.其他特殊类型)],["资格核验说明",data.资格核验说明]])}${sec("四、地域与院校",[["意向地区",arr(data.意向地区排序," > ")],["坚决不去地区",arr(data.坚决不去地区排序," > ")],["地域说明",data.地域偏好补充说明],["院校层次",arr(data.院校层次)],["中外合作",data.是否接受中外合作],["预算",data.年预算上限],["分段培养",data.是否接受分段培养],["分段类型",arr(data.分段培养类型)],["意向院校",data.意向院校],["排斥院校",data.明确排斥院校]])}${sec("五、专业偏好与底线",[["意向专业类",arr(data.意向专业类排序," > ")||arr(data.意向专业类)],["专业白名单",data.专业白名单],["专业灰名单",data.专业灰名单],["专业黑名单",data.专业黑名单],["风险排序",arr(data.风险底线排序," > ")],["调剂",data.是否接受调剂],["专升本",data.是否考虑专升本],["不能接受",data.不能接受的最差结果],["可以妥协",data.可以妥协的条件]])}${sec("六、规划师结论",[["匹配方向",data.规划师匹配适合的专业方向],["确定排序",data.学生和家长确定的专业方向排序],["院校策略",data.初步院校层次策略],["待补材料",data.需要补充材料],["沟通备注",data.沟通备注],["确认人",data.确认人]])}${planner?sec("七、校验提示",[["错误/提醒",issuesText]]):""}</body></html>`}
+function exportParentWord(){validateAll();const d=collect();saveCurrentStudent(true,"导出家长版Word");const fn=`第二阶段专科信息采集表_家长版_${d.学生姓名||"未命名"}_${today()}.doc`;const content="\ufeff"+buildWord(d,false);showOutput("家长版 Word",fn,content,"application/msword;charset=utf-8");download(fn,content,"application/msword;charset=utf-8")}function exportPlannerWord(){validateAll();const d=collect();saveCurrentStudent(true,"导出规划师版Word");const fn=`第二阶段专科信息采集表_规划师版_${d.学生姓名||"未命名"}_${today()}.doc`;const content="\ufeff"+buildWord(d,true);showOutput("规划师版 Word",fn,content,"application/msword;charset=utf-8");download(fn,content,"application/msword;charset=utf-8")}
+function exportJSON(){validateAll();const d=collect();d.采集表类型="specialty";d.校验错误=issues.errors;d.校验提醒=issues.warnings;saveCurrentStudent(true,"导出JSON");const fn=`第二阶段专科采集表_${d.学生姓名||"未命名"}_${today()}.json`;const content=JSON.stringify(d,null,2);showOutput("JSON",fn,content,"application/json;charset=utf-8");download(fn,content,"application/json;charset=utf-8")}function exportCurrentStudentOnly(){exportJSON()}
+function showOutput(title,filename,content,type){lastFile={filename,content,type};$("outputTitle").textContent=title;$("outputName").textContent=filename;$("outputText").value=content;$("outputBox").classList.add("show");$("outputBox").scrollIntoView({behavior:"smooth",block:"start"})}function download(filename,content,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},300)}function downloadLast(){if(lastFile.content)download(lastFile.filename,lastFile.content,lastFile.type)}async function copyOutput(){await navigator.clipboard.writeText($("outputText").value);showStatus("已复制。",true)}
+function triggerImportStudent(){if(unsavedDirty)requestGuard(()=>$("studentImportFile").click(),"导入学生JSON");else $("studentImportFile").click()}function importStudentJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(currentStudentId){applyData(data);saveCurrentStudent(true,"导入学生JSON")}else{const st={id:makeId(),status:"采集中",createdAt:nowIso(),updatedAt:nowIso(),data,snapshots:[]};const lib=getLibrary();lib.students.push(st);setLibrary(lib);openStudent(st.id)}}catch(err){alert("JSON格式不正确。")}};r.readAsText(f,"utf-8");e.target.value=""}
+function exportStudentById(id){const {student}=findStudent(id);if(!student)return;const m=deriveMeta(student.data);download(`第二阶段专科采集表_${m.name}_${today()}.json`,JSON.stringify(student.data,null,2),"application/json;charset=utf-8")}function deleteStudent(id){const {lib,idx,student}=findStudent(id);if(idx<0)return;const m=deriveMeta(student.data);if(!confirm(`确认删除：${m.name}？`))return;lib.students.splice(idx,1);setLibrary(lib);renderStudentLibrary()}
+function exportLibraryBackup(){download(`第二阶段专科档案库_全部备份_${today()}.json`,JSON.stringify(getLibrary(),null,2),"application/json;charset=utf-8")}function triggerImportLibrary(){$("libraryImportFile").click()}function importLibraryBackup(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);const incoming=Array.isArray(obj)?obj:obj.students;if(!Array.isArray(incoming))throw new Error();const lib=getLibrary();const map=new Map(lib.students.map(s=>[s.id,s]));incoming.forEach(s=>{if(!s.id)s.id=makeId();map.set(s.id,s)});lib.students=[...map.values()];setLibrary(lib);renderStudentLibrary();alert("导入完成。")}catch(err){alert("档案库JSON格式不正确。")}};r.readAsText(f,"utf-8");e.target.value=""}
+function exportLibrarySummary(){const lib=getLibrary();let html='\ufeff<table border="1"><tr><th>学生</th><th>学校</th><th>选科</th><th>分数</th><th>位次</th><th>专业主线</th><th>特殊类型</th><th>状态</th><th>最近更新</th></tr>';lib.students.forEach(st=>{const m=deriveMeta(st.data);html+=`<tr><td>${esc(m.name)}</td><td>${esc(m.school)}</td><td>${esc(m.subject)}</td><td>${esc(m.score)}</td><td>${esc(m.rank)}</td><td>${esc(m.major)}</td><td>${esc(m.special)}</td><td>${esc(st.status||'采集中')}</td><td>${esc(fmt(st.updatedAt))}</td></tr>`});html+='</table>';download(`第二阶段专科学生总表_${today()}.xls`,html,"application/vnd.ms-excel;charset=utf-8")}
+function clearCurrentForm(){if(!confirm("确定清空当前表单？建议先保存或导出。"))return;resetForm();markDirty();showStatus("表单已清空。",true)}
+function initNav(){const links=qa("#toc a");links.forEach(a=>a.addEventListener("click",e=>{const t=q(a.getAttribute("href"));if(t)t.scrollIntoView({behavior:"smooth",block:"start"});links.forEach(x=>x.classList.remove("active"));a.classList.add("active")}))}
+function init(){initHelp();initOrderClicks();initRegionClicks();makeChecks("physicalChecks","体检快捷项",physicalItems);makeChecks("specialChecks","其他特殊类型",specialItems);makeChecks("schoolLevelChecks","院校层次",schoolLevels);makeChecks("segmentChecks","分段培养类型",segmentItems);makeOrderedWidget("goodSubjectWidget","好学科排序","成绩相对较好的4门学科依次是（标注1/2/3/4）",subjects,4);makeOrderedWidget("likeSubjectWidget","喜欢学科排序","相对比较喜欢的4门学科依次是（标注1/2/3/4）",subjects,4);makeOrderedWidget("riskWidget","风险底线排序","风险底线排序",riskItems,0);makeRegionWidget();makeMajorGroups();setVal("来访日期",today());initNav();renderStudentLibrary();qa("#intakeForm input,#intakeForm select,#intakeForm textarea").forEach(x=>{x.addEventListener("input",()=>{if(x.name==="意向专业类")renderMajorSelected();markDirty();validateAll()});x.addEventListener("change",()=>{if(x.name==="意向专业类")renderMajorSelected();markDirty();validateAll();filterMajors()})});q("#intakeForm").addEventListener("submit",e=>{e.preventDefault();validateAll();if(issues.errors.length){showStatus("存在红色错误，请先修正。",false);return}saveCurrentStudent(true,"校验并保存");showStatus("已校验并保存。",true)});setHelp("右侧说明面板","鼠标悬浮字段、选项、省份或专业类，这里显示说明。","正式填报以当年招生计划、专业组、章程、体检要求和转段规则为准。")}
+init();
+
+(function(){
+'use strict';
+const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
+const AUTH_STORAGE_KEY='js-plan-auth-v1';
+const CURRENT_STUDENT_STORAGE_KEY='js-plan-current-student-v1';
+const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
+const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
+const INTAKE_SYNC_MAP_KEY='js-plan-intake-sync-map-v1';
+function storageJSON(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){return fallback;}}
+function saveJSON(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
+function authState(){const data=storageJSON(AUTH_STORAGE_KEY,{});return data?.accessToken&&data?.user?data:{accessToken:'',refreshToken:'',user:null};}
+function headers(auth,extra){return {apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+auth.accessToken,'Content-Type':'application/json',...(extra||{})};}
+function dbNumber(v){if(v===null||v===undefined||v==='')return null;const n=Number(String(v).replace(/,/g,'').trim());return Number.isFinite(n)?n:null;}
+function dbInteger(v){const n=dbNumber(v);return n===null?null:Math.round(n);}
+function splitListInput(v){return String(v||'').split(/[，,、\s/]+/).map(x=>x.trim()).filter(Boolean);}
+function intakeText(data,key){return String(data?.[key]??'').trim();}
+function intakeArray(data,key){const v=data?.[key];return Array.isArray(v)?v.filter(Boolean).map(x=>String(x).trim()).filter(Boolean):splitListInput(v);}
+function parseMedicalCodes(raw){
+  const valid=new Set(['11','12','13','14','15','16','21','22','23','24','25','26','31','32','33','34','35','36','37','38','39']);
+  return String(raw||'').split(/[^0-9]+/).map(x=>x.trim()).filter(x=>valid.has(x));
+}
+function intakeSubjectType(data){const xk=intakeText(data,'选科');return /史|历/.test(xk)&&!/物/.test(xk)?'history':'physics';}
+function intakeSubjectChoices(data){
+  const xk=intakeText(data,'选科');
+  const out=[];
+  [['化学',/化/],['生物',/生/],['政治',/政/],['地理',/地/]].forEach(([name,re])=>{if(re.test(xk)&&!out.includes(name))out.push(name);});
+  return out;
+}
+function intakeTargetMajors(data){
+  const ordered=intakeArray(data,'意向专业类排序');
+  const checked=intakeArray(data,'意向专业类');
+  const white=splitListInput(intakeText(data,'专业白名单'));
+  return [...new Set([...ordered,...checked,...white])].slice(0,80);
+}
+function intakeTargetCities(data){
+  const wanted=intakeArray(data,'意向地区排序');
+  const extra=splitListInput(intakeText(data,'地域偏好补充说明'));
+  return [...new Set([...wanted,...extra])].slice(0,80);
+}
+function intakeNote(data){
+  const pairs=[
+    ['就读学校','就读学校'],['班级','班级'],['规划师','规划师'],['家庭说明','家庭基本说明'],['专科路径','专科路径适配说明'],
+    ['体检风险','体检风险等级'],['资格核验','资格核验说明'],['分段培养','是否接受分段培养'],['分段类型','分段培养类型'],['转段不确定性','是否接受转段不确定性'],['专升本','是否考虑专升本'],
+    ['专业白名单','专业白名单'],['专业灰名单','专业灰名单'],['专业黑名单','专业黑名单'],['院校意向','意向院校'],['排斥院校','明确排斥院校'],
+    ['规划师方向','规划师匹配适合的专业方向'],['确定排序','学生和家长确定的专业方向排序'],['院校策略','初步院校层次策略'],['补充材料','需要补充材料'],['沟通备注','沟通备注']
+  ];
+  return pairs.map(([label,key])=>{
+    const v=data?.[key];
+    const text=Array.isArray(v)?v.join('、'):intakeText(data,key);
+    return text?`${label}：${text}`:'';
+  }).filter(Boolean).join('\n').slice(0,6000);
+}
+function buildPayload(data,auth){
+  const name=intakeText(data,'学生姓名');
+  if(!name)throw new Error('请先填写学生姓名。');
+  const subjectChoices=intakeSubjectChoices(data);
+  const payload={
+    owner_id:auth.user.id,
+    planner_id:auth.user.id,
+    name,
+    phone:intakeText(data,'家长电话')||intakeText(data,'备用电话')||null,
+    gender:['男','女'].includes(intakeText(data,'性别'))?intakeText(data,'性别'):'未知',
+    province:intakeText(data,'高考省份')||'江苏',
+    stage:'specialty',
+    subject_type:intakeSubjectType(data),
+    subject_choices:subjectChoices,
+    score:dbInteger(intakeText(data,'总分')),
+    rank:dbInteger(intakeText(data,'位次')),
+    target_cities:intakeTargetCities(data),
+    target_majors:intakeTargetMajors(data),
+    medical_codes:parseMedicalCodes([...(Array.isArray(data['体检快捷项'])?data['体检快捷项']:[]),intakeText(data,'体检受限代码'),intakeText(data,'体检限制补充')].join(' ')),
+    intake_payload:{...data,采集表类型:'specialty'},
+    note:intakeNote(data)
+  };
+  return payload;
+}
+async function rest(path,options,auth){
+  const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{...(options||{}),headers:headers(auth,options?.headers)});
+  if(!res.ok)throw new Error(await res.text());
+  if(res.status===204)return null;
+  const text=await res.text();
+  return text?JSON.parse(text):null;
+}
+async function writeStudent(path,method,payload,auth){
+  try{
+    return await rest(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(payload)},auth);
+  }catch(err){
+    if(/subject_choices|intake_payload|planner_id|student_no|schema cache|column/i.test(String(err.message||err))){
+      const msg=String(err.message||err);
+      const fallback={...payload};
+      if(/subject_choices|schema cache|column/i.test(msg))delete fallback.subject_choices;
+      if(/intake_payload|schema cache|column/i.test(msg))delete fallback.intake_payload;
+      if(/planner_id|schema cache|column/i.test(msg))delete fallback.planner_id;
+      if(/student_no|schema cache|column/i.test(msg))delete fallback.student_no;
+      if(Object.keys(fallback).length!==Object.keys(payload).length)return rest(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)},auth);
+    }
+    throw err;
+  }
+}
+function currentStudentStorageKey(auth){return auth.user?.id?`${CURRENT_STUDENT_STORAGE_KEY}:${auth.user.id}`:CURRENT_STUDENT_STORAGE_KEY;}
+function saveSyncedStudent(student,payload,data,auth){
+  const chosen={...student,stage:'specialty',subject_choices:payload.subject_choices};
+  saveJSON(currentStudentStorageKey(auth),chosen);
+  saveJSON(MEDICAL_RESTRICTION_STORAGE_KEY,payload.medical_codes||[]);
+  const subjectKey=`${STUDENT_SUBJECT_CHOICES_STORAGE_KEY}:${auth.user?.id||'guest'}`;
+  const subjectMap=storageJSON(subjectKey,{});
+  subjectMap[chosen.id]=payload.subject_choices||[];
+  saveJSON(subjectKey,subjectMap);
+  saveJSON(`js-plan-intake-json:${chosen.id}`,{saved_at:new Date().toISOString(),data:{...data,采集表类型:'specialty'}});
+  const map=storageJSON(INTAKE_SYNC_MAP_KEY,{});
+  if(window.currentStudentId)map[window.currentStudentId]=chosen.id;
+  map[intakeText(data,'学生姓名')]=chosen.id;
+  saveJSON(INTAKE_SYNC_MAP_KEY,map);
+}
+async function syncSpecialtyIntakeToSystem(){
+  try{
+    if(typeof collect!=='function')throw new Error('采集表尚未初始化完成。');
+    const auth=authState();
+    if(!auth.accessToken||!auth.user)throw new Error('请先在系统首页登录，再回到专科采集表同步。');
+    if(typeof validateAll==='function')validateAll();
+    const data={...collect(),采集表类型:'specialty'};
+    const payload=buildPayload(data,auth);
+    const map=storageJSON(INTAKE_SYNC_MAP_KEY,{});
+    let targetId=(window.currentStudentId&&map[window.currentStudentId])||'';
+    if(!targetId){
+      try{
+        const rows=await rest(`students?select=id,name,phone,student_no&name=eq.${encodeURIComponent(payload.name)}&limit=5`,{method:'GET'},auth);
+        const exact=(rows||[]).find(s=>payload.phone?String(s.phone||'')===String(payload.phone):true);
+        if(exact&&confirm(`系统里已有同名学生“${payload.name}”。\n\n确认后覆盖该学生为专科档案；取消将新增一个独立专科学生。`))targetId=exact.id;
+      }catch(e){}
+    }
+    const rows=targetId
+      ? await writeStudent(`students?id=eq.${encodeURIComponent(targetId)}`,'PATCH',payload,auth)
+      : await writeStudent('students','POST',payload,auth);
+    const saved=rows?.[0]||{...payload,id:targetId};
+    saveSyncedStudent(saved,payload,data,auth);
+    alert(`已同步到系统学生档案：${saved.name}\n\n该学生已设为当前专科学生，回到专科志愿系统后会自动读取。`);
+  }catch(err){
+    alert('同步失败：'+err.message);
+  }
+}
+function addSystemBridgeButtons(){
+  const topActions=document.querySelector('.top .actions');
+  if(topActions&&!document.getElementById('syncSpecialtyIntakeTopBtn')){
+    const btn=document.createElement('button');
+    btn.id='syncSpecialtyIntakeTopBtn';
+    btn.className='primary';
+    btn.type='button';
+    btn.textContent='同步到系统学生档案';
+    btn.onclick=syncSpecialtyIntakeToSystem;
+    topActions.insertBefore(btn,topActions.firstChild);
+  }
+  const filebar=document.querySelector('.filebar-actions');
+  if(filebar&&!document.getElementById('syncSpecialtyIntakeFilebarBtn')){
+    const btn=document.createElement('button');
+    btn.id='syncSpecialtyIntakeFilebarBtn';
+    btn.className='primary';
+    btn.type='button';
+    btn.textContent='同步到系统';
+    btn.onclick=syncSpecialtyIntakeToSystem;
+    filebar.appendChild(btn);
+  }
+  const sticky=document.querySelector('.stickybar .actions');
+  if(sticky&&!document.getElementById('syncSpecialtyIntakeStickyBtn')){
+    const btn=document.createElement('button');
+    btn.id='syncSpecialtyIntakeStickyBtn';
+    btn.className='primary';
+    btn.type='button';
+    btn.textContent='同步到系统';
+    btn.onclick=syncSpecialtyIntakeToSystem;
+    sticky.appendChild(btn);
+  }
+}
+window.syncSpecialtyIntakeToSystem=syncSpecialtyIntakeToSystem;
+addSystemBridgeButtons();
+})();
+</script>
+</body>
+</html>

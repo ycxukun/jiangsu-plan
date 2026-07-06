@@ -25,12 +25,16 @@ button{height:34px;border:1px solid var(--line);border-radius:10px;background:#f
 button.save{background:var(--green);border-color:var(--green);color:#fff}button.danger{border-color:#f1c8c2;background:#fff8f7;color:var(--red)}
 .planner-list,.student-list{display:grid;gap:10px}
 .planner-card,.student-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px}
+.planner-card{cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+.planner-card:hover,.planner-card:focus-visible{border-color:#9fd8b7;background:#fbfffc;box-shadow:0 0 0 3px rgba(10,124,66,.08);outline:none}
+.planner-card.selected{border-color:var(--green);background:#f0faf4;box-shadow:0 0 0 1px rgba(10,124,66,.18),var(--shadow)}
 .planner-card.disabled{opacity:.62;background:#fafafa}.planner-card h3,.student-card h3{margin:0;font-size:15px}
 .planner-card p,.student-card p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
 .badge{display:inline-flex;align-items:center;justify-content:center;border:1px solid #cbeed9;border-radius:999px;background:#eaf7ef;color:var(--green);padding:4px 8px;font-size:11px;font-weight:900;line-height:1;white-space:nowrap}
 .student-no{display:inline-flex;margin-left:6px;border:1px solid #d8e6dc;border-radius:999px;background:#f7faf8;color:#526058;padding:2px 7px;font-size:11px;font-weight:900}
 .row-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.transfer-row{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:8px;margin-top:10px}
 .form-grid{display:grid;grid-template-columns:1fr;gap:9px}.form-grid label{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:900}
+.admin-help{border:1px solid #cbeed9;border-radius:12px;background:#f0faf4;color:#24533a;padding:10px 12px;font-size:12px;line-height:1.65}
 .empty{border:1px dashed #b7dfc6;border-radius:14px;background:#fbfffc;color:var(--muted);padding:18px;text-align:center;line-height:1.7}
 @media(max-width:960px){.grid{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1}.hero{display:block}.actions{margin-top:12px}}
 @media(max-width:560px){.page{padding:12px}.toolbar,.transfer-row{grid-template-columns:1fr}.hero{padding:14px}}
@@ -60,23 +64,24 @@ button.save{background:var(--green);border-color:var(--green);color:#fff}button.
   </section>
   <div class="grid">
     <section class="panel">
-      <div class="panel-head"><h2>规划师管理</h2><span class="badge" id="plannerCount">0 人</span></div>
+      <div class="panel-head"><h2>人员/规划师管理</h2><span class="badge" id="plannerCount">0 人</span></div>
       <div class="panel-body">
         <div class="form-grid">
+          <div class="admin-help">账号流程：规划师不开放自注册。先由管理员在 Supabase Auth 创建或邀请该邮箱，再在这里填写邮箱授权为规划师；用户 UUID 一般不用填。</div>
           <label>邮箱<input id="plannerEmail" placeholder="规划师登录邮箱，例如 planner@example.com"></label>
           <label>用户 UUID（可选）<input id="plannerUserId" placeholder="一般不用填；系统会按邮箱查账号"></label>
           <label>显示名<input id="plannerName" placeholder="规划师姓名，可空"></label>
-          <button class="save" id="addPlannerBtn" type="button">添加/启用规划师</button>
+          <button class="save" id="addPlannerBtn" type="button">授权/启用规划师</button>
         </div>
         <div id="plannerList" class="planner-list" style="margin-top:12px"></div>
       </div>
     </section>
     <section class="panel">
-      <div class="panel-head"><h2>学生分配管理</h2><span class="badge" id="studentCount">0 人</span></div>
+      <div class="panel-head"><h2 id="studentAssignmentTitle">学生分配管理</h2><span class="badge" id="studentCount">0 人</span></div>
       <div class="panel-body"><div id="studentList" class="student-list"></div></div>
     </section>
   </div>
 </main>
-<script src="./admin-console.js?v=20260705-student-admin-r1"></script>
+<script src="./admin-console.js?v=20260706-admin-planner-filter-r1"></script>
 </body>
 </html>

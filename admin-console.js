@@ -26,7 +26,7 @@ async function apiFetch(path,options={}){
   const text=await res.text();
   return text?JSON.parse(text):null;
 }
-function roleLabel(role){return role==='admin'?'管理员':role==='planner'?'规划师':role==='consultant'?'规划师':'只读';}
+function roleLabel(role){return role==='admin'?'管理员':role==='planner'?'规划师':role==='consultant'?'咨询师':'只读';}
 function studentNo(s){return s.student_no?`HSY${s.student_no}`:'待生成学号';}
 function plannerName(id){
   const p=planners.find(x=>x.id===id);
@@ -69,7 +69,7 @@ async function loadAll(){
   planners=(profileRows||[]).filter(p=>['admin','consultant','planner'].includes(p.role));
   students=studentRows||[];
   forms=formRows||[];
-  setNotice(`管理员：${profile.display_name||profile.email||auth.user.email}。可以管理 ${planners.length} 个规划师、${students.length} 个学生。`);
+  setNotice(`管理员：${profile.display_name||profile.email||auth.user.email}。可以管理 ${planners.length} 个服务账号、${students.length} 个学生。`);
   render();
 }
 function renderPlannerFilter(){
@@ -77,9 +77,13 @@ function renderPlannerFilter(){
   $('#plannerFilter').innerHTML='<option value="">全部规划师</option>'+planners.map(p=>`<option value="${esc(p.id)}">${esc(p.display_name||p.email||p.id)}${p.status==='disabled'?'（禁用）':''}</option>`).join('');
   $('#plannerFilter').value=current;
 }
+function selectedPlanner(){
+  return plannerFilter?planners.find(p=>p.id===plannerFilter):null;
+}
 function plannerCardHTML(p){
   const count=students.filter(s=>(s.planner_id||s.owner_id)===p.id&&!s.archived).length;
-  return `<article class="planner-card ${p.status==='disabled'?'disabled':''}">
+  const active=plannerFilter===p.id;
+  return `<article class="planner-card ${p.status==='disabled'?'disabled':''} ${active?'selected':''}" data-select-planner="${esc(p.id)}" tabindex="0" role="button" aria-pressed="${active?'true':'false'}" title="点击查看该规划师手头学生">
     <h3>${esc(p.display_name||p.email||'未命名规划师')} <span class="badge">${esc(roleLabel(p.role))}</span></h3>
     <p>${esc(p.email||p.id)}｜状态 ${esc(p.status)}｜当前学生 ${count} 人</p>
     <div class="row-actions">
@@ -122,8 +126,11 @@ function filteredStudents(){
 }
 function render(){
   renderPlannerFilter();
+  const planner=selectedPlanner();
   $('#plannerCount').textContent=`${planners.length} 人`;
   $('#studentCount').textContent=`${filteredStudents().length} / ${students.length} 人`;
+  const assignmentTitle=$('#studentAssignmentTitle');
+  if(assignmentTitle)assignmentTitle.textContent=planner?`${planner.display_name||planner.email||planner.id}的学生`:'学生分配管理';
   $('#plannerList').innerHTML=planners.length?planners.map(plannerCardHTML).join(''):'<div class="empty">还没有规划师资料。</div>';
   const list=filteredStudents();
   $('#studentList').innerHTML=list.length?list.map(studentCardHTML).join(''):'<div class="empty">没有匹配的学生。</div>';
@@ -194,6 +201,12 @@ async function archiveStudent(studentId){
     await loadAll();
   }catch(err){alert('更新学生状态失败：'+friendlyError(err));}
 }
+function selectPlanner(id){
+  plannerFilter=plannerFilter===id?'':id;
+  const filter=$('#plannerFilter');
+  if(filter)filter.value=plannerFilter;
+  render();
+}
 function openStudent(studentId){
   const student=students.find(s=>s.id===studentId);
   if(!student)return;
@@ -201,6 +214,18 @@ function openStudent(studentId){
   location.href='./students/index.html';
 }
 function bindActions(){
+  $$('[data-select-planner]').forEach(card=>{
+    const run=()=>selectPlanner(card.dataset.selectPlanner);
+    card.addEventListener('click',e=>{
+      if(e.target.closest('button,input,select,a'))return;
+      run();
+    });
+    card.addEventListener('keydown',e=>{
+      if(e.key!=='Enter'&&e.key!==' ')return;
+      e.preventDefault();
+      run();
+    });
+  });
   $$('[data-toggle-planner]').forEach(btn=>btn.addEventListener('click',()=>togglePlanner(btn.dataset.togglePlanner)));
   $$('[data-role]').forEach(btn=>btn.addEventListener('click',()=>changeRole(btn.dataset.role,btn.dataset.nextRole)));
   $$('[data-transfer-student]').forEach(btn=>btn.addEventListener('click',()=>transferStudent(btn.dataset.transferStudent,document.querySelector(`[data-transfer-select="${btn.dataset.transferStudent}"]`)?.value)));
