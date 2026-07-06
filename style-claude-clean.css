@@ -1205,3 +1205,129 @@ body.compact-mode .volunteer-panel .volunteer-table-row{
     grid-template-columns:1fr!important;
   }
 }
+
+/* V1.1.72 志愿表冲稳保梯度：整表汇总 + 行内定位色标。 */
+.volunteer-panel .volunteer-gradient{
+  display:grid!important;
+  grid-template-columns:minmax(190px,.28fr) minmax(260px,1fr) auto!important;
+  align-items:center!important;
+  gap:12px!important;
+  margin:10px 0!important;
+  padding:10px 12px!important;
+  border:1px solid #e2d5c5!important;
+  border-radius:14px!important;
+  background:#fffdf8!important;
+  box-shadow:0 8px 22px rgba(50,36,22,.04)!important;
+}
+.volunteer-panel .volunteer-gradient:empty{
+  display:none!important;
+}
+.volunteer-panel .volunteer-gradient-head{
+  min-width:0!important;
+}
+.volunteer-panel .volunteer-gradient-head b{
+  display:block!important;
+  color:#211a13!important;
+  font-size:13px!important;
+  font-weight:900!important;
+  line-height:1.35!important;
+}
+.volunteer-panel .volunteer-gradient-head span{
+  display:block!important;
+  margin-top:2px!important;
+  color:#776b5f!important;
+  font-size:11px!important;
+  font-weight:700!important;
+  line-height:1.35!important;
+}
+.volunteer-panel .volunteer-gradient-track{
+  display:flex!important;
+  min-width:0!important;
+  height:30px!important;
+  overflow:hidden!important;
+  border:1px solid #e5dccf!important;
+  border-radius:999px!important;
+  background:#f3eee7!important;
+}
+.volunteer-panel .volunteer-gradient-segment{
+  width:var(--w)!important;
+  min-width:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:4px!important;
+  color:#fff!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+.volunteer-panel .volunteer-gradient-segment em{
+  font-style:normal!important;
+  opacity:.92!important;
+}
+.volunteer-panel .volunteer-gradient-segment.strategy-rush{background:#d95435!important;}
+.volunteer-panel .volunteer-gradient-segment.strategy-stable{background:#e6a23c!important;}
+.volunteer-panel .volunteer-gradient-segment.strategy-safe{background:#209f62!important;}
+.volunteer-panel .volunteer-gradient-segment.strategy-floor{background:#2563eb!important;}
+.volunteer-panel .volunteer-gradient-segment.strategy-pending{background:#9a9187!important;}
+.volunteer-panel .volunteer-gradient-chips{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:6px!important;
+  flex-wrap:wrap!important;
+}
+.volunteer-panel .volunteer-gradient-chip,
+.volunteer-panel .volunteer-strategy-pill{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:999px!important;
+  border:1px solid transparent!important;
+  font-weight:900!important;
+  white-space:nowrap!important;
+}
+.volunteer-panel .volunteer-gradient-chip{
+  min-height:24px!important;
+  padding:3px 8px!important;
+  font-size:11px!important;
+}
+.volunteer-panel .volunteer-strategy-pill{
+  min-width:44px!important;
+  min-height:26px!important;
+  padding:4px 8px!important;
+  font-size:12px!important;
+  box-shadow:0 5px 14px rgba(38,27,18,.08)!important;
+}
+.volunteer-panel .volunteer-gradient-chip.strategy-rush,
+.volunteer-panel .volunteer-strategy-pill.strategy-rush{border-color:#f2b8a7!important;background:#fff0ec!important;color:#b43821!important;}
+.volunteer-panel .volunteer-gradient-chip.strategy-stable,
+.volunteer-panel .volunteer-strategy-pill.strategy-stable{border-color:#f3d19e!important;background:#fff7e8!important;color:#9a5f08!important;}
+.volunteer-panel .volunteer-gradient-chip.strategy-safe,
+.volunteer-panel .volunteer-strategy-pill.strategy-safe{border-color:#bde6cd!important;background:#edf9f2!important;color:#0a7c42!important;}
+.volunteer-panel .volunteer-gradient-chip.strategy-floor,
+.volunteer-panel .volunteer-strategy-pill.strategy-floor{border-color:#bdd3ff!important;background:#eef4ff!important;color:#1d4ed8!important;}
+.volunteer-panel .volunteer-gradient-chip.strategy-pending,
+.volunteer-panel .volunteer-strategy-pill.strategy-pending{border-color:#ded6cc!important;background:#f6f2ed!important;color:#6f655a!important;}
+@media (max-width:1320px){
+  .volunteer-panel .volunteer-gradient{
+    grid-template-columns:1fr!important;
+  }
+  .volunteer-panel .volunteer-gradient-chips{
+    justify-content:flex-start!important;
+  }
+}
+@media (max-width:640px){
+  .volunteer-panel .volunteer-gradient-track{
+    height:auto!important;
+    min-height:30px!important;
+    flex-wrap:wrap!important;
+    border-radius:14px!important;
+  }
+  .volunteer-panel .volunteer-gradient-segment{
+    min-width:64px!important;
+    flex:1 1 auto!important;
+    height:28px!important;
+  }
+}
