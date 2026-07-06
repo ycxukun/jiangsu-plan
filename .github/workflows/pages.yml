@@ -41,7 +41,7 @@ jobs:
           rm -rf _site
           mkdir -p _site
 
-          cp .nojekyll index.html admin.html admin-console.html admin-console.js app.js batch-guide.js batch-guide-links.js qualification-risk.js haoshengya_login_landing.html _site/
+          cp .nojekyll index.html admin.html admin-console.html admin-console.js crm.html crm.js app.js batch-guide.js batch-guide-links.js qualification-risk.js haoshengya_login_landing.html _site/
           cp style-claude-*.css _site/
           cp data*.js _site/
           cp school-life-info-data.js _site/
@@ -57,6 +57,8 @@ jobs:
           test -f _site/qualification-risk.js
           test -f _site/admin-console.html
           test -f _site/admin-console.js
+          test -f _site/crm.html
+          test -f _site/crm.js
           test -f _site/style-claude-clean.css
           test -f _site/style-claude-inspired.css
           test -f _site/style-claude-force.css
