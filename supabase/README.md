@@ -93,6 +93,16 @@ const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 ```
 
+## CRM 工作台迁移
+
+CRM 工作台对应入口是 `crm.html`。首次启用前，除了基础 `schema.sql`，还需要在同一个 Supabase 项目的 SQL Editor 执行：
+
+```text
+supabase/crm_schema.sql
+```
+
+这个迁移会增加客户、订单、服务案例、分配、任务、沟通记录、方案版本、风险项、附件和 CRM 操作日志等表，并创建 `crm-files` 私有存储桶。执行后，管理员、咨询师、规划师、复核、财务等角色才能在 CRM 工作台里完成收单、建档、分配、跟进、交付和归档。
+
 ## 新增学生接口示例
 
 ```js

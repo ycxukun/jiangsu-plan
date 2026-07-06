@@ -152,7 +152,7 @@
       <button id="studentAccountTrigger" class="student-account-trigger" type="button" aria-expanded="false">
         <span id="studentAccountAvatar" class="student-avatar-badge">学</span>
         <span class="student-account-text">
-          <b id="studentAccountTitle">登录/申请开通</b>
+          <b id="studentAccountTitle">登录/注册</b>
           <small id="studentAccountSubtitle">进入账号中心</small>
         </span>
         <span class="student-account-arrow">⌄</span>
@@ -225,13 +225,13 @@
         <div class="student-menu-profile">
           <div class="student-menu-avatar">学</div>
           <div class="student-menu-name">
-            <b>登录/申请开通</b>
+            <b>登录/注册</b>
             <span>进入账号后可管理学生档案与志愿表</span>
           </div>
         </div>
         <div class="student-menu-list">
           <button type="button" class="student-menu-item primary" data-hub-action="login">
-            <span>账号登录</span><small>使用管理员分配账号，或申请开通</small>
+            <span>账号登录</span><small>内测阶段可用邮箱密码直接注册登录</small>
           </button>
         </div>`;
     }
@@ -267,6 +267,9 @@
         <button type="button" class="student-menu-item" data-hub-action="open-account">
           <span>账号管理</span><small>查看账号与登录状态</small>
         </button>
+        <button type="button" class="student-menu-item" data-hub-action="open-crm">
+          <span>CRM 工作台</span><small>客户、订单、服务看板和交付留痕</small>
+        </button>
         <button type="button" class="student-menu-item" data-hub-action="open-admin">
           <span>管理员后台</span><small>管理规划师与学生分配</small>
         </button>
@@ -295,7 +298,7 @@
     const menuBody = $('#studentAccountMenuBody');
 
     if(title){
-      title.textContent = logged ? (student?.name || '未选择学生') : '登录/申请开通';
+      title.textContent = logged ? (student?.name || '未选择学生') : '登录/注册';
     }
     if(subtitle){
       subtitle.textContent = logged
@@ -407,6 +410,12 @@
         if(action === 'open-account'){
           closeMenu();
           clickSource('accountBtn');
+          return;
+        }
+
+        if(action === 'open-crm'){
+          closeMenu();
+          window.location.href = './crm.html';
           return;
         }
 
