@@ -186,9 +186,38 @@
 }
 .group-card .tag-row .tag,
 .group-card .tag-row .badge,
-.group-card .tag-row .compact-stat{
+.group-card .tag-row .compact-stat,
+.group-card .tag-row .segmented-mode-badge{
   padding:3px 7px!important;
   font-size:10px!important;
+}
+.segmented-mode-badge{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid transparent!important;
+  border-radius:999px!important;
+  padding:4px 9px!important;
+  font-size:11px!important;
+  font-weight:950!important;
+  line-height:1.2!important;
+  white-space:nowrap!important;
+}
+.segmented-mode-three{
+  border-color:#bfdbfe!important;
+  background:#eff6ff!important;
+  color:#1d4ed8!important;
+}
+.segmented-mode-five{
+  border-color:#fed7aa!important;
+  background:#fff7ed!important;
+  color:#c2410c!important;
+}
+.major-name .segmented-mode-badge{
+  margin-left:5px!important;
+  padding:2px 7px!important;
+  font-size:11px!important;
+  vertical-align:middle!important;
 }
 .group-card .anno-actions{
   display:grid!important;

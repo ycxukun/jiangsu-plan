@@ -828,6 +828,36 @@ function majorMetaBadgesHTML(m,standardDuration='三'){
   if(tuition!==null&&tuition>10000)badges.push(`<span class="major-meta-badge fee" title="学费超过 10000 元：${esc(fmtNum(tuition))} 元/年">高收费</span>`);
   return badges.join('');
 }
+function segmentedModeValuesFromText(text){
+  const s=String(text||'');
+  const vals=[];
+  const has3=/3\s*[+＋]\s*2/.test(s)||/学习三年[^。；;]*转入[^。；;]*学习两年/.test(s)||/前三年[^。；;]*高职[^。；;]*后两年[^。；;]*本科/.test(s);
+  const has5=/5\s*[+＋]\s*0/.test(s)||/学习五年[^。；;]*前三年[^。；;]*后两年[^。；;]*(?:高职院校内|继续在高职)/.test(s);
+  if(has3)vals.push('3+2');
+  if(has5)vals.push('5+0');
+  return vals;
+}
+function majorSegmentedModeValues(m){
+  const d=detailOf(m);
+  return segmentedModeValuesFromText([
+    m?.name,m?.baseName,m?.remark,m?.duration,d.majorFullName,d.majorRemark,d.schoolTags,d.recruitChapter,d.admissionRule
+  ].filter(Boolean).join(' '));
+}
+function groupSegmentedModeValues(g){
+  const vals=new Set(segmentedModeValuesFromText([
+    g?.remark,(g?.tags||[]).join(' '),g?.majorSummary,g?.rawGroupMajors
+  ].filter(Boolean).join(' ')));
+  (g?.majors||[]).forEach(m=>majorSegmentedModeValues(m).forEach(v=>vals.add(v)));
+  return Array.from(vals).sort((a,b)=>['3+2','5+0'].indexOf(a)-['3+2','5+0'].indexOf(b));
+}
+function segmentedModeBadgesHTML(values,type='group'){
+  const modes=Array.isArray(values)?values:[];
+  return modes.map(v=>{
+    const cls=v==='5+0'?'five':'three';
+    const text=type==='major'?v:`${v} 分段`;
+    return `<span class="segmented-mode-badge segmented-mode-${cls}" title="专科分段培养模式：${esc(v)}">${esc(text)}</span>`;
+  }).join('');
+}
 function buildPredictionIndexes(){
   majorRefs=[];
   majorRefsBySchool=new Map();
@@ -1862,13 +1892,15 @@ function groupCardHTML(s,g){
   const topTags=[...(g.tags||[]).slice(0,3),...(g.majorClasses||[]).slice(0,3)];
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${groupMedicalBadge(g)}${groupQualificationBadge(s,g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div>${groupMajorTooltipHTML(g)}</article>`;
+  const segmentedBadges=segmentedModeBadgesHTML(groupSegmentedModeValues(g));
+  return `<article class="group-card group-quality-${quality.tone}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3>${groupChangeButtonHTML(s,g,'card')}</div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupQualityBadge(quality)}${segmentedBadges}${groupMedicalBadge(g)}${groupQualificationBadge(s,g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${planDeltaBadge(planDiff)}${topTags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div>${groupMajorTooltipHTML(g)}</article>`;
 }
 function groupSectionHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${groupMedicalBadge(g)}${groupQualificationBadge(s,g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  const segmentedBadges=segmentedModeBadgesHTML(groupSegmentedModeValues(g));
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(quality.title)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupQualityBadge(quality)}${segmentedBadges}${groupMedicalBadge(g)}${groupQualificationBadge(s,g)}${groupWeightedMajorBadge(g)}${admissionPriorityBadge(s,true)}${predictionBadgeHTML(s,g)}${(g.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')} ${(g.majorClasses||[]).slice(0,8).map(c=>`<span class="badge">${esc(c)}</span>`).join('')} ${planDeltaBadge(planDiff)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div>${groupChangeButtonHTML(s,g,'section')}</div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m){
   const avgYears=m.avgYears&&m.avgYears<3?`<br><span class="muted">${m.avgYears}年均值</span>`:'';
@@ -1884,7 +1916,8 @@ function majorRowHTML(s,g,m){
   const disabled=(physical.blocked||subjectBlock||qualificationBlocked)?' disabled':'';
   const physicalTitle=physical.blocked?`体检受限：${physical.reason}`:'';
   const qualificationTitle=qualification?.summary||'';
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked||qualificationBlocked?'当前学生档案不满足该专业组选科/体检/报考资格要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${majorMetaBadgesHTML(m,'三')}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  const segmentedBadges=segmentedModeBadgesHTML(majorSegmentedModeValues(m),'major');
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked||qualificationBlocked?'当前学生档案不满足该专业组选科/体检/报考资格要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${segmentedBadges}${majorMetaBadgesHTML(m,'三')}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));
