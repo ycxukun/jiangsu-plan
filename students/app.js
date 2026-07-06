@@ -48,7 +48,7 @@ let archiveFiles=[];
 let initialArchiveOpened=false;
 function params(){return new URLSearchParams(location.search);}
 function defaultStage(){return params().get('from')==='specialty'?'specialty':'undergraduate';}
-function stageLabel(v){return v==='specialty'?'专科':'本科';}
+function stageLabel(v){return v==='specialty'||v==='专科'?'专科':'本科';}
 function subjectLabel(v){return v==='history'?'历史':'物理';}
 function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergraduate';}
 function intakeFormPathForStage(v){return INTAKE_FORM_PATHS[stageValue(v)]||INTAKE_FORM_PATHS.undergraduate;}

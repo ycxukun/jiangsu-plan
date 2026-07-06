@@ -61,7 +61,7 @@ async function apiFetch(path,options={},retried=false){
   return text?JSON.parse(text):null;
 }
 function subjectLabel(v){return v==='history'?'历史':'物理';}
-function stageLabel(v){return v==='specialty'?'专科':'本科';}
+function stageLabel(v){return v==='specialty'||v==='专科'?'专科':'本科';}
 function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergraduate';}
 function studentNoText(s){return s?.student_no?`HSY${s.student_no}`:'待生成学号';}
 function shortDate(v){if(!v)return '';const d=new Date(v);if(Number.isNaN(d.getTime()))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}

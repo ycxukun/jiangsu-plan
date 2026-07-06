@@ -1113,6 +1113,77 @@ function groupScoreLineHTML(s,g){
   if(p)return `预测分 ${esc(fmtNum(p.score))}｜预测位次 ${esc(fmtNum(p.rank))} <span class="note-badge" title="${esc(p.reason)}">估</span>`;
   return `25分 ${fmtNum(g.score25)}｜25位次 ${fmtNum(g.rank25)}`;
 }
+function currentAdmissionBandScore(){
+  const studentScore=num(currentStudent?.score);
+  if(studentScore!==null)return studentScore;
+  return num(state.scoreRange?.target);
+}
+function groupAdmissionHistory(g){
+  return [
+    {year:'2025',score:num(g.score25),rank:num(g.rank25)},
+    {year:'2024',score:num(g.score24),rank:num(g.rank24)},
+    {year:'2023',score:num(g.score23),rank:num(g.rank23)}
+  ].filter(x=>x.score!==null&&x.score>0);
+}
+function admissionBandAnalysis(s,g){
+  const target=currentAdmissionBandScore();
+  const history=groupAdmissionHistory(g);
+  if(target===null){
+    return {band:'待定',className:'pending',reachable:0,total:history.length,target:null,partial:history.length<3,title:'未设置当前学生分数或目标分数，暂不能判断冲稳保。'};
+  }
+  if(!history.length){
+    return {band:'待定',className:'pending',reachable:0,total:0,target,partial:true,title:`当前分 ${fmtNum(target)}；该专业组近三年没有可用专业组最低分，暂不能判断。`};
+  }
+  const reachable=history.filter(x=>target>=x.score).length;
+  let band='稳';
+  if(reachable===0)band='冲';
+  else if(history.length>=3&&reachable===history.length)band='保';
+  const className={冲:'rush',稳:'stable',保:'safe',待定:'pending'}[band]||'pending';
+  const partial=history.length<3;
+  const detail=history.map(x=>`${x.year} ${fmtNum(x.score)}分${target>=x.score?'够到':'未到'}`).join('；');
+  const rule=band==='冲'?'三年都没有够到':band==='保'?'三年全部够到':'三年至少一年够到';
+  const partialText=partial?'；历史不足三年，仅按已有年份暂判':'';
+  return {band,className,reachable,total:history.length,target,partial,title:`当前分 ${fmtNum(target)}；${detail}；判定：${rule}${partialText}。`};
+}
+function admissionBandBadgeHTML(s,g){
+  const a=admissionBandAnalysis(s,g);
+  const ratio=a.total?` ${a.reachable}/${a.total}`:'';
+  return `<span class="tag admission-band admission-band-${a.className}" title="${esc(a.title)}">${esc(a.band)}${ratio}${a.partial?'<em>*</em>':''}</span>`;
+}
+function admissionBandRank(band){return {保:3,稳:2,冲:1,待定:0}[band]??0;}
+function admissionBandCounts(){return {冲:0,稳:0,保:0,待定:0,total:0};}
+function countAdmissionBand(summary,band){
+  const key=summary.hasOwnProperty(band)?band:'待定';
+  summary[key]+=1;
+  summary.total+=1;
+}
+function admissionBandSummaryForGroups(s,groups){
+  const summary=admissionBandCounts();
+  (groups||[]).forEach(g=>countAdmissionBand(summary,admissionBandAnalysis(s,g).band));
+  return summary;
+}
+function admissionBandSummaryForFiltered(){
+  const summary=admissionBandCounts();
+  state.filtered.forEach(s=>(s.visibleGroups||[]).forEach(g=>countAdmissionBand(summary,admissionBandAnalysis(s,g).band)));
+  return summary;
+}
+function admissionBandSchoolSummaryForFiltered(){
+  const summary=admissionBandCounts();
+  state.filtered.forEach(s=>{
+    let best='待定';
+    (s.visibleGroups||[]).forEach(g=>{
+      const band=admissionBandAnalysis(s,g).band;
+      if(admissionBandRank(band)>admissionBandRank(best))best=band;
+    });
+    countAdmissionBand(summary,best);
+  });
+  return summary;
+}
+function admissionBandSummaryText(summary,unit=''){
+  if(currentAdmissionBandScore()===null)return '冲稳保未设分数';
+  const pending=summary.待定?` 待定${summary.待定}${unit}`:'';
+  return `冲${summary.冲}${unit} 稳${summary.稳}${unit} 保${summary.保}${unit}${pending}`;
+}
 const PLAN_CATEGORY_GUIDE_PRIORITY=['early-sergeant','early-medical','early-military','early-police','early-maritime','early-special-plan','special-strong-base','special-comprehensive-a','special-comprehensive-b','early-other'];
 function batchGuideDefById(id){
   if(!id||!window.BatchGuide)return null;
@@ -1529,27 +1600,57 @@ function admissionPriorityAlertHTML(s){
   return `<div class="admission-rule-alert ${info.severity}"><b>录取规则红色提示：${esc(info.label)}</b><span>${esc(sample)}</span></div>`;
 }
 
+function schoolTierText(s,d={}){
+  return `${s?.level||''} ${d.schoolTags||''} ${d.firstClass||''} ${d.schoolLevel||''} ${d.schoolType||''} ${d.publicPrivate||''} ${d.administration||''}`;
+}
+function hasSchoolTierToken(text,token){
+  return new RegExp(`(^|[^0-9A-Za-z])${token}([^0-9A-Za-z]|$)`).test(String(text||''));
+}
+function schoolTierFlags(s,d={}){
+  const text=schoolTierText(s,d);
+  const is985=hasSchoolTierToken(text,'985')||/985工程/.test(text);
+  const has211=hasSchoolTierToken(text,'211')||/211工程/.test(text);
+  const is211=has211&&!is985;
+  const isDoubleFirst=/双一流/.test(text);
+  const hasBaoyan=/保研资格|推免资格|推荐免试|免试研究生|保研/.test(text)||Number(d.baoyanRate)>0;
+  const isPublic=/公办/.test(text);
+  const isPrivate=/民办/.test(text);
+  return {text,is985,is211,isDoubleFirst,hasBaoyan,isPublic,isPrivate};
+}
+function schoolCoreTierLabels(s,d={}){
+  const f=schoolTierFlags(s,d);
+  const labels=[];
+  if(f.is985)labels.push('985');
+  else if(f.is211)labels.push('211');
+  if(f.isDoubleFirst)labels.push('双一流');
+  if(/国重点|国家重点/.test(f.text))labels.push('国重点');
+  if(f.hasBaoyan)labels.push('保研资格');
+  return [...new Set(labels)];
+}
+function shouldKeepRawSchoolLevel(v){
+  const t=String(v??'').trim();
+  if(!isValidFacetValue(t))return false;
+  if((/985|211|双一流|国重点|国家重点|保研/.test(t))&&/[\/、,，\s]+/.test(t))return false;
+  return true;
+}
+function schoolLevelDisplay(s,d={}){
+  return schoolCoreTierLabels(s,d).join('/')||d.schoolTags||d.firstClass||d.schoolLevel||s?.level||'';
+}
+
 function schoolFacetValues(s){
   const cacheKey=keySchool(s);
   if(schoolFacetCache.has(cacheKey))return schoolFacetCache.get(cacheKey);
   const d=representativeDetailForSchool(s);
   const values=new Set();
   const add=v=>{const t=String(v??'').trim(); if(isValidFacetValue(t))values.add(t);};
-  add(s.level);
-  const text=`${s.level||''} ${d.schoolTags||''} ${d.firstClass||''} ${d.schoolLevel||''} ${d.schoolType||''} ${d.publicPrivate||''} ${d.administration||''}`;
-  const is985=/985/.test(text);
-  const is211=/211/.test(text);
-  const isDoubleFirst=/双一流/.test(text);
-  const hasBaoyan=/保研资格|推免资格|推荐免试|免试研究生|保研/.test(text)||Number(d.baoyanRate)>0;
-  const isPublic=/公办/.test(text);
-  const isPrivate=/民办/.test(text);
-  if(is985)add('985');
-  if(is211)add('211');
-  if(isDoubleFirst)add('双一流');
-  if(hasBaoyan&&!is985&&!is211&&!isDoubleFirst)add('保研双非');
-  if(isPublic)add('公办');
-  if(isPrivate)add('民办');
-  if(isPublic&&!is985&&!is211&&!isDoubleFirst&&!hasBaoyan)add('普通公办');
+  if(shouldKeepRawSchoolLevel(s.level))add(s.level);
+  const tier=schoolTierFlags(s,d);
+  const text=tier.text;
+  schoolCoreTierLabels(s,d).forEach(add);
+  if(tier.hasBaoyan&&!tier.is985&&!tier.is211&&!tier.isDoubleFirst)add('保研双非');
+  if(tier.isPublic)add('公办');
+  if(tier.isPrivate)add('民办');
+  if(tier.isPublic&&!tier.is985&&!tier.is211&&!tier.isDoubleFirst&&!tier.hasBaoyan)add('普通公办');
   if(/中外合作办学机构|中外合作大学|港中深|昆山杜克|西交利物浦|宁波诺丁汉|上海纽约/.test(text))add('中外合作办学机构');
   const priorityInfo=admissionPriorityInfo(s);
   if(priorityInfo){add('专业优先'); if(priorityInfo.severity==='partial')add('部分专业优先');}
@@ -2019,7 +2120,30 @@ function updateRequirementButton(){
   btn.textContent=selectedSummary('选科要求',state.selectedRequirements,'选科要求');
 }
 function updateClassButton(){const n=state.selectedClasses.size; $('#classBtn').textContent=selectedSummary('全部专业大类',state.selectedClasses,'专业大类');}
-function groupMatchesSearch(s,g,q){if(!q)return true; const nq=normalize(q); if(normalize(s.name+s.province+s.city+s.subject+s.batch).includes(nq))return true; if(normalize(g.groupName+groupDisplayName(s,g)+g.requirement+(g.tags||[]).join('')+(g.majorClasses||[]).join('')+g.majorSummary).includes(nq))return true; return g.majors.some(m=>normalize(m.name+m.majorClass+m.discipline+m.code).includes(nq));}
+function schoolTierSearchToken(q){
+  const nq=normalize(q);
+  if(/^985(大学|高校|院校)?$/.test(nq)||nq==='九八五')return '985';
+  if(/^211(大学|高校|院校)?$/.test(nq)||['二一一','二幺一','二幺幺'].includes(nq))return '211';
+  if(['双一流','一流大学','一流学科'].includes(nq))return '双一流';
+  if(['保研','保研资格','推免资格'].includes(nq))return '保研资格';
+  if(nq==='国家重点')return '国重点';
+  if(['保研双非','普通公办','公办','民办','国重点'].includes(nq))return nq;
+  return '';
+}
+function schoolMatchesTierSearch(s,token){
+  if(!token)return false;
+  return [...schoolFacetValues(s)].some(v=>normalize(v)===token);
+}
+function groupMatchesSearch(s,g,q){
+  if(!q)return true;
+  const nq=normalize(q);
+  const tierToken=schoolTierSearchToken(q);
+  if(tierToken)return schoolMatchesTierSearch(s,tierToken);
+  const schoolFacetText=[...schoolFacetValues(s)].join('');
+  if(normalize(s.name+s.province+s.city+s.subject+s.batch+schoolFacetText).includes(nq))return true;
+  if(normalize(g.groupName+groupDisplayName(s,g)+g.requirement+(g.tags||[]).join('')+(g.majorClasses||[]).join('')+g.majorSummary).includes(nq))return true;
+  return g.majors.some(m=>normalize(m.name+m.majorClass+m.discipline+m.code).includes(nq));
+}
 function groupMatchesScore(s,g){
   if(!state.scoreRange)return true;
   const scores=[];
@@ -2125,6 +2249,7 @@ function groupCleanTagsHTML(s,g,planDiff,quality,compact=false){
   const pieces=[];
   const push=x=>{if(x&&String(x).trim())pieces.push(x);};
   push(groupQualityBadge(quality));
+  push(admissionBandBadgeHTML(s,g));
   push(foreignCoopCountBadgeHTML(g));
   push(groupMedicalBadge(g));
   push(groupQualificationBadge(s,g));
@@ -2175,7 +2300,11 @@ function majorSortByThreeYear(a,b){
 function render(){renderSidebar(); if(state.mode==='groups')renderGroupMode(); else renderSchoolMode();}
 function renderSidebar(){
   const totalGroups=state.filtered.reduce((a,s)=>a+s.visibleGroups.length,0);
-  $('#resultMeta').textContent=`${state.filtered.length} 所院校｜${totalGroups} 个专业组`;
+  const groupBands=admissionBandSummaryForFiltered();
+  const schoolBands=admissionBandSchoolSummaryForFiltered();
+  const meta=$('#resultMeta');
+  meta.textContent=`${state.filtered.length} 所院校｜${totalGroups} 个专业组｜学校 ${admissionBandSummaryText(schoolBands,'所')}｜组 ${admissionBandSummaryText(groupBands,'组')}`;
+  meta.title='按当前学生分数与近三年专业组最低分判断：冲=三年都没够到，稳=至少一年够到，保=三年全部够到。学校统计按该校当前显示专业组中的最佳档位粗略归类。';
   $('#schoolList').innerHTML=state.filtered.map(s=>`<div class="school-item ${s.id===state.activeSchoolId?'active':''} ${admissionPriorityInfo(s)?'priority-admission-school':''}" data-school-id="${s.id}" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="name">${esc(s.name)}${admissionPriorityBadge(s,true)}${noteBadge('schools',keySchool(s))}</div><div class="meta"><span>${esc(displayRegionLabel(s))}</span><span>${esc(s.subject)}</span><span>${esc(s.batch)}</span><span>${s.visibleGroups.length}组</span></div><div class="score-pill">加权均分 ${fmtNum(s.weightedScore)}</div></div>`).join('');
   $$('.school-item').forEach(el=>el.addEventListener('click',()=>{state.activeSchoolId=el.dataset.schoolId;render();}));
   bindNoteHoverAndContext();
@@ -2185,14 +2314,16 @@ function renderSchoolMode(){const s=getActiveSchool(); if(!s){$('#main').innerHT
 function renderGroupMode(){
   const groups=[]; state.filtered.forEach(s=>s.visibleGroups.forEach(g=>groups.push([s,g])));
   const limit=120; const shown=groups.slice(0,limit);
-  $('#main').innerHTML=`<div class="school-header"><div class="school-title"><h2>专业组视图</h2><span class="badge green">当前显示 ${shown.length} / ${groups.length} 组</span></div><div class="badges"><span class="badge">按院校加权均分排序</span><span class="badge">分数筛选含新增组预测分</span></div></div>`+shown.map(([s,g])=>groupSectionHTML(s,g)).join('')+(groups.length>limit?`<div class="empty">为保证浏览器性能，当前展示前 ${limit} 个专业组；可以继续缩小筛选条件。</div>`:'');
+  const summary=admissionBandSummaryForFiltered();
+  $('#main').innerHTML=`<div class="school-header"><div class="school-title"><h2>专业组视图</h2><span class="badge green">当前显示 ${shown.length} / ${groups.length} 组</span></div><div class="badges"><span class="badge">按院校加权均分排序</span><span class="badge">分数筛选含新增组预测分</span><span class="badge band-summary">${esc(admissionBandSummaryText(summary,'组'))}</span></div></div>`+shown.map(([s,g])=>groupSectionHTML(s,g)).join('')+(groups.length>limit?`<div class="empty">为保证浏览器性能，当前展示前 ${limit} 个专业组；可以继续缩小筛选条件。</div>`:'');
   bindDynamic();
 }
 function schoolHTML(s,groups,withCards){
   const plan26=groups.reduce((a,g)=>a+(g.plan26||0),0);
   const plan25=groups.reduce((a,g)=>a+(g.plan25||0),0);
   const planDiff=plan26-plan25;
-  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)} ${admissionPriorityBadge(s)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(displayRegionLabel(s))}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span></div>${foreignCoopSchoolAlertHTML(groups)}${admissionPriorityAlertHTML(s)}<div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
+  const bandSummary=admissionBandSummaryForGroups(s,groups);
+  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)} ${admissionPriorityBadge(s)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(displayRegionLabel(s))}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span><span class="badge band-summary" title="当前院校显示专业组的冲稳保分布">${esc(admissionBandSummaryText(bandSummary,'组'))}</span></div>${foreignCoopSchoolAlertHTML(groups)}${admissionPriorityAlertHTML(s)}<div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
 }
 function groupCardHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
@@ -2443,7 +2574,7 @@ function representativeDetailForSchool(s){
   return {};
 }
 function schoolInfoPairs(s,d={}){const priority=admissionPriorityInfo(s); return [
-  ['院校名称',d.school||s?.name],['录取规则风险',priority?`${priority.label}｜${priority.rules[0]||''}`:''],['所在省份',d.province||s?.province],['所在城市',d.city||s?.city],['城市层级',d.cityLevelTag],['院校代码',d.schoolCode],['院校标签',d.schoolTags||d.firstClass],['院校层次',d.schoolLevel||s?.level],['隶属单位',d.administration],['院校类型',d.schoolType],['公私性质',d.publicPrivate],['本科/专科',d.bachelorSpecialty],['保研率',d.baoyanRate],['学校软科排名',d.schoolRank],['转专业政策',d.transferPolicy],['硕士点数量',d.schoolMasterCount],['硕士点',d.masterPrograms],['博士点数量',d.schoolDoctorCount],['博士点',d.doctorPrograms],['录取规则',d.admissionRule],['招生章程',d.recruitChapter]
+  ['院校名称',d.school||s?.name],['录取规则风险',priority?`${priority.label}｜${priority.rules[0]||''}`:''],['所在省份',d.province||s?.province],['所在城市',d.city||s?.city],['城市层级',d.cityLevelTag],['院校代码',d.schoolCode],['院校标签',schoolLevelDisplay(s,d)],['院校层次',d.schoolLevel||s?.level],['隶属单位',d.administration],['院校类型',d.schoolType],['公私性质',d.publicPrivate],['本科/专科',d.bachelorSpecialty],['保研率',d.baoyanRate],['学校软科排名',d.schoolRank],['转专业政策',d.transferPolicy],['硕士点数量',d.schoolMasterCount],['硕士点',d.masterPrograms],['博士点数量',d.schoolDoctorCount],['博士点',d.doctorPrograms],['录取规则',d.admissionRule],['招生章程',d.recruitChapter]
 ];}
 function groupInfoPairs(d={}){return [
   ['专业组',d.group],['院校专业组代码',d.groupCode||d.schoolGroupCode],['专业组显示代码',d.displayCode||d.rawGroupCode],['科类',d.subject],['批次',d.batch],['计划类别',d.planCategory],['再选要求',d.subjectRequirement],['26专业组计划',d.groupPlan26],['组内专业数',d.groupMajorCount],['专业组干净度',d.groupCleanliness],['专业组25最低分',d.groupScore25],['专业组25最低位次',d.groupRank25],['专业组原始专业明细',d.rawGroupMajors]
@@ -2947,9 +3078,10 @@ function volunteerSearchText(key,rec){
   if(!rec)return '';
   const {s,g}=rec;
   const meta=volunteerMeta[key]||{};
+  const strategy=volunteerStrategyValue(key,rec);
   const majorText=(g.majors||[]).map(m=>`${m.name||''} ${m.code||''} ${m.majorClass||''} ${m.discipline||''}`).join(' ');
   const selectedText=selectedMajorsForKey(key).map(m=>m.name||'').join(' ');
-  return `${s.name||''} ${s.province||''} ${s.subject||''} ${s.batch||''} ${g.groupName||''} ${g.groupCode||''} ${groupDisplayName(s,g)||''} ${g.requirement||''} ${(g.tags||[]).join(' ')} ${meta.strategy||''} ${meta.note||''} ${selectedText} ${majorText}`;
+  return `${s.name||''} ${s.province||''} ${s.subject||''} ${s.batch||''} ${g.groupName||''} ${g.groupCode||''} ${groupDisplayName(s,g)||''} ${g.requirement||''} ${(g.tags||[]).join(' ')} ${strategy} ${meta.note||''} ${selectedText} ${majorText}`;
 }
 function volunteerEntryMatches(key,rec){
   if(!rec)return false;
@@ -2957,10 +3089,10 @@ function volunteerEntryMatches(key,rec){
   if(q&&!normalize(volunteerSearchText(key,rec)).includes(q))return false;
   const mode=volunteerFilterMode;
   if(!mode)return true;
-  const meta=volunteerMeta[key]||{};
   const selectedCount=selectedMajorOrder(key).length;
-  if(['冲','稳','保','垫'].includes(mode))return meta.strategy===mode;
-  if(mode==='pending')return !meta.strategy;
+  const strategy=volunteerStrategyValue(key,rec);
+  if(['冲','稳','保','垫'].includes(mode))return strategy===mode;
+  if(mode==='pending')return strategy==='待定';
   if(mode==='emptyMajor')return selectedCount===0;
   if(mode==='notFullMajor')return selectedCount<MAX_MAJOR_PER_GROUP;
   if(mode==='fullMajor')return selectedCount>=MAX_MAJOR_PER_GROUP;
@@ -2976,14 +3108,23 @@ const VOLUNTEER_STRATEGY_META={
   '垫':{className:'floor',label:'垫'},
   '待定':{className:'pending',label:'待定'}
 };
-function volunteerStrategyValue(key){
+function volunteerStrategyValue(key,rec=getGroupRecord(key)){
   const value=String(volunteerMeta[key]?.strategy||'').trim();
-  return VOLUNTEER_STRATEGY_META[value]?value:'待定';
+  if(VOLUNTEER_STRATEGY_META[value])return value;
+  if(rec){
+    const auto=admissionBandAnalysis(rec.s,rec.g).band;
+    if(VOLUNTEER_STRATEGY_META[auto])return auto;
+  }
+  return '待定';
 }
 function volunteerStrategyPillHTML(key){
-  const value=volunteerStrategyValue(key);
+  const rec=getGroupRecord(key);
+  const value=volunteerStrategyValue(key,rec);
   const meta=VOLUNTEER_STRATEGY_META[value]||VOLUNTEER_STRATEGY_META['待定'];
-  return `<span class="volunteer-strategy-pill strategy-${meta.className}" title="当前定位：${esc(meta.label)}">${esc(meta.label)}</span>`;
+  const manual=Boolean(String(volunteerMeta[key]?.strategy||'').trim());
+  const analysis=rec?admissionBandAnalysis(rec.s,rec.g):null;
+  const title=manual?`人工定位：${meta.label}`:(analysis?.title||`自动定位：${meta.label}`);
+  return `<span class="volunteer-strategy-pill strategy-${meta.className}" title="${esc(title)}">${esc(meta.label)}</span>`;
 }
 function volunteerStrategyCounts(keys=volunteerKeys){
   const counts={冲:0,稳:0,保:0,垫:0,待定:0};
@@ -3115,13 +3256,15 @@ function volunteerRowHTML(key,index){
   const subjectBlock=subjectRequirementBlockReason(s,g);
   const guideDef=batchGuideDef(s,g);
   const guideLine=guideDef?`<p class="volunteer-guide-line"><span>填报通道：${esc(guideDef.channel)}</span>${batchGuideButtonsHTML(s,g,true)}</p>`:'';
+  const autoBand=admissionBandAnalysis(s,g);
+  const autoOptionLabel=autoBand.band==='待定'?'自动待定':`自动${autoBand.band}`;
   const selectedList=selectedMajors.length?`<ol class="volunteer-major-strip">${selectedMajors.map((m,i)=>selectedVolunteerMajorHTML(s,g,m,key,i,selectedMajors.length)).join('')}</ol>`:`<div class="volunteer-selected-empty-compact">尚未选择具体专业。展开专业池后勾选，系统会按勾选顺序生成第 1—6 专业。</div>`;
   const majorPicker=`<details class="major-picker volunteer-edit-drawer"${detailsOpen}><summary>专业池 ${majors.length} 个｜已选 ${selectedOrder.length} / ${MAX_MAJOR_PER_GROUP}</summary><div class="major-picker-actions compact"><select data-major-pool-filter="${esc(key)}"><option value="all" ${poolFilter==='all'?'selected':''}>全部专业</option><option value="selected" ${poolFilter==='selected'?'selected':''}>只看已选</option><option value="unselected" ${poolFilter==='unselected'?'selected':''}>只看未选</option></select><button data-major-preset="${esc(key)}" data-preset="none">清空专业</button></div><div class="major-picker-grid volunteer-major-grid compact-grid">${majors.map(m=>volunteerMajorPoolCardHTML(s,g,m,key,selectedOrder,poolFilter,subjectBlock)).join('')}</div></details>`;
   return `<article class="volunteer-item volunteer-table-row" data-volunteer-item="${esc(key)}">
     <div class="volunteer-order-col"><input class="volunteer-position-input" data-volunteer-position="${esc(key)}" value="${index+1}" title="输入目标序号，例如 10 或 第10" inputmode="numeric" aria-label="志愿序号">${volunteerStrategyPillHTML(key)}<span class="volunteer-drag-handle" data-volunteer-drag-handle="${esc(key)}" draggable="true" title="按住拖动调整专业组顺序">↕</span></div>
     <div class="volunteer-group-col"><div class="volunteer-group-title"><b>${esc(groupShortTitle(s,g))}</b>${batchGuideBadgeHTML(s,g,true)}</div><p>再选 ${esc(g.requirement||'—')}</p><p class="volunteer-group-alias">${esc(groupAlias)}</p>${guideLine}</div>
     <div class="volunteer-major-col"><div class="volunteer-selected-summary"><div class="volunteer-col-caption">已选专业 <span>${selectedOrder.length}/${MAX_MAJOR_PER_GROUP}</span></div>${selectedList}</div>${majorPicker}</div>
-    <div class="volunteer-data-col"><div class="volunteer-data-line emphasis">${groupScoreLineHTML(s,g)}</div><div class="volunteer-data-line">26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</div><div class="volunteer-mini-controls single"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="">待定</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label></div><div class="volunteer-obey-fixed">默认服从专业组内调剂</div><input class="volunteer-note-compact" data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注"></div>
+    <div class="volunteer-data-col"><div class="volunteer-data-line emphasis">${groupScoreLineHTML(s,g)}</div><div class="volunteer-data-line">26计划 ${fmt(g.plan26)}｜较25 ${formatSigned(planDiff)}</div><div class="volunteer-mini-controls single"><label>定位<select data-volunteer-meta="${esc(key)}" data-field="strategy"><option value="" ${!meta.strategy?'selected':''}>${esc(autoOptionLabel)}</option>${['冲','稳','保','垫'].map(v=>`<option value="${v}" ${meta.strategy===v?'selected':''}>${v}</option>`).join('')}</select></label></div><div class="volunteer-obey-fixed">默认服从专业组内调剂</div><input class="volunteer-note-compact" data-volunteer-meta="${esc(key)}" data-field="note" value="${esc(meta.note||'')}" placeholder="备注"></div>
     <div class="volunteer-actions volunteer-action-col"><button class="icon-btn" title="上移" aria-label="上移" data-volunteer-move="${esc(key)}" data-delta="-1" ${index===0?'disabled':''}>↑</button><button class="icon-btn" title="下移" aria-label="下移" data-volunteer-move="${esc(key)}" data-delta="1" ${index===volunteerKeys.length-1?'disabled':''}>↓</button><button class="icon-btn danger" title="删除" aria-label="删除" data-volunteer-remove="${esc(key)}">×</button></div>
   </article>`;
 }
@@ -3338,6 +3481,7 @@ function exportVolunteerXlsx(){
     const groupInfo=groupExportInfo(s,g);
     const guide=batchGuideDef(s,g);
     const guideChannel=guide?guide.channel:'';
+    const strategy=volunteerStrategyValue(key,{s,g});
     items.forEach((item,idx)=>{
       const m=item.m;
       const selected=item.selected;
@@ -3367,7 +3511,7 @@ function exportVolunteerXlsx(){
           {value:groupTitle,style:'group',mergeDown:merge},
           {value:groupInfo,style:'groupInfo',mergeDown:merge},
           ...majorCells.map((c,n)=>n===0?{...c,index:undefined}:c),
-          {value:meta.strategy||'待定',style:'seq',mergeDown:merge},
+          {value:strategy,style:'seq',mergeDown:merge},
           {value:'是',style:'seq',mergeDown:merge},
           {value:meta.note||'',style:'note',mergeDown:merge},
           statusCell
@@ -3783,7 +3927,7 @@ function updateAuthGate(){
 function splitListInput(v){return String(v||'').split(/[，,、\s/]+/).map(x=>x.trim()).filter(Boolean);}
 function subjectTypeValue(v){return v==='history'||v==='历史'?'history':'physics';}
 function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergraduate';}
-function stageLabel(v){return v==='specialty'?'专科':'本科';}
+function stageLabel(v){return v==='specialty'||v==='专科'?'专科':'本科';}
 function subjectLabel(v){return v==='history'?'历史':'物理';}
 
 function showAccountModal(mode='login',role='consultant'){
@@ -4230,7 +4374,7 @@ function groupPayloadForSave(key,index){
   if(!rec)return null;
   const {s,g}=rec;
   const meta=volunteerMeta[key]||{};
-  return {form_id:null,owner_id:auth.user.id,position:index+1,group_key:key,school_name:s.name,school_code:s.schoolCode||null,province:s.province||null,city:s.city||null,batch:s.batch||null,subject:s.subject||null,group_name:g.groupName,group_code:g.groupCode||null,group_alias:groupDisplayName(s,g)||null,requirement:g.requirement||null,plan26:dbInteger(g.plan26),plan25:dbInteger(g.plan25),score25:dbNumber(g.score25),rank25:dbInteger(g.rank25),avg_score3:dbNumber(g.avgScore3),avg_rank3:dbInteger(g.avgRank3),strategy:meta.strategy||'待定',obey_adjustment:true,note:meta.note||null,source_payload:{group:g,batchGuide:batchGuideSavePayload(s,g)}};
+  return {form_id:null,owner_id:auth.user.id,position:index+1,group_key:key,school_name:s.name,school_code:s.schoolCode||null,province:s.province||null,city:s.city||null,batch:s.batch||null,subject:s.subject||null,group_name:g.groupName,group_code:g.groupCode||null,group_alias:groupDisplayName(s,g)||null,requirement:g.requirement||null,plan26:dbInteger(g.plan26),plan25:dbInteger(g.plan25),score25:dbNumber(g.score25),rank25:dbInteger(g.rank25),avg_score3:dbNumber(g.avgScore3),avg_rank3:dbInteger(g.avgRank3),strategy:volunteerStrategyValue(key,rec),obey_adjustment:true,note:meta.note||null,source_payload:{group:g,batchGuide:batchGuideSavePayload(s,g)}};
 }
 function majorPayloadsForSave(groupKey,dbGroupId){
   const rec=getGroupRecord(groupKey);
