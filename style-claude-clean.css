@@ -82,7 +82,7 @@
   position:fixed;
   top:var(--group-tooltip-top,-9999px);
   left:var(--group-tooltip-left,-9999px);
-  z-index:900;
+  z-index:2147483000;
   width:min(440px,calc(100vw - 24px));
   max-height:calc(100vh - 24px);
   overflow:auto;
@@ -106,7 +106,18 @@
   visibility:visible;
   transform:translateY(0);
 }
+.group-major-tooltip.is-open{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0);
+}
 .group-card.group-tooltip-measuring .group-major-tooltip{
+  display:block;
+  opacity:0;
+  visibility:hidden;
+  transform:none;
+}
+.group-major-tooltip.is-measuring{
   display:block;
   opacity:0;
   visibility:hidden;

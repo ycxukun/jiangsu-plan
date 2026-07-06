@@ -1976,15 +1976,57 @@ function majorRowHTML(s,g,m){
   return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||physical.blocked||qualificationBlocked?'当前学生档案不满足该专业组选科/体检/报考资格要求，禁止选择':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><span class="major-name-text">${esc(m.name)}</span>${segmentedBadges}${majorMetaBadgesHTML(m,'三')}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}<button class="anno-mini" data-annotation-scope="majors" data-annotation-key="${esc(keyMajor(m))}" data-annotation-title="${esc(s.name)} ${esc(groupDisplayTitleText(s,g))} ${esc(m.name)}｜专业批注">批注</button></td><td>${esc(m.majorClass||'其他')}<br><span class="muted">${esc(m.discipline||'其他')}</span></td><td>${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td>${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td>${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function clampTooltip(n,min,max){return Math.min(Math.max(n,min),Math.max(min,max));}
-function closeGroupMajorTooltips(){
+function getGroupMajorTooltip(card){
+  if(!card)return null;
+  if(card.__groupMajorTooltip)return card.__groupMajorTooltip;
+  const tip=card.querySelector?.('.group-major-tooltip');
+  if(tip){
+    card.__groupMajorTooltip=tip;
+    tip.__groupMajorTooltipOwner=card;
+  }
+  return tip||null;
+}
+function mountGroupMajorTooltip(card){
+  const tip=getGroupMajorTooltip(card);
+  if(!tip)return null;
+  if(!tip.__groupTooltipHome){
+    tip.__groupTooltipHome={parent:tip.parentNode,next:tip.nextSibling};
+  }
+  if(tip.parentNode!==document.body)document.body.appendChild(tip);
+  tip.setAttribute('aria-hidden','false');
+  return tip;
+}
+function restoreGroupMajorTooltip(card){
+  const tip=getGroupMajorTooltip(card);
+  if(!tip)return;
+  tip.classList.remove('is-open','is-measuring');
+  tip.setAttribute('aria-hidden','true');
+  tip.style.removeProperty('--group-tooltip-left');
+  tip.style.removeProperty('--group-tooltip-top');
+  tip.style.removeProperty('max-height');
+  const home=tip.__groupTooltipHome;
+  if(home?.parent&&tip.parentNode!==home.parent){
+    home.parent.insertBefore(tip,home.next&&home.next.parentNode===home.parent?home.next:null);
+  }
+}
+function closeGroupMajorTooltips(exceptCard=null){
   $$('.group-card.group-tooltip-open').forEach(card=>{
+    if(card===exceptCard)return;
     card.classList.remove('group-tooltip-open');
     card.style.removeProperty('--group-tooltip-left');
     card.style.removeProperty('--group-tooltip-top');
+    restoreGroupMajorTooltip(card);
+  });
+  $$('.group-major-tooltip.is-open').forEach(tip=>{
+    const owner=tip.__groupMajorTooltipOwner;
+    if(owner&&owner!==exceptCard){
+      owner.classList.remove('group-tooltip-open');
+      restoreGroupMajorTooltip(owner);
+    }
   });
 }
 function positionGroupMajorTooltip(card){
-  const tip=card?.querySelector?.('.group-major-tooltip');
+  const tip=mountGroupMajorTooltip(card);
   if(!tip)return;
   const margin=12;
   const gap=12;
@@ -1992,8 +2034,10 @@ function positionGroupMajorTooltip(card){
   const vh=window.innerHeight||document.documentElement.clientHeight||0;
   const rect=card.getBoundingClientRect();
   tip.style.maxHeight=`${Math.max(160,vh-margin*2)}px`;
+  tip.classList.add('is-measuring');
   const tipWidth=Math.min(tip.offsetWidth||440,vw-margin*2);
   const tipHeight=Math.min(tip.scrollHeight||tip.offsetHeight||240,vh-margin*2);
+  tip.classList.remove('is-measuring');
   let left;
   let top;
   const rightSpace=vw-rect.right;
@@ -2011,8 +2055,8 @@ function positionGroupMajorTooltip(card){
     top=(vh-rect.bottom>=tipHeight+gap||vh-rect.bottom>=rect.top)?below:above;
     top=clampTooltip(top,margin,vh-tipHeight-margin);
   }
-  card.style.setProperty('--group-tooltip-left',`${Math.round(left)}px`);
-  card.style.setProperty('--group-tooltip-top',`${Math.round(top)}px`);
+  tip.style.setProperty('--group-tooltip-left',`${Math.round(left)}px`);
+  tip.style.setProperty('--group-tooltip-top',`${Math.round(top)}px`);
 }
 function bindGroupMajorTooltips(){
   if(!window.__groupMajorTooltipGlobalBound){
@@ -2023,9 +2067,14 @@ function bindGroupMajorTooltips(){
   $$('.group-card').forEach(card=>{
     if(card.dataset.boundGroupTooltip==='1')return;
     card.dataset.boundGroupTooltip='1';
-    const open=()=>{positionGroupMajorTooltip(card);card.classList.add('group-tooltip-open');};
+    const open=()=>{
+      closeGroupMajorTooltips(card);
+      positionGroupMajorTooltip(card);
+      card.classList.add('group-tooltip-open');
+      getGroupMajorTooltip(card)?.classList.add('is-open');
+    };
     const refresh=()=>{if(card.classList.contains('group-tooltip-open'))positionGroupMajorTooltip(card);};
-    const close=()=>{card.classList.remove('group-tooltip-open');};
+    const close=()=>{card.classList.remove('group-tooltip-open');restoreGroupMajorTooltip(card);};
     card.addEventListener('mouseenter',open);
     card.addEventListener('mousemove',refresh);
     card.addEventListener('mouseleave',close);
