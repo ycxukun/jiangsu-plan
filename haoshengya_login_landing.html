@@ -746,11 +746,30 @@
     footer {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       flex-wrap: wrap;
       gap: 12px;
       padding: 22px 8px 0;
       color: rgba(23,35,28,.55);
       font-size: 12px;
+    }
+
+    footer a {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--brand-dark);
+    }
+
+    footer img {
+      width: 18px;
+      height: 20px;
+      object-fit: contain;
     }
 
     @media (max-width: 980px) {
@@ -949,7 +968,8 @@
 
     <footer>
       <span>© 2026 好生涯早规划 · 志愿填报系统内测入口</span>
-      <span>Designed for 江苏新高考规划服务流程</span>
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2026045146号-1</a>
+      <a href="https://beian.mps.gov.cn/#/query/webSearch?code=32090202001634" target="_blank" rel="noopener noreferrer"><img src="/beian-icon.png" alt="公安备案图标">苏公网安备32090202001634号</a>
     </footer>
   </main>
 
