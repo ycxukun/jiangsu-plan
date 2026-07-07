@@ -210,6 +210,46 @@ function caseTasks(caseId){return data.tasks.filter(t=>t.service_case_id===caseI
 function studentRisks(studentId){return data.risks.filter(r=>r.student_id===studentId&&r.risk_status!=='已关闭');}
 function isOverdue(task){return task.due_at&&new Date(task.due_at)<new Date()&&!['已完成','已取消'].includes(task.task_status);}
 
+function firstFilled(...values){
+  return values.find(value=>value!==null&&value!==undefined&&value!=='')??null;
+}
+
+function splitVolunteerList(value){
+  if(Array.isArray(value))return value;
+  return String(value||'').split(/[，,、\s/+]+/);
+}
+
+function normalizeVolunteerSubjectChoices(...values){
+  const alias={化:'化学',化学:'化学',生:'生物',生物:'生物',政:'政治',政治:'政治',地:'地理',地理:'地理'};
+  const out=[];
+  values.flatMap(splitVolunteerList).forEach(value=>{
+    const normalized=alias[String(value||'').trim()];
+    if(normalized&&!out.includes(normalized))out.push(normalized);
+  });
+  return out;
+}
+
+function normalizeVolunteerSubjectType(student){
+  const raw=String(firstFilled(student?.subject_type,student?.first_subject,student?.class_type,'')||'').trim();
+  if(/history|历史|文科|史/i.test(raw))return 'history';
+  return 'physics';
+}
+
+function normalizeVolunteerMedicalCodes(...values){
+  const out=[];
+  values.flatMap(splitVolunteerList).forEach(value=>{
+    String(value||'').match(/\d+/g)?.forEach(code=>{if(!out.includes(code))out.push(code);});
+  });
+  return out;
+}
+
+function toVolunteerNumber(...values){
+  const value=firstFilled(...values);
+  if(value===null)return null;
+  const n=Number(String(value).replace(/[^\d.-]/g,''));
+  return Number.isFinite(n)?n:null;
+}
+
 function completeness(student){
   const required=[
     student?.name,
@@ -1011,11 +1051,62 @@ function orderDetail(orderId){
   </div>`);
 }
 
+function volunteerStage(student){
+  const stage=String(student?.stage||student?.service_stage||student?.batch||'').toLowerCase();
+  return /specialty|专科/.test(stage)?'specialty':'undergraduate';
+}
+
+function volunteerStudentPayload(student){
+  const subjectChoices=normalizeVolunteerSubjectChoices(student?.subject_choices,student?.second_subjects,student?.subjectChoices);
+  const medicalCodes=normalizeVolunteerMedicalCodes(student?.medical_codes,student?.physical_limit_codes,student?.medicalCodes,student?.medical_remark);
+  const subjectType=normalizeVolunteerSubjectType(student);
+  const score=toVolunteerNumber(student?.score,student?.gaokao_score,student?.estimated_score);
+  const rank=toVolunteerNumber(student?.rank,student?.gaokao_rank,student?.estimated_rank);
+  const stage=volunteerStage(student);
+  return {
+    ...student,
+    owner_id:auth.user?.id||student?.owner_id||null,
+    planner_id:student?.planner_id||auth.user?.id||null,
+    province:firstFilled(student?.province,'江苏'),
+    stage,
+    subject_type:subjectType,
+    first_subject:subjectType==='history'?'历史':'物理',
+    subject_choices:subjectChoices,
+    second_subjects:subjectChoices,
+    subjectChoices,
+    medical_codes:medicalCodes,
+    physical_limit_codes:medicalCodes,
+    score,
+    rank,
+    gaokao_score:firstFilled(student?.gaokao_score,score),
+    gaokao_rank:firstFilled(student?.gaokao_rank,rank),
+    target_cities:Array.isArray(student?.target_cities)?student.target_cities:splitVolunteerList(student?.region_preference).filter(Boolean),
+    target_majors:Array.isArray(student?.target_majors)?student.target_majors:splitVolunteerList(student?.major_preference).filter(Boolean)
+  };
+}
+
+function saveVolunteerStudentIndexes(student){
+  if(!auth.user?.id||!student?.id)return;
+  try{
+    const subjectKey=`js-plan-student-subject-choices-v1:${auth.user.id}`;
+    const subjectMap=storageJSON(subjectKey,{})||{};
+    subjectMap[student.id]=student.subject_choices||[];
+    localStorage.setItem(subjectKey,JSON.stringify(subjectMap));
+    if(student.medical_codes?.length){
+      localStorage.setItem('js-plan-medical-restriction-codes-v1',JSON.stringify(student.medical_codes));
+    }
+  }catch(e){}
+}
+
 function openVolunteer(studentId){
   const s=studentById(studentId);
   if(!s)return;
-  try{localStorage.setItem(`js-plan-current-student-v1:${auth.user.id}`,JSON.stringify(s));}catch(e){}
-  const url=s.stage==='specialty'?'./specialty/index.html':'./index.html';
+  const payload=volunteerStudentPayload(s);
+  try{
+    localStorage.setItem(`js-plan-current-student-v1:${auth.user.id}`,JSON.stringify(payload));
+    saveVolunteerStudentIndexes(payload);
+  }catch(e){}
+  const url=payload.stage==='specialty'?'./specialty/index.html':'./index.html';
   window.open(url,'_blank');
 }
 
