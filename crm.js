@@ -11,6 +11,18 @@ const SERVICE_TYPES=['普通批志愿填报','综合评价','强基计划','提�
 const TASK_TEMPLATES=['收集成绩与位次','收集体检表','收集选科信息','收集家长诉求','收集学生诉求','确认是否接受调剂','确认中外合作预算','完成院校初筛','完成专业组初筛','完成普通批初版方案','完成综评方案整理','完成强基入围分析','完成提前批风险核对','完成方案复核','完成家长沟通会议','完成会议纪要','完成方案修改','上传最终版方案','确认最终版方案','回收录取结果','完成案例复盘'];
 const COMM_TEMPLATE='一、学生基本情况\n\n二、本次沟通重点\n\n三、家长主要诉求\n\n四、学生主要诉求\n\n五、当前方案方向\n\n六、已提示风险\n\n七、待补充资料\n\n八、下一步安排\n';
 const RISK_TYPES=['规则风险','体检风险','分数风险','位次风险','专业风险','调剂风险','大类分流风险','家庭决策风险','时间风险','交付风险','合规风险','数据待核对','其他'];
+const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
+const OPTIONAL_STUDENT_COLUMNS=new Set([
+  'planner_id','student_no','city','high_school','grade','candidate_type','first_subject','subject_choices','second_subjects','class_type',
+  'gaokao_score','gaokao_rank','estimated_score','estimated_rank','chinese_score','math_score','english_score','physics_score','history_score',
+  'chemistry_score','biology_score','politics_score','geography_score','mock_scores','color_blind','color_weak',
+  'monocular_color_recognition_issue','vision_left','vision_right','corrected_vision','height_cm','weight_kg','physical_limit_codes',
+  'medical_remark','region_preference','school_level_preference','major_preference','major_graylist','major_blacklist','accept_adjustment',
+  'accept_sino_foreign','annual_budget','out_of_province_willingness','postgraduate_intention','employment_preference',
+  'comprehensive_eval_status','strong_base_status','early_batch_interest','university_special_plan','local_special_plan',
+  'rural_special_qualification','art_sports_status','parent_demand','student_demand','decision_maker','family_resources',
+  'conflict_points','risk_tolerance','consultant_remark','supervisor_remark','crm_external_id'
+]);
 
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));
@@ -96,20 +108,36 @@ async function apiFetch(path,options={}){
   return text?JSON.parse(text):null;
 }
 
-function isSubjectChoicesColumnMissing(err){
+function missingColumnFromError(err){
   const msg=String(err?.message||err);
-  return /subject_choices/i.test(msg)&&/(schema cache|column|does not exist|PGRST204|42703)/i.test(msg);
+  const quoted=msg.match(/['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]\s+column/i);
+  if(quoted)return quoted[1];
+  const column=msg.match(/column\s+["']?([a-zA-Z_][a-zA-Z0-9_]*)["']?\s+(?:of|does not exist)/i);
+  if(column)return column[1];
+  return '';
+}
+
+function shouldRetryWithoutStudentColumn(err,column){
+  const msg=String(err?.message||err);
+  return Boolean(column&&OPTIONAL_STUDENT_COLUMNS.has(column)&&/(schema cache|column|does not exist|PGRST204|42703)/i.test(msg));
 }
 
 async function writeStudentRecord(path,method,payload){
-  try{
-    return await apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(payload)});
-  }catch(err){
-    if(!isSubjectChoicesColumnMissing(err))throw err;
-    const fallback={...payload};
-    delete fallback.subject_choices;
-    return apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(fallback)});
+  const body={...payload};
+  const removed=[];
+  for(let i=0;i<OPTIONAL_STUDENT_COLUMNS.size+1;i+=1){
+    try{
+      const rows=await apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+      if(removed.length&&rows?.[0])rows[0].__removed_columns=removed;
+      return rows;
+    }catch(err){
+      const column=missingColumnFromError(err);
+      if(!shouldRetryWithoutStudentColumn(err,column)||!(column in body))throw err;
+      delete body[column];
+      removed.push(column);
+    }
   }
+  return apiFetch(path,{method,headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
 }
 
 async function storageUpload(path,file){
@@ -146,6 +174,10 @@ function setNotice(text,type='info'){
     el.style.borderColor='#fecaca';
     el.style.background='#fef2f2';
     el.style.color='#991b1b';
+  }else if(type==='success'){
+    el.style.borderColor='#bbf7d0';
+    el.style.background='#f0fdf4';
+    el.style.color='#14532d';
   }else{
     el.style.borderColor='#fed7aa';
     el.style.background='#fff7ed';
@@ -220,13 +252,44 @@ function splitVolunteerList(value){
 }
 
 function normalizeVolunteerSubjectChoices(...values){
-  const alias={化:'化学',化学:'化学',生:'生物',生物:'生物',政:'政治',政治:'政治',地:'地理',地理:'地理'};
+  const alias={化:'化学',化学:'化学',生:'生物',生物:'生物',政:'政治',政治:'政治',思想政治:'政治',地:'地理',地理:'地理'};
   const out=[];
+  const add=value=>{if(value&&!out.includes(value))out.push(value);};
   values.flatMap(splitVolunteerList).forEach(value=>{
-    const normalized=alias[String(value||'').trim()];
-    if(normalized&&!out.includes(normalized))out.push(normalized);
+    const text=String(value||'').trim();
+    if(!text)return;
+    const normalized=alias[text];
+    if(normalized){add(normalized);return;}
+    SUBJECT_CHOICE_OPTIONS.forEach(option=>{
+      const short=option.slice(0,1);
+      if(text.includes(option)||text.includes(short))add(option);
+    });
   });
   return out;
+}
+
+function subjectChoicesFieldHTML(scope,selected){
+  const chosen=new Set(normalizeVolunteerSubjectChoices(selected));
+  return `<div class="choice-field"><span>再选科目</span><div class="choice-pills">${SUBJECT_CHOICE_OPTIONS.map(option=>`
+    <label><input type="checkbox" data-subject-choice="${esc(scope)}" value="${esc(option)}" ${chosen.has(option)?'checked':''}><span>${esc(option)}</span></label>
+  `).join('')}</div><small>最多选择 2 门。直接点击按钮，避免手输导致无法识别。</small></div>`;
+}
+
+function subjectChoicesFromField(scope){
+  return normalizeVolunteerSubjectChoices($$(`[data-subject-choice="${scope}"]:checked`).map(el=>el.value));
+}
+
+function bindSubjectChoiceLimit(scope){
+  const boxes=$$(`[data-subject-choice="${scope}"]`);
+  boxes.forEach(box=>{
+    box.addEventListener('change',()=>{
+      const checked=boxes.filter(el=>el.checked);
+      if(checked.length>2){
+        box.checked=false;
+        alert('再选科目最多选择 2 门。');
+      }
+    });
+  });
 }
 
 function normalizeVolunteerSubjectType(student){
@@ -644,7 +707,7 @@ function quickOrderForm(){
       <label>高考省份<input name="province" value="江苏"></label>
       <label>所在城市<input name="city" placeholder="南京"></label>
       <label>科类<select name="subject_type"><option value="physics">物理类</option><option value="history">历史类</option></select></label>
-      <label>选科<input name="subject_choices" placeholder="化学,生物"></label>
+      ${subjectChoicesFieldHTML('quickOrderSubjects',[])}
       <label>分数<input name="score" type="number" min="0" max="750"></label>
       <label>位次<input name="rank" type="number" min="0"></label>
       <label>服务类型<select name="service_type">${SERVICE_TYPES.map(x=>`<option>${esc(x)}</option>`).join('')}</select></label>
@@ -665,7 +728,7 @@ async function submitQuickOrder(form){
   const customer=(await apiFetch('crm_customers',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({
     name:fd.get('customer_name'),relation_to_student:fd.get('relation_to_student'),mobile:fd.get('mobile'),wechat:fd.get('wechat'),source:fd.get('source'),sales_owner_id:auth.user.id,remark:fd.get('remark')
   })}))[0];
-  const subjectChoices=String(fd.get('subject_choices')||'').split(/[、,，\s]+/).filter(Boolean);
+  const subjectChoices=subjectChoicesFromField('quickOrderSubjects');
   const studentPayload={
     owner_id:auth.user.id,
     planner_id:fd.get('main_consultant_id')||auth.user.id,
@@ -702,9 +765,13 @@ async function submitQuickOrder(form){
   })});
   await apiFetch('rpc/crm_create_default_tasks',{method:'POST',body:JSON.stringify({target_case_id:serviceCase.id})}).catch(()=>{});
   await logAudit('创建订单','crm_orders',order.id,null,{order_no:order.order_no,student_id:student.id,service_case_id:serviceCase.id});
+  const removed=student.__removed_columns||[];
+  const subjectStored=!removed.includes('subject_choices')&&!removed.includes('second_subjects');
+  const subjectText=subjectChoices.length?subjectChoices.join('、'):'未选';
   closeModal();
   view='board';
   await loadAll();
+  setNotice(`已创建订单${order.order_no?`：${order.order_no}`:''}，学生 ${student.name||fd.get('student_name')} 已建档。${subjectStored?`再选科目：${subjectText}。`:`当前数据库还未接收选科字段，${subjectText} 暂未写入；请执行 supabase/crm_subject_choices_hotfix.sql。`}`,subjectStored?'success':'error');
 }
 
 function studentForm(student=null){
@@ -716,7 +783,7 @@ function studentForm(student=null){
       <label>城市<input name="city" value="${esc(student?.city||'')}"></label>
       <label>高中<input name="high_school" value="${esc(student?.high_school||'')}"></label>
       <label>科类<select name="subject_type"><option value="physics" ${student?.subject_type==='physics'?'selected':''}>物理类</option><option value="history" ${student?.subject_type==='history'?'selected':''}>历史类</option></select></label>
-      <label>再选科目<input name="subject_choices" value="${esc(normalizeVolunteerSubjectChoices(student?.second_subjects,student?.subject_choices,student?.subjectChoices).join(','))}" placeholder="化学,生物"></label>
+      ${subjectChoicesFieldHTML('studentFormSubjects',normalizeVolunteerSubjectChoices(student?.second_subjects,student?.subject_choices,student?.subjectChoices))}
       <label>分数<input name="score" type="number" value="${esc(student?.gaokao_score||student?.score||'')}"></label>
       <label>位次<input name="rank" type="number" value="${esc(student?.gaokao_rank||student?.rank||'')}"></label>
       <label>体检代码<input name="medical_codes" value="${esc(normalizeVolunteerMedicalCodes(student?.physical_limit_codes,student?.medical_codes,student?.medicalCodes,student?.medical_remark).join(','))}" placeholder="21,22"></label>
@@ -733,7 +800,7 @@ function studentForm(student=null){
 async function submitStudentForm(form){
   const id=form.dataset.id;
   const fd=new FormData(form);
-  const choices=String(fd.get('subject_choices')||'').split(/[、,，\s]+/).filter(Boolean);
+  const choices=subjectChoicesFromField('studentFormSubjects');
   const codes=String(fd.get('medical_codes')||'').split(/[、,，\s]+/).filter(Boolean);
   const payload={
     owner_id:auth.user.id,
@@ -767,8 +834,15 @@ async function submitStudentForm(form){
     rows[0].second_subjects=choices;
   }
   await logAudit(id?'修改学生档案':'创建学生档案','students',rows?.[0]?.id||id,null,payload);
+  const removed=rows?.[0]?.__removed_columns||[];
+  const subjectStored=!removed.includes('subject_choices')&&!removed.includes('second_subjects');
+  const subjectText=choices.length?choices.join('、'):'未选';
+  const hiddenRemoved=removed.filter(column=>!['subject_choices','second_subjects'].includes(column));
+  const removedText=hiddenRemoved.length?`（其他扩展字段当前库表暂未接收：${hiddenRemoved.join('、')}）`:'';
+  const savedName=rows?.[0]?.name||payload.name||'学生';
   closeModal();
   await loadAll();
+  setNotice(`已保存学生档案：${savedName}。${subjectStored?`再选科目：${subjectText}。`:`当前数据库还未接收选科字段，${subjectText} 暂未写入；请执行 supabase/crm_subject_choices_hotfix.sql。`}${removedText}`,subjectStored?'success':'error');
 }
 
 function assignmentForm(caseId){
@@ -1140,8 +1214,10 @@ function bindDynamic(){
   $$('[data-open-volunteer]').forEach(btn=>btn.onclick=()=>openVolunteer(btn.dataset.openVolunteer));
   $$('[data-close-modal]').forEach(btn=>btn.onclick=closeModal);
   $$('[data-detail-tab]').forEach(btn=>btn.onclick=()=>{$$('[data-detail-tab]').forEach(x=>x.classList.remove('active'));btn.classList.add('active');renderDetailTab(btn.dataset.detailTab);});
-  const quick=$('#quickOrderForm'); if(quick)quick.onsubmit=e=>{e.preventDefault();submitQuickOrder(quick).catch(err=>alert(friendlyError(err)));};
-  const student=$('#studentForm'); if(student)student.onsubmit=e=>{e.preventDefault();submitStudentForm(student).catch(err=>alert(friendlyError(err)));};
+  bindSubjectChoiceLimit('quickOrderSubjects');
+  bindSubjectChoiceLimit('studentFormSubjects');
+  const quick=$('#quickOrderForm'); if(quick)quick.onsubmit=e=>{e.preventDefault();submitQuickOrder(quick).catch(err=>{const msg=friendlyError(err);setNotice(`新建收单失败：${msg}`,'error');alert(msg);});};
+  const student=$('#studentForm'); if(student)student.onsubmit=e=>{e.preventDefault();submitStudentForm(student).catch(err=>{const msg=friendlyError(err);setNotice(`学生档案保存失败：${msg}`,'error');alert(msg);});};
   const assignment=$('#assignmentForm'); if(assignment)assignment.onsubmit=e=>{e.preventDefault();submitAssignment(assignment).catch(err=>alert(friendlyError(err)));};
   const task=$('#taskForm'); if(task)task.onsubmit=e=>{e.preventDefault();submitTask(task).catch(err=>alert(friendlyError(err)));};
   const comm=$('#communicationForm'); if(comm)comm.onsubmit=e=>{e.preventDefault();submitCommunication(comm).catch(err=>alert(friendlyError(err)));};
