@@ -132,6 +132,15 @@ function normalizeSubjectChoices(values){
   raw.forEach(v=>{const t=alias[String(v||'').trim()]; if(t&&!out.includes(t))out.push(t);});
   return out;
 }
+function firstStudentValue(student,...keys){
+  for(const key of keys){
+    const value=student?.[key];
+    if(value!==null&&value!==undefined&&value!=='')return value;
+  }
+  return null;
+}
+function studentScore(student){return firstStudentValue(student,'score','gaokao_score','estimated_score');}
+function studentRank(student){return firstStudentValue(student,'rank','gaokao_rank','estimated_rank');}
 function studentSubjectChoiceStorageKey(){return `${STUDENT_SUBJECT_CHOICES_STORAGE_KEY}:${auth.user?.id||'guest'}`;}
 function studentSubjectChoiceMap(){const data=storageJSON(studentSubjectChoiceStorageKey(),{}); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}
 function localStudentSubjectChoices(studentId){return studentId?normalizeSubjectChoices(studentSubjectChoiceMap()[studentId]||[]):[];}
@@ -143,7 +152,7 @@ function saveLocalStudentSubjectChoices(studentId,choices){
     localStorage.setItem(studentSubjectChoiceStorageKey(),JSON.stringify(data));
   }catch(e){}
 }
-function studentSubjectChoices(student){return normalizeSubjectChoices(student?.subject_choices||student?.subjectChoices||localStudentSubjectChoices(student?.id));}
+function studentSubjectChoices(student){return normalizeSubjectChoices(student?.subject_choices||student?.second_subjects||student?.subjectChoices||localStudentSubjectChoices(student?.id));}
 function subjectChoicesFromInputs(scope){return normalizeSubjectChoices($$(`[data-subject-choice="${scope}"]:checked`).map(el=>el.value));}
 function subjectChoicesInputsHTML(scope,selected){
   const chosen=new Set(normalizeSubjectChoices(selected));
@@ -160,7 +169,8 @@ function studentSubjectShortSummary(student){
   return `${type}${choices.length?choices.map(x=>map[x]||String(x).slice(0,1)).join(''):'未填'}`;
 }
 function studentMedicalCodes(student){
-  return parseMedicalCodes(Array.isArray(student?.medical_codes)?student.medical_codes.join(' '):(student?.medical_codes||''));
+  const raw=[student?.medical_codes,student?.physical_limit_codes,student?.medicalCodes,student?.medical_remark].map(v=>Array.isArray(v)?v.join(' '):(v||'')).join(' ');
+  return parseMedicalCodes(raw);
 }
 function studentMedicalSummary(student){
   const codes=studentMedicalCodes(student);
@@ -170,8 +180,10 @@ function studentTopSummary(student){
   if(!student)return '';
   const parts=[];
   parts.push(studentSubjectSummary(student));
-  if(student.score!==null&&student.score!==undefined&&student.score!=='')parts.push(`${student.score}分`);
-  if(student.rank!==null&&student.rank!==undefined&&student.rank!=='')parts.push(`位次${student.rank}`);
+  const score=studentScore(student);
+  const rank=studentRank(student);
+  if(score!==null)parts.push(`${score}分`);
+  if(rank!==null)parts.push(`位次${rank}`);
   const codes=studentMedicalCodes(student);
   parts.push(codes.length?`体检${codes.join('/')}`:'体检未填');
   return parts.join('｜');
@@ -226,7 +238,7 @@ function compatibleRequirementSetForStudent(student){
   return set;
 }
 function setScoreFilterFromStudent(student){
-  const score=dbNumber(student?.score);
+  const score=dbNumber(studentScore(student));
   if(score===null)return false;
   const down=Number($('#downInput')?.value||20)||20;
   const up=Number($('#upInput')?.value||30)||30;
@@ -268,7 +280,7 @@ function renderStudentContextBar(){
   const codes=studentMedicalCodes(currentStudent);
   const cities=Array.isArray(currentStudent.target_cities)?currentStudent.target_cities:[];
   el.hidden=false;
-  el.innerHTML=`<div class="student-context-main"><b>当前学生：${esc(currentStudent.name||'未命名')}</b><span>${esc(stageLabel(currentStudent.stage))}</span><span>${esc(studentSubjectSummary(currentStudent))}</span><span>${esc(currentStudent.score??'—')}分</span><span>位次 ${esc(currentStudent.rank??'—')}</span><span>${codes.length?'体检 '+esc(codes.join('/')):'体检未填'}</span>${cities.length?`<span>目标城市 ${esc(cities.join('、'))}</span>`:''}</div><div class="student-context-note">已自动同步：科类筛选、选科要求、目标分区间、体检受限。选科不符仍限制选择；体检受限只做警告确认，不再直接禁选。</div>`;
+  el.innerHTML=`<div class="student-context-main"><b>当前学生：${esc(currentStudent.name||'未命名')}</b><span>${esc(stageLabel(currentStudent.stage))}</span><span>${esc(studentSubjectSummary(currentStudent))}</span><span>${esc(studentScore(currentStudent)??'—')}分</span><span>位次 ${esc(studentRank(currentStudent)??'—')}</span><span>${codes.length?'体检 '+esc(codes.join('/')):'体检未填'}</span>${cities.length?`<span>目标城市 ${esc(cities.join('、'))}</span>`:''}</div><div class="student-context-note">已自动同步：科类筛选、选科要求、目标分区间、体检受限。选科不符仍限制选择；体检受限只做警告确认，不再直接禁选。</div>`;
 }
 
 function requirementSubjects(req){
@@ -4479,7 +4491,7 @@ async function fetchVolunteerFormSummaries(){
 }
 function studentSummary(s){
   const medical=studentMedicalCodes(s);
-  return `${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${medical.length?'｜体检 '+medical.join('/'):''}${(s.target_cities||[]).length?'｜城市 '+s.target_cities.join('、'):''}`;
+  return `${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${studentScore(s)||'—'}分｜位次 ${studentRank(s)||'—'}${medical.length?'｜体检 '+medical.join('/'):''}${(s.target_cities||[]).length?'｜城市 '+s.target_cities.join('、'):''}`;
 }
 function shortDateTime(v){
   if(!v)return '';
@@ -4601,10 +4613,10 @@ function showStudentEditor(student){
     <label>批次<select id="editStudentStage"><option value="undergraduate" ${stageValue(student.stage)==='undergraduate'?'selected':''}>本科</option><option value="specialty" ${stageValue(student.stage)==='specialty'?'selected':''}>专科</option></select></label>
     <label>科类<select id="editStudentSubject"><option value="physics" ${subjectTypeValue(student.subject_type)==='physics'?'selected':''}>物理</option><option value="history" ${subjectTypeValue(student.subject_type)==='history'?'selected':''}>历史</option></select></label>
     <div class="wide student-choice-field"><span>再选科目</span>${subjectChoicesInputsHTML('editStudentSubjects',choices)}</div>
-    <label>分数<input id="editStudentScore" type="number" value="${esc(student.score??'')}" placeholder="例如 586"></label>
-    <label>位次<input id="editStudentRank" type="number" value="${esc(student.rank??'')}" placeholder="例如 39000"></label>
+    <label>分数<input id="editStudentScore" type="number" value="${esc(studentScore(student)??'')}" placeholder="例如 586"></label>
+    <label>位次<input id="editStudentRank" type="number" value="${esc(studentRank(student)??'')}" placeholder="例如 39000"></label>
     <label class="wide">目标城市<input id="editStudentCities" value="${esc((student.target_cities||[]).join('、'))}" placeholder="南京、苏州、上海"></label>
-    <div class="wide student-choice-field"><span>体检代码</span>${medicalCodePickerHTML('editStudentMedical',student.medical_codes||[])}<input id="editStudentMedical" value="${esc((student.medical_codes||[]).join(' '))}" placeholder="也可手动输入，如 21 35，可空"></div>
+    <div class="wide student-choice-field"><span>体检代码</span>${medicalCodePickerHTML('editStudentMedical',studentMedicalCodes(student))}<input id="editStudentMedical" value="${esc(studentMedicalCodes(student).join(' '))}" placeholder="也可手动输入，如 21 35，可空"></div>
   </div><div class="modal-actions"><button type="button" onclick="document.getElementById('modalMask').classList.remove('open')">取消</button><button id="updateStudentBtn" class="save" type="button">保存修改</button></div></div>`;
   openModal();
   bindStudentMedicalPickers();

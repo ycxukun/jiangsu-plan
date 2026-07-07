@@ -28,6 +28,9 @@ async function apiFetch(path,options={}){
 }
 function roleLabel(role){return role==='admin'?'管理员':role==='planner'?'规划师':role==='consultant'?'咨询师':'只读';}
 function studentNo(s){return s.student_no?`HSY${s.student_no}`:'待生成学号';}
+function firstStudentValue(s,...keys){for(const key of keys){const value=s?.[key];if(value!==null&&value!==undefined&&value!=='')return value;}return null;}
+function studentScore(s){return firstStudentValue(s,'score','gaokao_score','estimated_score');}
+function studentRank(s){return firstStudentValue(s,'rank','gaokao_rank','estimated_rank');}
 function plannerName(id){
   const p=planners.find(x=>x.id===id);
   return p?(p.display_name||p.email||p.id):'未分配';
@@ -99,7 +102,7 @@ function studentCardHTML(s){
   const plannerOptions=planners.filter(p=>p.status==='active').map(p=>`<option value="${esc(p.id)}" ${p.id===plannerId?'selected':''}>${esc(p.display_name||p.email||p.id)}</option>`).join('');
   return `<article class="student-card">
     <h3>${esc(s.name)} <span class="student-no">${esc(studentNo(s))}</span></h3>
-    <p>${esc(plannerName(plannerId))}｜${esc(s.stage==='specialty'?'专科':'本科')}｜${esc(s.subject_type==='history'?'历史':'物理')}｜${esc(s.score||'—')}分｜位次 ${esc(s.rank||'—')}｜志愿表 ${formCount(s.id)} 份｜${s.archived?'已删除':'正常'}</p>
+    <p>${esc(plannerName(plannerId))}｜${esc(s.stage==='specialty'?'专科':'本科')}｜${esc(s.subject_type==='history'?'历史':'物理')}｜${esc(studentScore(s)||'—')}分｜位次 ${esc(studentRank(s)||'—')}｜志愿表 ${formCount(s.id)} 份｜${s.archived?'已删除':'正常'}</p>
     <div class="transfer-row">
       <select data-transfer-select="${esc(s.id)}">${plannerOptions}</select>
       <button class="save" data-transfer-student="${esc(s.id)}" type="button">转移给该规划师</button>

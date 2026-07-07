@@ -67,7 +67,11 @@ function studentNoText(s){return s?.student_no?`HSY${s.student_no}`:'待生成�
 function shortDate(v){if(!v)return '';const d=new Date(v);if(Number.isNaN(d.getTime()))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function shortDateTime(v){if(!v)return '';const d=new Date(v);if(Number.isNaN(d.getTime()))return '';return `${shortDate(v)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
 function normalizeSubjectChoices(values){const alias={'化':'化学','化学':'化学','生':'生物','生物':'生物','政':'政治','政治':'政治','思想政治':'政治','地':'地理','地理':'地理'};const raw=Array.isArray(values)?values:String(values||'').split(/[，,、\s/+]+/);const out=[];raw.forEach(v=>{const t=alias[String(v||'').trim()];if(t&&!out.includes(t))out.push(t);});return out;}
-function subjectSummary(s){const choices=normalizeSubjectChoices(s?.subject_choices);return `${subjectLabel(s?.subject_type)}${choices.length?'+'+choices.join('+'):'+未填再选'}`;}
+function firstStudentValue(s,...keys){for(const key of keys){const value=s?.[key];if(value!==null&&value!==undefined&&value!=='')return value;}return null;}
+function studentScore(s){return firstStudentValue(s,'score','gaokao_score','estimated_score');}
+function studentRank(s){return firstStudentValue(s,'rank','gaokao_rank','estimated_rank');}
+function studentMedicalCodes(s){const raw=[s?.medical_codes,s?.physical_limit_codes,s?.medicalCodes,s?.medical_remark].map(v=>Array.isArray(v)?v.join(' '):(v||'')).join(' ');return raw.split(/[^0-9]+/).map(x=>x.trim()).filter(Boolean);}
+function subjectSummary(s){const choices=normalizeSubjectChoices(s?.subject_choices||s?.second_subjects||s?.subjectChoices);return `${subjectLabel(s?.subject_type)}${choices.length?'+'+choices.join('+'):'+未填再选'}`;}
 function formatSize(bytes){const n=Number(bytes)||0;if(n<1024)return `${n} B`;if(n<1024*1024)return `${(n/1024).toFixed(1)} KB`;return `${(n/1024/1024).toFixed(1)} MB`;}
 function safeFileExt(name){const ext=String(name||'').split('.').pop().toLowerCase();return /^[a-z0-9]{1,12}$/.test(ext)?ext:'bin';}
 function safePathSegment(value){return String(value||'file').trim().replace(/[^\w.-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,80)||'file';}
@@ -124,7 +128,7 @@ async function openVolunteerForm(formId){
     localStorage.setItem(scopedVolunteerKey(VOLUNTEER_MAJOR_STORAGE_KEY,student),JSON.stringify(volunteerMajorKeys));
     localStorage.setItem(scopedVolunteerKey(VOLUNTEER_META_STORAGE_KEY,student),JSON.stringify(volunteerMeta));
     localStorage.setItem(scopedVolunteerKey(VOLUNTEER_EDIT_FORM_STORAGE_KEY,student),JSON.stringify({id:form.id,title:form.title||'',stage:form.stage||student.stage}));
-    localStorage.setItem(MEDICAL_RESTRICTION_STORAGE_KEY,JSON.stringify((form.snapshot||{}).medicalCodes||student.medical_codes||[]));
+    localStorage.setItem(MEDICAL_RESTRICTION_STORAGE_KEY,JSON.stringify((form.snapshot||{}).medicalCodes||studentMedicalCodes(student)));
   }catch(e){}
   location.href=backUrlForStudent({...student,stage:form.stage||student.stage});
 }
@@ -152,7 +156,7 @@ function render(){
     <section class="profile-hero">
       <div class="profile-title">
         <h2>${esc(student.name)} <span class="student-no">${esc(studentNoText(student))}</span></h2>
-        <p>${esc(stageLabel(student.stage))}｜${esc(subjectSummary(student))}｜${esc(student.score??'—')} 分｜位次 ${esc(student.rank??'—')}</p>
+        <p>${esc(stageLabel(student.stage))}｜${esc(subjectSummary(student))}｜${esc(studentScore(student)??'—')} 分｜位次 ${esc(studentRank(student)??'—')}</p>
         <p>目标城市：${esc((student.target_cities||[]).join('、')||'—')}｜目标专业：${esc((student.target_majors||[]).join('、')||'—')}</p>
         <div class="actions" style="margin-top:12px"><a class="pill-btn save" href="${esc(backUrlForStudent(student))}">进入志愿填报</a><a class="pill-btn" href="./index.html">返回学生列表</a><button id="refreshBtn" type="button">刷新档案</button></div>
       </div>
@@ -160,13 +164,13 @@ function render(){
         <div class="meta-card"><b>服务规划师</b><span>${esc(plannerName(student.planner_id||student.owner_id))}</span></div>
         <div class="meta-card"><b>开始服务</b><span>${esc(shortDate(student.service_started_at||student.created_at)||'—')}</span></div>
         <div class="meta-card"><b>手机号</b><span>${esc(student.phone||'—')}</span></div>
-        <div class="meta-card"><b>体检代码</b><span>${esc((student.medical_codes||[]).join('、')||'无')}</span></div>
+        <div class="meta-card"><b>体检代码</b><span>${esc(studentMedicalCodes(student).join('、')||'无')}</span></div>
       </div>
     </section>
     <section class="section-stats">${SECTIONS.map(sec=>`<div class="stat-card"><b>${esc(sec.label)}</b><span>${counts[sec.id]||0}</span></div>`).join('')}</section>
     <section class="panel"><div class="panel-head"><h2>上传资料</h2><span class="badge">最大 100MB</span></div><div class="panel-body"><div class="upload-box"><label>板块<select id="sectionInput">${SECTIONS.map(sec=>`<option value="${esc(sec.id)}">${esc(sec.label)}</option>`).join('')}</select></label><label>标题<input id="titleInput" placeholder="默认使用文件名"></label><label>文件<input id="fileInput" type="file"></label><button id="uploadBtn" class="save" type="button">上传</button></div></div></section>
     <section class="two-col">
-      <div class="panel"><div class="panel-head"><h2>基本信息</h2></div><div class="panel-body">${kvRows([['学号',studentNoText(student)],['学生',student.name],['阶段',stageLabel(student.stage)],['选科',subjectSummary(student)],['分数',student.score],['位次',student.rank],['城市',(student.target_cities||[]).join('、')],['专业',(student.target_majors||[]).join('、')],['备注',student.note]])}</div></div>
+      <div class="panel"><div class="panel-head"><h2>基本信息</h2></div><div class="panel-body">${kvRows([['学号',studentNoText(student)],['学生',student.name],['阶段',stageLabel(student.stage)],['选科',subjectSummary(student)],['分数',studentScore(student)],['位次',studentRank(student)],['城市',(student.target_cities||[]).join('、')],['专业',(student.target_majors||[]).join('、')],['备注',student.note]])}</div></div>
       <div class="panel"><div class="panel-head"><h2>已保存志愿表</h2><span class="badge">${forms.length} 份</span></div><div class="panel-body">${renderForms()}</div></div>
     </section>
     <section class="panel"><div class="panel-head"><h2>信息采集表</h2></div><div class="panel-body">${renderIntake()}</div></section>

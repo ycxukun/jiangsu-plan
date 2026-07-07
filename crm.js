@@ -689,7 +689,7 @@ async function submitQuickOrder(form){
   const student=(await writeStudentRecord('students','POST',studentPayload))[0];
   if(student){
     student.subject_choices=subjectChoices;
-    student.second_subjects=student.second_subjects||subjectChoices;
+    student.second_subjects=subjectChoices;
   }
   const order=(await apiFetch('crm_orders',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({
     customer_id:customer.id,student_id:student.id,service_type:[serviceType],amount_total:Number(fd.get('amount_total')||0),amount_paid:Number(fd.get('amount_paid')||0),payment_status:fd.get('payment_status'),order_status:'待分配',contract_status:'未签',source:fd.get('source'),sales_owner_id:auth.user.id,service_deadline:fd.get('service_deadline')||null,remark:fd.get('remark')
@@ -716,10 +716,10 @@ function studentForm(student=null){
       <label>城市<input name="city" value="${esc(student?.city||'')}"></label>
       <label>高中<input name="high_school" value="${esc(student?.high_school||'')}"></label>
       <label>科类<select name="subject_type"><option value="physics" ${student?.subject_type==='physics'?'selected':''}>物理类</option><option value="history" ${student?.subject_type==='history'?'selected':''}>历史类</option></select></label>
-      <label>再选科目<input name="subject_choices" value="${esc((student?.second_subjects||student?.subject_choices||[]).join(','))}" placeholder="化学,生物"></label>
+      <label>再选科目<input name="subject_choices" value="${esc(normalizeVolunteerSubjectChoices(student?.second_subjects,student?.subject_choices,student?.subjectChoices).join(','))}" placeholder="化学,生物"></label>
       <label>分数<input name="score" type="number" value="${esc(student?.gaokao_score||student?.score||'')}"></label>
       <label>位次<input name="rank" type="number" value="${esc(student?.gaokao_rank||student?.rank||'')}"></label>
-      <label>体检代码<input name="medical_codes" value="${esc((student?.physical_limit_codes||student?.medical_codes||[]).join(','))}" placeholder="21,22"></label>
+      <label>体检代码<input name="medical_codes" value="${esc(normalizeVolunteerMedicalCodes(student?.physical_limit_codes,student?.medical_codes,student?.medicalCodes,student?.medical_remark).join(','))}" placeholder="21,22"></label>
       <label>接受调剂<select name="accept_adjustment"><option value="">待确认</option><option ${student?.accept_adjustment==='是'?'selected':''}>是</option><option ${student?.accept_adjustment==='否'?'selected':''}>否</option><option ${student?.accept_adjustment==='看专业组'?'selected':''}>看专业组</option></select></label>
       <label>接受中外合作<select name="accept_sino_foreign"><option value="">待确认</option><option ${student?.accept_sino_foreign==='是'?'selected':''}>是</option><option ${student?.accept_sino_foreign==='否'?'selected':''}>否</option><option ${student?.accept_sino_foreign==='看项目'?'selected':''}>看项目</option></select></label>
       <label class="wide">地域偏好<textarea name="region_preference">${esc(student?.region_preference||'')}</textarea></label>
@@ -764,7 +764,7 @@ async function submitStudentForm(form){
   const rows=await writeStudentRecord(id?`students?id=eq.${encodeURIComponent(id)}`:'students',id?'PATCH':'POST',payload);
   if(rows?.[0]){
     rows[0].subject_choices=choices;
-    rows[0].second_subjects=rows[0].second_subjects||choices;
+    rows[0].second_subjects=choices;
   }
   await logAudit(id?'修改学生档案':'创建学生档案','students',rows?.[0]?.id||id,null,payload);
   closeModal();
@@ -1016,7 +1016,7 @@ function studentDetail(studentId){
 
 function detailBaseHTML(s){
   return `<div class="record-list">
-    <div class="record"><h4>基本信息</h4><p>学校：${esc(s.high_school||'未填')}｜选科：${esc([s.first_subject,...(s.second_subjects||s.subject_choices||[])].filter(Boolean).join('+')||'未填')}｜体检：${esc((s.physical_limit_codes||s.medical_codes||[]).join('/')||'未填')}</p></div>
+    <div class="record"><h4>基本信息</h4><p>学校：${esc(s.high_school||'未填')}｜选科：${esc([s.first_subject,...normalizeVolunteerSubjectChoices(s.second_subjects,s.subject_choices,s.subjectChoices)].filter(Boolean).join('+')||'未填')}｜体检：${esc(normalizeVolunteerMedicalCodes(s.physical_limit_codes,s.medical_codes,s.medicalCodes,s.medical_remark).join('/')||'未填')}</p></div>
     <div class="record"><h4>偏好与诉求</h4><p>地域：${esc(s.region_preference||'未填')}\n专业：${esc(s.major_preference||'未填')}\n黑名单：${esc(s.major_blacklist||'未填')}\n家长诉求：${esc(s.parent_demand||'未填')}</p></div>
   </div>`;
 }

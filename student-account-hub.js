@@ -61,20 +61,37 @@
     return (v === 'history' || v === '历史') ? '历史' : '物理';
   }
 
+  function firstStudentValue(student, ...keys){
+    for(const key of keys){
+      const value = student?.[key];
+      if(value !== null && value !== undefined && value !== '') return value;
+    }
+    return null;
+  }
+
+  function studentScore(student){
+    return firstStudentValue(student, 'score', 'gaokao_score', 'estimated_score');
+  }
+
+  function studentRank(student){
+    return firstStudentValue(student, 'rank', 'gaokao_rank', 'estimated_rank');
+  }
+
   function stageLabel(v){
     return (v === 'specialty' || v === '专科') ? '专科' : '本科';
   }
 
   function studentSubjectLine(student){
     if(!student) return '尚未选择学生';
-    const choices = normalizeSubjectChoices(student.subject_choices || student.subjectChoices);
+    const choices = normalizeSubjectChoices(student.subject_choices || student.second_subjects || student.subjectChoices);
     return `${subjectTypeLabel(student.subject_type)}${choices.length ? '+' + choices.join('+') : '+未填再选'}`;
   }
 
   function medicalLine(student){
-    const codes = Array.isArray(student?.medical_codes)
-      ? student.medical_codes
-      : String(student?.medical_codes || '').split(/[，,、\s/+]+/).filter(Boolean);
+    const raw = [student?.medical_codes, student?.physical_limit_codes, student?.medicalCodes, student?.medical_remark]
+      .map(value => Array.isArray(value) ? value.join(' ') : (value || ''))
+      .join(' ');
+    const codes = String(raw || '').split(/[，,、\s/+]+/).filter(Boolean);
     return codes.length ? `体检${codes.join('/')}` : '体检未填';
   }
 
@@ -82,7 +99,7 @@
     if(!student) return '尚未选择当前学生';
     const parts = [
       studentSubjectLine(student),
-      student.score ? `${student.score}分` : '分数未填',
+      studentScore(student) ? `${studentScore(student)}分` : '分数未填',
       medicalLine(student)
     ];
     return parts.join('｜');
@@ -93,8 +110,8 @@
     const parts = [
       `${stageLabel(student.stage)}档案`,
       studentSubjectLine(student),
-      student.score ? `${student.score}分` : '分数未填',
-      student.rank ? `位次 ${student.rank}` : '位次未填',
+      studentScore(student) ? `${studentScore(student)}分` : '分数未填',
+      studentRank(student) ? `位次 ${studentRank(student)}` : '位次未填',
       medicalLine(student)
     ];
     return parts.join('｜');
@@ -206,7 +223,7 @@
       </div>
       <div class="student-hover-grid">
         <div><b>选科</b><span>${esc(student ? studentSubjectLine(student) : '未选择')}</span></div>
-        <div><b>分数</b><span>${esc(student?.score ? `${student.score}分` : '未填')}</span></div>
+        <div><b>分数</b><span>${esc(studentScore(student) ? `${studentScore(student)}分` : '未填')}</span></div>
         <div><b>位次</b><span>${esc(student?.rank || '未填')}</span></div>
         <div><b>体检</b><span>${esc(student ? medicalLine(student) : '未填')}</span></div>
         <div><b>志愿表</b><span>${esc(count)}</span></div>

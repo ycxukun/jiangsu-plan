@@ -107,7 +107,7 @@ function saveVolunteerEditFormForStudent(student,form){
   }catch(e){}
 }
 function saveMedicalCodesForMain(student,form){
-  const rawCodes=(form?.snapshot||{}).medicalCodes||student?.medical_codes||[];
+  const rawCodes=(form?.snapshot||{}).medicalCodes||studentMedicalCodes(student);
   const codes=parseMedicalCodes(Array.isArray(rawCodes)?rawCodes.join(' '):rawCodes);
   try{localStorage.setItem(MEDICAL_RESTRICTION_STORAGE_KEY,JSON.stringify(codes));}catch(e){}
 }
@@ -118,11 +118,14 @@ function normalizeSubjectChoices(values){
   raw.forEach(v=>{const t=alias[String(v||'').trim()]; if(t&&!out.includes(t))out.push(t);});
   return out;
 }
+function firstStudentValue(student,...keys){for(const key of keys){const value=student?.[key];if(value!==null&&value!==undefined&&value!=='')return value;}return null;}
+function studentScore(student){return firstStudentValue(student,'score','gaokao_score','estimated_score');}
+function studentRank(student){return firstStudentValue(student,'rank','gaokao_rank','estimated_rank');}
 function studentSubjectChoiceStorageKey(){return `${STUDENT_SUBJECT_CHOICES_STORAGE_KEY}:${auth.user?.id||'guest'}`;}
 function studentSubjectChoiceMap(){const data=storageJSON(studentSubjectChoiceStorageKey(),{}); return data&&typeof data==='object'&&!Array.isArray(data)?data:{};}
 function saveLocalStudentSubjectChoices(studentId,choices){if(!studentId)return; try{const data=studentSubjectChoiceMap(); data[studentId]=normalizeSubjectChoices(choices); localStorage.setItem(studentSubjectChoiceStorageKey(),JSON.stringify(data));}catch(e){}}
 function localStudentSubjectChoices(studentId){return studentId?normalizeSubjectChoices(studentSubjectChoiceMap()[studentId]||[]):[];}
-function studentSubjectChoices(student){return normalizeSubjectChoices(student?.subject_choices||localStudentSubjectChoices(student?.id));}
+function studentSubjectChoices(student){return normalizeSubjectChoices(student?.subject_choices||student?.second_subjects||student?.subjectChoices||localStudentSubjectChoices(student?.id));}
 function studentSubjectSummary(student){const choices=studentSubjectChoices(student); return `${subjectLabel(student?.subject_type)}${choices.length?'+'+choices.join('+'):'+未填再选'}`;}
 function subjectChoicesInputsHTML(scope,selected){
   const chosen=new Set(normalizeSubjectChoices(selected));
@@ -130,7 +133,10 @@ function subjectChoicesInputsHTML(scope,selected){
 }
 function subjectChoicesFromInputs(scope){return normalizeSubjectChoices($$(`[data-subject-choice="${scope}"]:checked`).map(el=>el.value));}
 
-function studentMedicalCodes(student){return parseMedicalCodes(Array.isArray(student?.medical_codes)?student.medical_codes.join(' '):(student?.medical_codes||''));}
+function studentMedicalCodes(student){
+  const raw=[student?.medical_codes,student?.physical_limit_codes,student?.medicalCodes,student?.medical_remark].map(v=>Array.isArray(v)?v.join(' '):(v||'')).join(' ');
+  return parseMedicalCodes(raw);
+}
 function medicalCodePickerHTML(scope,selected){
   const chosen=new Set(parseMedicalCodes(Array.isArray(selected)?selected.join(' '):selected));
   return `<div class="medical-picker-row" data-medical-picker="${esc(scope)}">${Object.keys(MEDICAL_CODE_META).map(c=>`<label title="${esc(MEDICAL_CODE_META[c]||'体检受限')}"><input type="checkbox" data-student-medical-code="${esc(scope)}" value="${esc(c)}" ${chosen.has(c)?'checked':''}>${esc(c)}</label>`).join('')}</div><div class="medical-picker-summary" data-student-medical-summary="${esc(scope)}"></div>`;
@@ -375,11 +381,11 @@ function studentIntakePayload(student){
 function studentSummary(s){
   const cities=(s.target_cities||[]).length?`｜城市 ${(s.target_cities||[]).join('、')}`:'';
   const medical=studentMedicalCodes(s);
-  return `${studentNoText(s)}｜${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${s.score||'—'}分｜位次 ${s.rank||'—'}${medical.length?'｜体检 '+medical.join('/'):''}${cities}`;
+  return `${studentNoText(s)}｜${stageLabel(s.stage)}｜${studentSubjectSummary(s)}｜${studentScore(s)||'—'}分｜位次 ${studentRank(s)||'—'}${medical.length?'｜体检 '+medical.join('/'):''}${cities}`;
 }
 function searchText(s,savedForms=[]){
   const intake=studentIntakePayload(s);
-  return [s.student_no,s.name,s.phone,stageLabel(s.stage),subjectLabel(s.subject_type),studentSubjectChoices(s).join(' '),s.score,s.rank,(s.target_cities||[]).join(' '),(s.target_majors||[]).join(' '),(s.medical_codes||[]).join(' '),s.note,intake?JSON.stringify(intake):'',savedForms.map(f=>f.title).join(' ')].join(' ').toLowerCase();
+  return [s.student_no,s.name,s.phone,stageLabel(s.stage),subjectLabel(s.subject_type),studentSubjectChoices(s).join(' '),studentScore(s),studentRank(s),(s.target_cities||[]).join(' '),(s.target_majors||[]).join(' '),studentMedicalCodes(s).join(' '),s.note,intake?JSON.stringify(intake):'',savedForms.map(f=>f.title).join(' ')].join(' ').toLowerCase();
 }
 function filteredStudents(){
   const q=query.trim().toLowerCase();
@@ -502,10 +508,10 @@ function showEditor(student){
     <label>批次<select id="editStudentStage"><option value="undergraduate" ${stageValue(student.stage)==='undergraduate'?'selected':''}>本科</option><option value="specialty" ${stageValue(student.stage)==='specialty'?'selected':''}>专科</option></select></label>
     <label>科类<select id="editStudentSubject"><option value="physics" ${subjectTypeValue(student.subject_type)==='physics'?'selected':''}>物理</option><option value="history" ${subjectTypeValue(student.subject_type)==='history'?'selected':''}>历史</option></select></label>
     <div class="wide student-choice-field"><span>再选科目</span>${subjectChoicesInputsHTML('editStudentSubjects',choices)}</div>
-    <label>分数<input id="editStudentScore" type="number" value="${esc(student.score??'')}" placeholder="例如 586"></label>
-    <label>位次<input id="editStudentRank" type="number" value="${esc(student.rank??'')}" placeholder="例如 39000"></label>
+    <label>分数<input id="editStudentScore" type="number" value="${esc(studentScore(student)??'')}" placeholder="例如 586"></label>
+    <label>位次<input id="editStudentRank" type="number" value="${esc(studentRank(student)??'')}" placeholder="例如 39000"></label>
     <label class="wide">目标城市<input id="editStudentCities" value="${esc((student.target_cities||[]).join('、'))}" placeholder="南京、苏州、上海"></label>
-    <div class="wide student-choice-field"><span>体检代码</span>${medicalCodePickerHTML('editStudentMedical',student.medical_codes||[])}<input id="editStudentMedical" value="${esc((student.medical_codes||[]).join(' '))}" placeholder="也可手动输入，如 21 35，可空"></div>
+    <div class="wide student-choice-field"><span>体检代码</span>${medicalCodePickerHTML('editStudentMedical',studentMedicalCodes(student))}<input id="editStudentMedical" value="${esc(studentMedicalCodes(student).join(' '))}" placeholder="也可手动输入，如 21 35，可空"></div>
   </div><div class="modal-actions"><button id="cancelEditBtn" type="button">取消</button><button id="saveEditBtn" class="save" type="button">保存修改</button></div></div>`;
   $('#modalMask').classList.add('open');
   bindStudentMedicalPickers();
@@ -598,7 +604,7 @@ function studentArchiveHTML(student){
       <button id="archiveUploadBtn" class="save" type="button">上传到档案库</button>
     </div>
     ${detailSectionHTML('基本信息',[
-      ['学生',student.name],['手机号',student.phone],['批次',stageLabel(student.stage)],['选科',studentSubjectSummary(student)],['分数',student.score],['位次',student.rank],['体检代码',studentMedicalCodes(student)],['目标城市',student.target_cities],['目标专业',student.target_majors],['备注',student.note]
+      ['学生',student.name],['手机号',student.phone],['批次',stageLabel(student.stage)],['选科',studentSubjectSummary(student)],['分数',studentScore(student)],['位次',studentRank(student)],['体检代码',studentMedicalCodes(student)],['目标城市',student.target_cities],['目标专业',student.target_majors],['备注',student.note]
     ])}
     ${detailSectionHTML('已保存志愿表',savedForms.length?savedForms.map(f=>[f.title||'未命名志愿表',`${stageLabel(f.stage||student.stage)}｜${shortDateTime(f.updated_at||f.created_at)}`]):[['志愿表','暂无保存记录']])}
     <div class="archive-files">${STUDENT_ARCHIVE_SECTIONS.map(sec=>archiveSectionHTML(sec,counts)).join('')}</div>
@@ -690,10 +696,10 @@ function showIntakeDetail(student){
       ['手机号',student.phone],
       ['批次',stageLabel(student.stage)],
       ['选科',studentSubjectSummary(student)],
-      ['分数',student.score],
-      ['位次',student.rank],
+      ['分数',studentScore(student)],
+      ['位次',studentRank(student)],
       ['目标城市',(student.target_cities||[]).join('、')],
-      ['体检代码',(student.medical_codes||[]).join('、')],
+      ['体检代码',studentMedicalCodes(student).join('、')],
       ['备注',student.note]
     ])
   ];
@@ -713,8 +719,8 @@ function showIntakeDetail(student){
     ]),
     detailSectionHTML('成绩与选科',[
       ['选科',data['选科']||studentSubjectSummary(student)],
-      ['总分',data['总分']||student.score],
-      ['位次',data['位次']||student.rank],
+      ['总分',data['总分']||studentScore(student)],
+      ['位次',data['位次']||studentRank(student)],
       ['高考语种',data['高考语种']],
       ['语文',data['语文']],
       ['数学',data['数学']],
