@@ -1,4 +1,4 @@
-name: Deploy static site to GitHub Pages
+name: Deploy static site to Aliyun ECS
 
 on:
   push:
@@ -8,15 +8,13 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: github-pages
+  group: aliyun-ecs-production
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,83 +34,54 @@ jobs:
           node --check content/article.js
 
       - name: Prepare static site
+        run: scripts/prepare-static-site.sh _site
+
+      - name: Validate deployment secrets
+        run: |
+          test -n "${{ secrets.ECS_HOST }}"
+          test -n "${{ secrets.ECS_USER }}"
+          test -n "${{ secrets.ECS_SSH_PRIVATE_KEY }}"
+
+      - name: Configure SSH
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_SSH_PRIVATE_KEY: ${{ secrets.ECS_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          rm -rf _site
-          mkdir -p _site
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$ECS_SSH_PRIVATE_KEY" > ~/.ssh/aliyun_deploy_key
+          chmod 600 ~/.ssh/aliyun_deploy_key
+          ssh-keyscan -H "$ECS_HOST" >> ~/.ssh/known_hosts
 
-          cp .nojekyll index.html admin.html admin-console.html admin-console.js crm.html crm.js app.js batch-guide.js batch-guide-links.js qualification-risk.js haoshengya_login_landing.html _site/
-          cp style-claude-*.css _site/
-          cp data*.js _site/
-          cp school-life-info-data.js _site/
-          cp -R articles content students specialty _site/
-          if [ -f _redirects ]; then
-            cp _redirects _site/
-          fi
+      - name: Backup current release
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_USER: ${{ secrets.ECS_USER }}
+          ECS_PATH: ${{ secrets.ECS_PATH || '/var/www/jiangsu-plan/current' }}
+        run: |
+          set -euo pipefail
+          release_id="$(date +%Y%m%d-%H%M%S)"
+          ssh -i ~/.ssh/aliyun_deploy_key "$ECS_USER@$ECS_HOST" \
+            "set -euo pipefail; mkdir -p /var/www/jiangsu-plan/backups; if [ -d '$ECS_PATH' ]; then cp -a '$ECS_PATH' '/var/www/jiangsu-plan/backups/current-$release_id'; fi; mkdir -p '$ECS_PATH'"
 
-          test -f _site/index.html
-          test -f _site/app.js
-          test -f _site/batch-guide.js
-          test -f _site/batch-guide-links.js
-          test -f _site/qualification-risk.js
-          test -f _site/admin-console.html
-          test -f _site/admin-console.js
-          test -f _site/crm.html
-          test -f _site/crm.js
-          test -f _site/style-claude-clean.css
-          test -f _site/style-claude-inspired.css
-          test -f _site/style-claude-force.css
-          test -f _site/style-claude-typography.css
-          test -f _site/data-db.js
-          test -f _site/data-major-details.js
-          test -f _site/data-foreign-coop-details.js
-          test -d _site/content
-          test -d _site/students
-          test -d _site/specialty
+      - name: Deploy to ECS
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_USER: ${{ secrets.ECS_USER }}
+          ECS_PATH: ${{ secrets.ECS_PATH || '/var/www/jiangsu-plan/current' }}
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/aliyun_deploy_key" \
+            --exclude='.DS_Store' \
+            _site/ "$ECS_USER@$ECS_HOST:$ECS_PATH/"
 
-          find _site -name '.DS_Store' -delete
-          du -sh _site
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment1.outputs.page_url || steps.deployment2.outputs.page_url || steps.deployment3.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment1
-        continue-on-error: true
-        uses: actions/deploy-pages@v5
-
-      - name: Wait before retrying Pages deployment
-        if: steps.deployment1.outcome == 'failure'
-        run: sleep 30
-
-      - name: Deploy to GitHub Pages (retry 1)
-        id: deployment2
-        if: steps.deployment1.outcome == 'failure'
-        continue-on-error: true
-        uses: actions/deploy-pages@v5
-
-      - name: Wait before final Pages deployment retry
-        if: steps.deployment1.outcome == 'failure' && steps.deployment2.outcome == 'failure'
-        run: sleep 60
-
-      - name: Deploy to GitHub Pages (retry 2)
-        id: deployment3
-        if: steps.deployment1.outcome == 'failure' && steps.deployment2.outcome == 'failure'
-        continue-on-error: true
-        uses: actions/deploy-pages@v5
-
-      - name: Fail after Pages deployment retries
-        if: steps.deployment1.outcome == 'failure' && steps.deployment2.outcome == 'failure' && steps.deployment3.outcome == 'failure'
-        run: exit 1
+      - name: Reload Nginx
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_USER: ${{ secrets.ECS_USER }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/aliyun_deploy_key "$ECS_USER@$ECS_HOST" \
+            "set -euo pipefail; nginx -t; systemctl reload nginx; find /var/www/jiangsu-plan/backups -maxdepth 1 -type d -name 'current-*' | sort | head -n -8 | xargs -r rm -rf"
