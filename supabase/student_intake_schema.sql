@@ -1,7 +1,7 @@
 -- 学生采集表全量信息与学生唯一编号。
 -- 如果线上库已经建过 students 表，只需要执行本文件即可启用：
 -- 1. “采集详情”跨设备保存
--- 2. 好生涯学号 student_no，例如 00001、00002
+-- 2. 学生编号 student_no，例如 00001、00002
 -- 3. planner_id 规划师归属，便于管理员转移学生
 
 create sequence if not exists public.student_no_seq start 1;

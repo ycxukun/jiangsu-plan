@@ -371,7 +371,11 @@ async function deleteVolunteerForm(formId){
     render();
   }catch(err){alert('删除志愿表失败：'+err.message);}
 }
-function studentNoText(student){return student?.student_no?`HSY${student.student_no}`:'待生成学号';}
+function studentNoText(student){
+  if(!student?.student_no)return '待生成编号';
+  const normalized=String(student.student_no).trim().replace(/^[A-Za-z]+/,'');
+  return normalized?`STU${normalized}`:'待生成编号';
+}
 function studentIntakePayload(student){
   if(student?.intake_payload&&typeof student.intake_payload==='object'&&!Array.isArray(student.intake_payload)&&Object.keys(student.intake_payload).length)return student.intake_payload;
   const local=storageJSON(`js-plan-intake-json:${student?.id}`,null);
@@ -691,7 +695,7 @@ function showIntakeDetail(student){
   const data=studentIntakePayload(student);
   const fallbackSections=[
     detailSectionHTML('系统档案',[
-      ['好生涯学号',studentNoText(student)],
+      ['学生编号',studentNoText(student)],
       ['姓名',student.name],
       ['手机号',student.phone],
       ['批次',stageLabel(student.stage)],
@@ -705,7 +709,7 @@ function showIntakeDetail(student){
   ];
   const sections=data?[
     detailSectionHTML('基础信息',[
-      ['好生涯学号',studentNoText(student)],
+      ['学生编号',studentNoText(student)],
       ['学生姓名',data['学生姓名']||student.name],
       ['性别',data['性别']],
       ['出生日期',data['出生日期']],
@@ -831,8 +835,8 @@ function intakeNote(data){
   return pairs.map(([label,key])=>intakeText(data,key)?`${label}：${intakeText(data,key)}`:'').filter(Boolean).join('\n').slice(0,6000);
 }
 function intakeStudentNo(data){
-  const raw=intakeText(data,'好生涯学号')||intakeText(data,'学号')||intakeText(data,'学生编号');
-  const digits=raw.replace(/^HSY/i,'').replace(/\D/g,'');
+  const raw=intakeText(data,'学生编号')||intakeText(data,'学号');
+  const digits=raw.replace(/^[A-Za-z]+/,'').replace(/\D/g,'');
   return digits?digits.padStart(5,'0').slice(-5):null;
 }
 function intakePayload(data){

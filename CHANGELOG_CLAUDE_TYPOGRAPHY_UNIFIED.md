@@ -23,7 +23,7 @@
 - `content/index.html`
 - `admin.html`
 - `specialty/admin.html`
-- `haoshengya_login_landing.html`
+- `login_landing.html`
 - `articles/zhaoban-negotiation-strategy.html`
 
 ## 验收标识

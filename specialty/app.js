@@ -1494,7 +1494,7 @@ function createLayout(){
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="../haoshengya_login_landing.html?v=20260706-open-signup-r2" title="好生涯早规划登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="../login_landing.html?v=20260706-open-signup-r2" title="知行学录登录页"></iframe>
     </div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
@@ -3496,10 +3496,11 @@ function studentExportNo(){
   const raw=currentStudent?.student_no;
   if(raw!==null&&raw!==undefined&&String(raw).trim()){
     const text=String(raw).trim();
-    return /^HSY/i.test(text)?text:`HSY${text.padStart(6,'0')}`;
+    const normalized=text.replace(/^[A-Za-z]+/,'');
+    return `STU${normalized.padStart(6,'0')}`;
   }
   const id=String(currentStudent?.id||'').replace(/-/g,'');
-  return id?`SID${id.slice(0,10)}`:'未填学号';
+  return id?`SID${id.slice(0,10)}`:'未填编号';
 }
 function volunteerFormExportNo(now=new Date()){
   const id=String(currentVolunteerForm?.id||'').replace(/-/g,'');
@@ -3507,7 +3508,7 @@ function volunteerFormExportNo(now=new Date()){
   return `草稿${localDateTimeStamp(now)}`;
 }
 function volunteerExportFileName(now=new Date()){
-  return `${safeFileSegment(studentExportNo(),'未填学号')}_${safeFileSegment(currentStudent?.name,'未填姓名')}_${localDateTimeStamp(now)}_${safeFileSegment(volunteerFormExportNo(now),'未保存志愿表')}.xls`;
+  return `${safeFileSegment(studentExportNo(),'未填编号')}_${safeFileSegment(currentStudent?.name,'未填姓名')}_${localDateTimeStamp(now)}_${safeFileSegment(volunteerFormExportNo(now),'未保存志愿表')}.xls`;
 }
 function excelCell(v,style,opts={}){
   const isNum=typeof v==='number'&&Number.isFinite(v);
@@ -4196,7 +4197,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
   }
 }
 async function handleLandingAuthMessage(event){
-  if(event.origin!==window.location.origin||event.data?.source!=='haoshengya-login')return;
+  if(event.origin!==window.location.origin||event.data?.source!=='auth-login')return;
   const frame=$('#authLandingFrame')?.contentWindow;
   try{
     if(event.data.action==='register'){

@@ -15,7 +15,7 @@
 - `students/index.html`、`students/app.js`：独立学生档案二级页面。
 - `data-*.js`、`specialty/data-*.js`：本科/专科运行数据，不能删。
 - `data-assassin-risks.js`、`data-group-changes.js`、`data-group-names.js`、`data-major-details*.js`：风险、专业、变化、专业组等数据，不能删。
-- `haoshengya_login_landing.html`：登录/注册落地页。
+- `login_landing.html`：登录/注册落地页。
 - `admin.html`、`specialty/admin.html`：管理/备注相关页面。
 - `supabase/schema.sql`：数据库结构，学生档案新增的 `subject_choices` 字段在这里。
 - `articles/`：文章页面。
@@ -71,7 +71,7 @@ http://127.0.0.1:4173/students/index.html?from=specialty
 
 如果 ChatGPT 网页提示压缩包太大，可以分批上传：
 
-1. 第一批：`index.html`、`app.js`、`students/`、`supabase/`、`haoshengya_login_landing.html`。
+1. 第一批：`index.html`、`app.js`、`students/`、`supabase/`、`login_landing.html`。
 2. 第二批：`specialty/`。
 3. 第三批：根目录所有 `data-*.js` 和 `data-assassin-risks.js`。
 4. 第四批：`specialty/` 下所有 `data-*.js`。

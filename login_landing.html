@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>好生涯早规划｜志愿填报系统登录页</title>
+  <title>知行学录｜志愿填报系统登录页</title>
   <style>
     :root {
       --brand: rgb(10,124,66);
@@ -42,7 +42,7 @@
     }
 
     body::before {
-      content: "好生涯早规划";
+      content: "知行学录";
       position: fixed;
       right: -4rem;
       bottom: 4rem;
@@ -806,9 +806,9 @@
   <main class="page">
     <nav class="nav" aria-label="系统导航">
       <div class="brand">
-        <div class="brand-mark">好</div>
+        <div class="brand-mark">知</div>
         <div class="brand-name">
-          <strong>好生涯早规划</strong>
+          <strong>知行学录</strong>
           <span>Higher Education Planning</span>
         </div>
       </div>
@@ -967,7 +967,7 @@
     </section>
 
     <footer>
-      <span>© 2026 好生涯早规划 · 志愿填报系统内测入口</span>
+      <span>© 2026 知行学录 · 志愿填报系统内测入口</span>
       <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2026045146号-1</a>
       <a href="https://beian.mps.gov.cn/#/query/webSearch?code=32090202001634" target="_blank" rel="noopener noreferrer"><img src="/beian-icon.png" alt="公安备案图标">苏公网安备32090202001634号</a>
     </footer>
@@ -1007,7 +1007,7 @@
     }
     function sendAuthMessage(payload) {
       if (isEmbedded()) {
-        window.parent.postMessage({ source: 'haoshengya-login', ...payload }, window.location.origin);
+        window.parent.postMessage({ source: 'auth-login', ...payload }, window.location.origin);
       }
     }
     function saveStandaloneAuth(data) {
@@ -1100,7 +1100,7 @@
       window.location.href = safeNextUrl();
     }
     async function standaloneRecover(email) {
-      const redirectTo = new URL('./haoshengya_login_landing.html#login', window.location.href).href;
+      const redirectTo = new URL('./login_landing.html#login', window.location.href).href;
       const recoverUrl = `${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`;
       const res = await fetch(recoverUrl, {
         method: 'POST',

@@ -3078,8 +3078,8 @@ function intakeNote(data){
   return pairs.map(([label,key])=>intakeText(data,key)?`${label}：${intakeText(data,key)}`:'').filter(Boolean).join('\n').slice(0,6000);
 }
 function intakeStudentNo(data){
-  const raw=intakeText(data,'好生涯学号')||intakeText(data,'学号')||intakeText(data,'学生编号');
-  const digits=raw.replace(/^HSY/i,'').replace(/\D/g,'');
+  const raw=intakeText(data,'学生编号')||intakeText(data,'学号');
+  const digits=raw.replace(/^[A-Za-z]+/,'').replace(/\D/g,'');
   return digits?digits.padStart(5,'0').slice(-5):null;
 }
 function buildPayload(data,auth){

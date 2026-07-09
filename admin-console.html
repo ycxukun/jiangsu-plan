@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>管理员后台｜好生涯规划系统</title>
+<title>管理员后台｜知行学录志愿填报系统</title>
 <style>
 :root{--green:#0a7c42;--ink:#17211b;--muted:#66756d;--line:#e5ebe7;--bg:#f6f8f7;--red:#b42318;--redbg:#fff0ee;--shadow:0 14px 40px rgba(11,42,26,.08)}
 *{box-sizing:border-box}
@@ -45,7 +45,7 @@ button.save{background:var(--green);border-color:var(--green);color:#fff}button.
   <div class="hero">
     <div>
       <h1>管理员后台</h1>
-      <p class="subtitle">管理规划师、学生归属、学生删除/恢复和好生涯学号。</p>
+      <p class="subtitle">管理规划师、学生归属、学生删除/恢复和学生编号。</p>
     </div>
     <div class="actions">
       <a class="pill" href="./index.html">返回本科系统</a>
@@ -58,7 +58,7 @@ button.save{background:var(--green);border-color:var(--green);color:#fff}button.
 <main class="page">
   <section id="notice" class="notice">正在检查管理员权限...</section>
   <section class="toolbar panel">
-    <input id="searchInput" type="search" placeholder="搜索学生姓名、HSY学号、手机号、规划师邮箱">
+    <input id="searchInput" type="search" placeholder="搜索学生姓名、学生编号、手机号、规划师邮箱">
     <select id="plannerFilter"><option value="">全部规划师</option></select>
     <select id="archivedFilter"><option value="active">未删除学生</option><option value="archived">已删除学生</option><option value="all">全部学生</option></select>
     <button id="clearBtn" type="button">清空</button>

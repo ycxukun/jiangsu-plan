@@ -39,7 +39,7 @@ copy_file batch-guide-links.js
 copy_file qualification-risk.js
 copy_file student-account-hub.js
 copy_file school-life-info-data.js
-copy_file haoshengya_login_landing.html
+copy_file login_landing.html
 copy_file beian-icon.png
 
 copy_glob 'style-claude-*.css'
@@ -63,7 +63,7 @@ required=(
   admin.html
   admin-console.html
   admin-console.js
-  haoshengya_login_landing.html
+  login_landing.html
   beian-icon.png
   data-db.js
   data-major-details.js

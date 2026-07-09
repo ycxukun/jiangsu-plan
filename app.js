@@ -1577,7 +1577,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="./haoshengya_login_landing.html?v=20260707-beian-r1" title="好生涯早规划登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="./login_landing.html?v=20260707-beian-r1" title="知行学录登录页"></iframe>
     </div>
     <header class="topbar">
       <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><a id="contentCenterBtn" class="header-toggle content-toggle" href="./content/index.html">升学资讯</a><a id="crmCenterBtn" class="header-toggle content-toggle" href="./crm.html">CRM 工作台</a><div class="version">${VERSION}</div><div id="studentProfileMenu" class="student-profile-menu"><button id="studentProfileBtn" class="student-profile-trigger" type="button" aria-expanded="false"><span id="studentProfileAvatar" class="student-profile-avatar">未</span><span class="student-profile-copy"><b id="studentProfileName">未选择学生</b><small id="studentProfileSummary">登录后管理学生、志愿表和账号</small></span><span class="student-profile-caret">⌄</span></button><div class="student-profile-dropdown"><div class="student-profile-card"><span id="studentProfileAvatarLarge" class="student-profile-avatar large">未</span><div><b id="studentProfileNameLarge">未选择学生</b><p id="studentProfileMeta">登录后可保存和加载志愿表。</p></div></div><div class="student-profile-mini"><span id="studentProfileAccount">账号：未登录</span><span id="studentProfileVolunteer">志愿表 0/40</span></div><div class="student-profile-actions"><button id="profileOpenStudents" type="button">学生档案</button><button id="profileOpenVolunteer" type="button">志愿表</button><button id="profileAccountCenter" type="button">账号中心</button><button id="profileSwitchAccount" type="button">切换账号</button><button id="profileLogout" class="danger" type="button">退出登录</button></div></div></div><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
@@ -3858,10 +3858,11 @@ function studentExportNo(){
   const raw=currentStudent?.student_no;
   if(raw!==null&&raw!==undefined&&String(raw).trim()){
     const text=String(raw).trim();
-    return /^HSY/i.test(text)?text:`HSY${text.padStart(6,'0')}`;
+    const normalized=text.replace(/^[A-Za-z]+/,'');
+    return `STU${normalized.padStart(6,'0')}`;
   }
   const id=String(currentStudent?.id||'').replace(/-/g,'');
-  return id?`SID${id.slice(0,10)}`:'未填学号';
+  return id?`SID${id.slice(0,10)}`:'未填编号';
 }
 function volunteerFormExportNo(now=new Date()){
   const id=String(currentVolunteerForm?.id||'').replace(/-/g,'');
@@ -3869,7 +3870,7 @@ function volunteerFormExportNo(now=new Date()){
   return `草稿${localDateTimeStamp(now)}`;
 }
 function volunteerExportFileName(now=new Date()){
-  return `${safeFileSegment(studentExportNo(),'未填学号')}_${safeFileSegment(currentStudent?.name,'未填姓名')}_${localDateTimeStamp(now)}_${safeFileSegment(volunteerFormExportNo(now),'未保存志愿表')}.xls`;
+  return `${safeFileSegment(studentExportNo(),'未填编号')}_${safeFileSegment(currentStudent?.name,'未填姓名')}_${localDateTimeStamp(now)}_${safeFileSegment(volunteerFormExportNo(now),'未保存志愿表')}.xls`;
 }
 function excelCell(v,style,opts={}){
   const isNum=typeof v==='number'&&Number.isFinite(v);
@@ -4560,7 +4561,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
   }
 }
 async function handleLandingAuthMessage(event){
-  if(event.origin!==window.location.origin||event.data?.source!=='haoshengya-login')return;
+  if(event.origin!==window.location.origin||event.data?.source!=='auth-login')return;
   const frame=$('#authLandingFrame')?.contentWindow;
   try{
     if(event.data.action==='register'){
@@ -4588,7 +4589,7 @@ async function handleLandingAuthMessage(event){
 async function sendPasswordReset(email){
   if(!requireSupabase())return;
   if(!email)throw new Error('请先输入需要重置密码的邮箱。');
-  const redirectTo=new URL('./haoshengya_login_landing.html#login',window.location.href).href;
+  const redirectTo=new URL('./login_landing.html#login',window.location.href).href;
   const res=await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{
     method:'POST',
     headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},

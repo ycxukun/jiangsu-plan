@@ -225,7 +225,9 @@ function serviceTypesText(types){
 }
 
 function studentNo(s){
-  return s?.student_no?`HSY${s.student_no}`:'待编号';
+  if(!s?.student_no)return '待编号';
+  const normalized=String(s.student_no).trim().replace(/^[A-Za-z]+/,'');
+  return normalized?`STU${normalized}`:'待编号';
 }
 
 function studentDisplay(s){

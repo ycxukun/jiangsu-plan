@@ -63,7 +63,11 @@ async function apiFetch(path,options={},retried=false){
 function subjectLabel(v){return v==='history'?'历史':'物理';}
 function stageLabel(v){return v==='specialty'||v==='专科'?'专科':'本科';}
 function stageValue(v){return v==='specialty'||v==='专科'?'specialty':'undergraduate';}
-function studentNoText(s){return s?.student_no?`HSY${s.student_no}`:'待生成学号';}
+function studentNoText(s){
+  if(!s?.student_no)return '待生成编号';
+  const normalized=String(s.student_no).trim().replace(/^[A-Za-z]+/,'');
+  return normalized?`STU${normalized}`:'待生成编号';
+}
 function shortDate(v){if(!v)return '';const d=new Date(v);if(Number.isNaN(d.getTime()))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function shortDateTime(v){if(!v)return '';const d=new Date(v);if(Number.isNaN(d.getTime()))return '';return `${shortDate(v)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
 function normalizeSubjectChoices(values){const alias={'化':'化学','化学':'化学','生':'生物','生物':'生物','政':'政治','政治':'政治','思想政治':'政治','地':'地理','地理':'地理'};const raw=Array.isArray(values)?values:String(values||'').split(/[，,、\s/+]+/);const out=[];raw.forEach(v=>{const t=alias[String(v||'').trim()];if(t&&!out.includes(t))out.push(t);});return out;}

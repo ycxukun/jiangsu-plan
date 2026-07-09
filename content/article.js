@@ -103,7 +103,7 @@ function renderPost(post){
   subtitle.textContent=post.subtitle||'';
   subtitle.classList.toggle('hidden',!post.subtitle);
   $('#articleCategory').textContent=post.category||'资讯';
-  $('#articleAuthor').textContent=post.author_name||'好生涯早规划';
+  $('#articleAuthor').textContent=post.author_name||'知行学录';
   $('#articleTime').textContent=shortDate(post.published_at||post.created_at);
   const status=$('#articleStatus');
   status.textContent=post.status==='published'?'已发布':'草稿预览';

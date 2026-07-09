@@ -27,7 +27,11 @@ async function apiFetch(path,options={}){
   return text?JSON.parse(text):null;
 }
 function roleLabel(role){return role==='admin'?'管理员':role==='planner'?'规划师':role==='consultant'?'咨询师':'只读';}
-function studentNo(s){return s.student_no?`HSY${s.student_no}`:'待生成学号';}
+function studentNo(s){
+  if(!s.student_no)return '待生成编号';
+  const normalized=String(s.student_no).trim().replace(/^[A-Za-z]+/,'');
+  return normalized?`STU${normalized}`:'待生成编号';
+}
 function firstStudentValue(s,...keys){for(const key of keys){const value=s?.[key];if(value!==null&&value!==undefined&&value!=='')return value;}return null;}
 function studentScore(s){return firstStudentValue(s,'score','gaokao_score','estimated_score');}
 function studentRank(s){return firstStudentValue(s,'rank','gaokao_rank','estimated_rank');}

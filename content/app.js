@@ -14,8 +14,8 @@ const FALLBACK_FILES=[
   {id:'sample-3',title:'综评强基报名材料清单',category:'政策解读',summary:'示例资料。',file_url:'',file_name:'示例资料',created_at:new Date(Date.now()-7200000).toISOString(),published:true,source:'sample'}
 ];
 const FALLBACK_POSTS=[
-  {id:'post-sample-1',title:'如何使用升学资讯中心发布图文',subtitle:'Markdown 图文发布示例',category:'志愿填报',summary:'这是本地示例。执行新版 Supabase SQL 后，规划师可以在线保存草稿、发布文章，并上传封面图和正文图片。',cover_url:'',content_md:'',status:'published',pinned:true,author_name:'好生涯早规划',published_at:new Date().toISOString(),created_at:new Date().toISOString(),source:'sample'},
-  {id:'post-sample-2',title:'中外合作项目核对清单怎么读',subtitle:'适合家长快速判断项目风险',category:'中外合作',summary:'文章列表会展示封面、标题、摘要、分类和时间；点击后进入公众号式详情页。',cover_url:'',content_md:'',status:'published',pinned:false,author_name:'好生涯早规划',published_at:new Date(Date.now()-3600000).toISOString(),created_at:new Date(Date.now()-3600000).toISOString(),source:'sample'}
+  {id:'post-sample-1',title:'如何使用升学资讯中心发布图文',subtitle:'Markdown 图文发布示例',category:'志愿填报',summary:'这是本地示例。执行新版 Supabase SQL 后，规划师可以在线保存草稿、发布文章，并上传封面图和正文图片。',cover_url:'',content_md:'',status:'published',pinned:true,author_name:'知行学录',published_at:new Date().toISOString(),created_at:new Date().toISOString(),source:'sample'},
+  {id:'post-sample-2',title:'中外合作项目核对清单怎么读',subtitle:'适合家长快速判断项目风险',category:'中外合作',summary:'文章列表会展示封面、标题、摘要、分类和时间；点击后进入公众号式详情页。',cover_url:'',content_md:'',status:'published',pinned:false,author_name:'知行学录',published_at:new Date(Date.now()-3600000).toISOString(),created_at:new Date(Date.now()-3600000).toISOString(),source:'sample'}
 ];
 let auth={accessToken:'',refreshToken:'',user:null};
 let profile=null;
@@ -220,7 +220,7 @@ function renderPostList(rows,warning){
     const coverHtml=/^https?:\/\//i.test(cover)?`<img src="${esc(cover)}" alt="${title}">`:'图文文章';
     const status=post.status==='published'?'已发布':'草稿';
     const editBtn=isPlanner()&&!String(post.id||'').startsWith('post-sample-')?`<a class="btn" href="./editor.html?id=${id}">编辑</a><button class="delete-file-btn" type="button" data-delete-post-id="${id}">删除</button>`:'';
-    return `<article class="post-card"><a class="post-cover" href="./article.html?id=${id}">${coverHtml}</a><div class="post-info"><div class="post-meta"><span class="post-tag">${esc(post.category||'资讯')}</span>${post.pinned?'<span class="post-tag">置顶</span>':''}<span>${esc(status)}</span></div><h3>${title}</h3><p>${summary}</p><div class="post-meta"><span>${esc(post.author_name||'好生涯早规划')}</span><span>${esc(shortDate(post.published_at||post.created_at))}</span></div></div><div class="post-card-actions"><a class="btn blue" href="./article.html?id=${id}">阅读</a><span>${editBtn}</span></div></article>`;
+    return `<article class="post-card"><a class="post-cover" href="./article.html?id=${id}">${coverHtml}</a><div class="post-info"><div class="post-meta"><span class="post-tag">${esc(post.category||'资讯')}</span>${post.pinned?'<span class="post-tag">置顶</span>':''}<span>${esc(status)}</span></div><h3>${title}</h3><p>${summary}</p><div class="post-meta"><span>${esc(post.author_name||'知行学录')}</span><span>${esc(shortDate(post.published_at||post.created_at))}</span></div></div><div class="post-card-actions"><a class="btn blue" href="./article.html?id=${id}">阅读</a><span>${editBtn}</span></div></article>`;
   }).join('')}`;
   document.querySelectorAll('[data-delete-post-id]').forEach(btn=>btn.addEventListener('click',()=>deletePost(btn.dataset.deletePostId)));
 }

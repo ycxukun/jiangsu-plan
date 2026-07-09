@@ -1,4 +1,4 @@
--- 好生涯志愿填报服务 CRM 平台 MVP 数据结构
+-- 知行学录志愿填报服务 CRM 平台 MVP 数据结构
 -- 用法：Supabase Dashboard -> SQL Editor -> 粘贴执行。
 -- 依赖：已执行 supabase/schema.sql，存在 profiles、students、audit_logs、set_updated_at()。
 
