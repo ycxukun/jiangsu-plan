@@ -96,7 +96,7 @@ const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
 const VOLUNTEER_STAGE_STORAGE_SCOPE='specialty';
-const SIDEBAR_PAGE_SIZE=30;
+const SIDEBAR_PAGE_SIZE=10;
 let volunteerKeys=loadVolunteerKeys();
 let volunteerMajorKeys=loadVolunteerMajorKeys();
 let volunteerMeta=loadVolunteerMeta();
@@ -117,7 +117,7 @@ let predictionCache=new Map();
 let schoolFacetCache=new Map();
 let admissionPriorityCache=new Map();
 let sidebarExpanded=false;
-let sidebarBrowseMode='continuous';
+let sidebarBrowseMode='paged';
 let sidebarPage=0;
 const MANUAL_ADMISSION_PRIORITY_SCHOOL_HINTS=[
   {pattern:/中国地质大学/, severity:'high', rule:'人工重点提示：该校按专业志愿优先/专业优先类规则核对风险较高，专业顺序不能随意。最终以当年招生章程为准。'}
@@ -2261,6 +2261,94 @@ function sortGroupsByWeightedMajorScore(groups){
     return String(a.groupName||a.displayCode||'').localeCompare(String(b.groupName||b.displayCode||''),'zh-Hans-CN');
   });
 }
+function normalizedSchoolMergeName(name){
+  return String(name||'').replace(/\s+/g,'').replace(/[()（）]/g,'');
+}
+function filteredSchoolMergeKey(s){
+  return [s.subject||'',s.batch||'',s.province||'',s.city||'',normalizedSchoolMergeName(s.name)].join('|');
+}
+function filteredGroupMergeKey(g){
+  return [
+    g.groupCode||g.schoolGroupCode||'',
+    g.displayCode||'',
+    g.groupName||g.rawGroupName||'',
+    g.requirement||''
+  ].map(v=>String(v||'').trim()).join('|');
+}
+function majorMergeKey(m){
+  return String(m?.identityKey||m?.key||`${m?.groupCode||''}+${m?.code||''}+${m?.name||''}`);
+}
+function mergeMajorLists(existing=[],incoming=[]){
+  const map=new Map();
+  existing.concat(incoming).forEach(m=>{
+    const key=majorMergeKey(m);
+    if(!map.has(key))map.set(key,m);
+  });
+  return Array.from(map.values()).sort(majorSortByThreeYear);
+}
+function mergeVisibleGroups(groups=[]){
+  const map=new Map();
+  groups.forEach(g=>{
+    const key=filteredGroupMergeKey(g);
+    if(!map.has(key)){
+      map.set(key,{...g,majors:mergeMajorLists([],g.majors||[])});
+      return;
+    }
+    const prev=map.get(key);
+    map.set(key,{
+      ...prev,
+      ...g,
+      majors:mergeMajorLists(prev.majors||[],g.majors||[]),
+      tags:unique([...(prev.tags||[]),...(g.tags||[])]),
+      majorClasses:unique([...(prev.majorClasses||[]),...(g.majorClasses||[])])
+    });
+  });
+  return sortGroupsByWeightedMajorScore(Array.from(map.values()));
+}
+function recalcMergedSchoolMetrics(s){
+  const groups=s.visibleGroups||[];
+  let scoreTotal=0,scoreWeight=0,rankTotal=0,rankWeight=0;
+  groups.forEach(g=>{
+    const weight=num(g.plan26)??num(g.plan25)??num(g.groupMajorCount)??1;
+    const score=groupWeightedMajorScoreValue(g)??num(g.score25)??num(g.avgScore3);
+    const rank=num(g.rank25)??num(g.avgRank3);
+    if(score!==null){scoreTotal+=score*weight;scoreWeight+=weight;}
+    if(rank!==null){rankTotal+=rank*weight;rankWeight+=weight;}
+  });
+  return {
+    ...s,
+    weightedScore:scoreWeight?Number((scoreTotal/scoreWeight).toFixed(1)):s.weightedScore,
+    weightedRank:rankWeight?Math.round(rankTotal/rankWeight):s.weightedRank,
+    groupCount:groups.length
+  };
+}
+function mergeFilteredSchoolDuplicates(list){
+  const map=new Map();
+  list.forEach(s=>{
+    const key=filteredSchoolMergeKey(s);
+    if(!map.has(key)){
+      map.set(key,{...s,_sourceSchoolIds:[s.id],visibleGroups:mergeVisibleGroups(s.visibleGroups||[])});
+      return;
+    }
+    const prev=map.get(key);
+    prev._sourceSchoolIds=unique([...(prev._sourceSchoolIds||[]),s.id]);
+    prev.visibleGroups=mergeVisibleGroups([...(prev.visibleGroups||[]),...(s.visibleGroups||[])]);
+    prev.tags=unique([...(prev.tags||[]),...(s.tags||[])]);
+    prev.level=prev.level||s.level;
+  });
+  return Array.from(map.values()).map(s=>(s._sourceSchoolIds||[]).length>1?recalcMergedSchoolMetrics(s):s);
+}
+function schoolMatchesActiveId(s,id){
+  if(!id)return false;
+  return s.id===id||(s._sourceSchoolIds||[]).includes(id);
+}
+function activeSchoolIndex(){
+  return state.filtered.findIndex(s=>schoolMatchesActiveId(s,state.activeSchoolId));
+}
+function normalizeActiveSchool(){
+  const idx=activeSchoolIndex();
+  state.activeSchoolId=idx>=0?state.filtered[idx].id:(state.filtered[0]?.id||null);
+}
 function applyFilters(){
   const result=[]; const q=state.q;
   const guideFilter=batchGuideFilterId();
@@ -2273,11 +2361,12 @@ function applyFilters(){
     const visibleGroups=sortGroupsByWeightedMajorScore(groups);
     if(visibleGroups.length){result.push({...s,visibleGroups});}
   });
-  result.sort(schoolSort);
-  state.filtered=result;
-  if(!result.some(s=>s.id===state.activeSchoolId)) state.activeSchoolId=result[0]?.id||null;
+  const merged=mergeFilteredSchoolDuplicates(result);
+  merged.sort(schoolSort);
+  state.filtered=merged;
+  normalizeActiveSchool();
   if(sidebarBrowseMode==='paged'){
-    const idx=result.findIndex(s=>s.id===state.activeSchoolId);
+    const idx=activeSchoolIndex();
     sidebarPage=idx>=0?Math.floor(idx/SIDEBAR_PAGE_SIZE):0;
   }
   render();
@@ -2302,10 +2391,22 @@ function majorSortByThreeYear(a,b){
 function sidebarPageCount(){
   return Math.max(1,Math.ceil(state.filtered.length/SIDEBAR_PAGE_SIZE));
 }
+function clampSidebarPage(page){
+  return Math.max(0,Math.min(Number.isFinite(page)?page:0,sidebarPageCount()-1));
+}
+function syncSidebarPageToActive(){
+  const idx=activeSchoolIndex();
+  sidebarPage=idx>=0?clampSidebarPage(Math.floor(idx/SIDEBAR_PAGE_SIZE)):clampSidebarPage(sidebarPage);
+}
+function setSidebarPage(page){
+  sidebarPage=clampSidebarPage(page);
+  const first=state.filtered[sidebarPage*SIDEBAR_PAGE_SIZE]||state.filtered[0];
+  if(first)state.activeSchoolId=first.id;
+  render();
+}
 function sidebarVisibleSchools(){
   if(sidebarBrowseMode!=='paged')return state.filtered;
-  const pages=sidebarPageCount();
-  sidebarPage=Math.max(0,Math.min(sidebarPage,pages-1));
+  syncSidebarPageToActive();
   const start=sidebarPage*SIDEBAR_PAGE_SIZE;
   return state.filtered.slice(start,start+SIDEBAR_PAGE_SIZE);
 }
@@ -2328,29 +2429,22 @@ function renderSidebarControls(total,visible){
       ${sidebarBrowseMode==='paged'?`<span>第 ${sidebarPage+1}/${pages} 页｜${start}-${end} 所</span>`:`<span>当前连续显示 ${visible.length} 所</span>`}
     </div>
     ${sidebarBrowseMode==='paged'?`<div class="sidebar-pager">
+      <button id="sidebarFirstPage" type="button" ${sidebarPage<=0?'disabled':''}>首页</button>
       <button id="sidebarPrevPage" type="button" ${sidebarPage<=0?'disabled':''}>上一页</button>
       <button id="sidebarNextPage" type="button" ${sidebarPage>=pages-1?'disabled':''}>下一页</button>
-      <button id="sidebarJumpActive" type="button">定位当前</button>
+      <button id="sidebarLastPage" type="button" ${sidebarPage>=pages-1?'disabled':''}>末页</button>
     </div>`:''}`;
   $('#sidebarModeBtn')?.addEventListener('click',e=>{
     e.preventDefault();
     e.stopPropagation();
     sidebarBrowseMode=sidebarBrowseMode==='paged'?'continuous':'paged';
-    if(sidebarBrowseMode==='paged'){
-      const idx=state.filtered.findIndex(s=>s.id===state.activeSchoolId);
-      sidebarPage=idx>=0?Math.floor(idx/SIDEBAR_PAGE_SIZE):0;
-    }
+    if(sidebarBrowseMode==='paged')syncSidebarPageToActive();
     renderSidebar();
   });
-  $('#sidebarPrevPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();sidebarPage=Math.max(0,sidebarPage-1);renderSidebar();});
-  $('#sidebarNextPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();sidebarPage=Math.min(pages-1,sidebarPage+1);renderSidebar();});
-  $('#sidebarJumpActive')?.addEventListener('click',e=>{
-    e.preventDefault();
-    e.stopPropagation();
-    const idx=state.filtered.findIndex(s=>s.id===state.activeSchoolId);
-    if(idx>=0)sidebarPage=Math.floor(idx/SIDEBAR_PAGE_SIZE);
-    renderSidebar();
-  });
+  $('#sidebarFirstPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(0);});
+  $('#sidebarPrevPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(sidebarPage-1);});
+  $('#sidebarNextPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(sidebarPage+1);});
+  $('#sidebarLastPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(pages-1);});
 }
 function schoolSidebarRiskHTML(s){
   const groups=s.visibleGroups||[];
@@ -2377,7 +2471,7 @@ function renderSidebar(){
   $$('.school-item').forEach(el=>el.addEventListener('click',()=>{state.activeSchoolId=el.dataset.schoolId;render();}));
   bindNoteHoverAndContext();
 }
-function getActiveSchool(){return state.filtered.find(s=>s.id===state.activeSchoolId)||state.filtered[0]||null;}
+function getActiveSchool(){return state.filtered.find(s=>schoolMatchesActiveId(s,state.activeSchoolId))||state.filtered[0]||null;}
 function renderSchoolMode(){const s=getActiveSchool(); if(!s){$('#main').innerHTML='<div class="empty">没有匹配数据，请调整筛选条件。</div>';return;} $('#main').innerHTML=schoolHTML(s,s.visibleGroups,true); bindDynamic();}
 function renderGroupMode(){
   const groups=[]; state.filtered.forEach(s=>s.visibleGroups.forEach(g=>groups.push([s,g])));

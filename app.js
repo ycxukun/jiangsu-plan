@@ -93,6 +93,7 @@ const VOLUNTEER_TOGGLE_POSITION_KEY='js-plan-volunteer-toggle-position-v1';
 const MEDICAL_RESTRICTION_STORAGE_KEY='js-plan-medical-restriction-codes-v1';
 const STUDENT_SUBJECT_CHOICES_STORAGE_KEY='js-plan-student-subject-choices-v1';
 const SUBJECT_CHOICE_OPTIONS=['化学','生物','政治','地理'];
+const SIDEBAR_PAGE_SIZE=10;
 let volunteerKeys=[];
 let volunteerMajorKeys={};
 let volunteerMeta={};
@@ -104,6 +105,9 @@ let volunteerAllExpanded=false;
 let volunteerExpandedKeys=new Set();
 let volunteerMajorPoolFilter={};
 let studentProfileCloseTimer=null;
+let sidebarExpanded=false;
+let sidebarBrowseMode='paged';
+let sidebarPage=0;
 let groupIndex=new Map();
 let majorRefs=[];
 let majorRefsBySchool=new Map();
@@ -1592,7 +1596,7 @@ function createLayout(){
       <div id="studentContextBar" class="student-context-bar" hidden></div>
       <div id="volunteerStructureBar" class="volunteer-structure-bar" hidden></div>
     </header>
-    <div class="layout"><aside class="sidebar"><div class="side-head"><strong>院校索引</strong><span id="resultMeta">正在加载数据</span></div><div id="schoolList" class="school-list"></div></aside><main id="main" class="main"></main></div>
+    <div class="layout"><aside class="sidebar"><div class="side-head"><div class="side-title-row"><strong>院校索引</strong><button id="sidebarExpandBtn" class="sidebar-mini-btn" type="button">展开索引</button></div><span id="resultMeta">正在加载数据</span><div id="sidebarControls" class="sidebar-controls"></div></div><div id="schoolList" class="school-list"></div></aside><main id="main" class="main"></main></div>
     <div id="provincePanel" class="panel facet-panel"><div class="panel-head"><h3>地区筛选</h3><button class="close-btn" data-close="provincePanel">×</button></div><div class="panel-body"><div id="provincePanelBody"></div></div></div>
     <div id="levelPanel" class="panel facet-panel"><div class="panel-head"><h3>院校层次筛选</h3><button class="close-btn" data-close="levelPanel">×</button></div><div class="panel-body"><div id="levelPanelBody"></div></div></div>
     <div id="specialPanel" class="panel facet-panel"><div class="panel-head"><h3>特殊类型/标签筛选</h3><button class="close-btn" data-close="specialPanel">×</button></div><div class="panel-body"><div id="specialPanelBody"></div></div></div>
@@ -2393,6 +2397,152 @@ function sortGroupsByWeightedMajorScore(groups){
     return String(a.groupName||a.displayCode||'').localeCompare(String(b.groupName||b.displayCode||''),'zh-Hans-CN');
   });
 }
+function normalizedSchoolMergeName(name){
+  return String(name||'').replace(/\s+/g,'').replace(/[()（）]/g,'');
+}
+function filteredSchoolMergeKey(s){
+  return [s.subject||'',s.batch||'',s.province||'',s.city||'',normalizedSchoolMergeName(s.name)].join('|');
+}
+function filteredGroupMergeKey(g){
+  return [
+    g.groupCode||g.schoolGroupCode||'',
+    g.displayCode||'',
+    g.groupName||g.rawGroupName||'',
+    g.requirement||''
+  ].map(v=>String(v||'').trim()).join('|');
+}
+function majorMergeKey(m){
+  return String(m?.identityKey||m?.key||`${m?.groupCode||''}+${m?.code||''}+${m?.name||''}`);
+}
+function mergeMajorLists(existing=[],incoming=[]){
+  const map=new Map();
+  existing.concat(incoming).forEach(m=>{
+    const key=majorMergeKey(m);
+    if(!map.has(key))map.set(key,m);
+  });
+  return Array.from(map.values()).sort(majorSortByThreeYear);
+}
+function mergeVisibleGroups(groups=[]){
+  const map=new Map();
+  groups.forEach(g=>{
+    const key=filteredGroupMergeKey(g);
+    if(!map.has(key)){
+      map.set(key,{...g,majors:mergeMajorLists([],g.majors||[])});
+      return;
+    }
+    const prev=map.get(key);
+    map.set(key,{
+      ...prev,
+      ...g,
+      majors:mergeMajorLists(prev.majors||[],g.majors||[]),
+      tags:unique([...(prev.tags||[]),...(g.tags||[])]),
+      majorClasses:unique([...(prev.majorClasses||[]),...(g.majorClasses||[])])
+    });
+  });
+  return sortGroupsByWeightedMajorScore(Array.from(map.values()));
+}
+function recalcMergedSchoolMetrics(s){
+  const groups=s.visibleGroups||[];
+  let scoreTotal=0,scoreWeight=0,rankTotal=0,rankWeight=0;
+  groups.forEach(g=>{
+    const weight=num(g.plan26)??num(g.plan25)??num(g.groupMajorCount)??1;
+    const score=groupWeightedMajorScoreValue(g)??num(g.score25)??num(g.avgScore3);
+    const rank=num(g.rank25)??num(g.avgRank3);
+    if(score!==null){scoreTotal+=score*weight;scoreWeight+=weight;}
+    if(rank!==null){rankTotal+=rank*weight;rankWeight+=weight;}
+  });
+  return {
+    ...s,
+    weightedScore:scoreWeight?Number((scoreTotal/scoreWeight).toFixed(1)):s.weightedScore,
+    weightedRank:rankWeight?Math.round(rankTotal/rankWeight):s.weightedRank,
+    groupCount:groups.length
+  };
+}
+function mergeFilteredSchoolDuplicates(list){
+  const map=new Map();
+  list.forEach(s=>{
+    const key=filteredSchoolMergeKey(s);
+    if(!map.has(key)){
+      map.set(key,{...s,_sourceSchoolIds:[s.id],visibleGroups:mergeVisibleGroups(s.visibleGroups||[])});
+      return;
+    }
+    const prev=map.get(key);
+    prev._sourceSchoolIds=unique([...(prev._sourceSchoolIds||[]),s.id]);
+    prev.visibleGroups=mergeVisibleGroups([...(prev.visibleGroups||[]),...(s.visibleGroups||[])]);
+    prev.tags=unique([...(prev.tags||[]),...(s.tags||[])]);
+    prev.level=prev.level||s.level;
+  });
+  return Array.from(map.values()).map(s=>(s._sourceSchoolIds||[]).length>1?recalcMergedSchoolMetrics(s):s);
+}
+function schoolMatchesActiveId(s,id){
+  if(!id)return false;
+  return s.id===id||(s._sourceSchoolIds||[]).includes(id);
+}
+function activeSchoolIndex(){
+  return state.filtered.findIndex(s=>schoolMatchesActiveId(s,state.activeSchoolId));
+}
+function normalizeActiveSchool(){
+  const idx=activeSchoolIndex();
+  state.activeSchoolId=idx>=0?state.filtered[idx].id:(state.filtered[0]?.id||null);
+}
+function sidebarPageCount(){
+  return Math.max(1,Math.ceil(state.filtered.length/SIDEBAR_PAGE_SIZE));
+}
+function clampSidebarPage(page){
+  return Math.max(0,Math.min(Number.isFinite(page)?page:0,sidebarPageCount()-1));
+}
+function syncSidebarPageToActive(){
+  const idx=activeSchoolIndex();
+  sidebarPage=idx>=0?clampSidebarPage(Math.floor(idx/SIDEBAR_PAGE_SIZE)):clampSidebarPage(sidebarPage);
+}
+function setSidebarPage(page){
+  sidebarPage=clampSidebarPage(page);
+  const first=state.filtered[sidebarPage*SIDEBAR_PAGE_SIZE]||state.filtered[0];
+  if(first)state.activeSchoolId=first.id;
+  render();
+}
+function sidebarVisibleSchools(){
+  if(sidebarBrowseMode!=='paged')return state.filtered;
+  syncSidebarPageToActive();
+  const start=sidebarPage*SIDEBAR_PAGE_SIZE;
+  return state.filtered.slice(start,start+SIDEBAR_PAGE_SIZE);
+}
+function renderSidebarControls(total,visible){
+  const sidebar=document.querySelector('.sidebar');
+  sidebar?.classList.toggle('expanded',sidebarExpanded);
+  const expandBtn=$('#sidebarExpandBtn');
+  if(expandBtn){
+    expandBtn.textContent=sidebarExpanded?'收起索引':'展开索引';
+    expandBtn.onclick=e=>{e.preventDefault();e.stopPropagation();sidebarExpanded=!sidebarExpanded;renderSidebar();};
+  }
+  const controls=$('#sidebarControls');
+  if(!controls)return;
+  const pages=sidebarPageCount();
+  const start=sidebarBrowseMode==='paged'&&total?sidebarPage*SIDEBAR_PAGE_SIZE+1:1;
+  const end=sidebarBrowseMode==='paged'?Math.min(total,(sidebarPage+1)*SIDEBAR_PAGE_SIZE):visible.length;
+  controls.innerHTML=`
+    <div class="sidebar-mode-row">
+      <button id="sidebarModeBtn" class="sidebar-mini-btn" type="button">${sidebarBrowseMode==='paged'?'分页浏览':'连续滚动'}</button>
+      ${sidebarBrowseMode==='paged'?`<span>第 ${sidebarPage+1}/${pages} 页｜${start}-${end} 所</span>`:`<span>当前连续显示 ${visible.length} 所</span>`}
+    </div>
+    ${sidebarBrowseMode==='paged'?`<div class="sidebar-pager">
+      <button id="sidebarFirstPage" type="button" ${sidebarPage<=0?'disabled':''}>首页</button>
+      <button id="sidebarPrevPage" type="button" ${sidebarPage<=0?'disabled':''}>上一页</button>
+      <button id="sidebarNextPage" type="button" ${sidebarPage>=pages-1?'disabled':''}>下一页</button>
+      <button id="sidebarLastPage" type="button" ${sidebarPage>=pages-1?'disabled':''}>末页</button>
+    </div>`:''}`;
+  $('#sidebarModeBtn')?.addEventListener('click',e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    sidebarBrowseMode=sidebarBrowseMode==='paged'?'continuous':'paged';
+    if(sidebarBrowseMode==='paged')syncSidebarPageToActive();
+    renderSidebar();
+  });
+  $('#sidebarFirstPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(0);});
+  $('#sidebarPrevPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(sidebarPage-1);});
+  $('#sidebarNextPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(sidebarPage+1);});
+  $('#sidebarLastPage')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setSidebarPage(pages-1);});
+}
 function applyFilters(){
   const result=[]; const q=state.q;
   const guideFilter=batchGuideFilterId();
@@ -2405,9 +2555,11 @@ function applyFilters(){
     const visibleGroups=sortGroupsByWeightedMajorScore(groups);
     if(visibleGroups.length){result.push({...s,visibleGroups});}
   });
-  result.sort(schoolSort);
-  state.filtered=result;
-  if(!result.some(s=>s.id===state.activeSchoolId)) state.activeSchoolId=result[0]?.id||null;
+  const merged=mergeFilteredSchoolDuplicates(result);
+  merged.sort(schoolSort);
+  state.filtered=merged;
+  normalizeActiveSchool();
+  if(sidebarBrowseMode==='paged')syncSidebarPageToActive();
   render();
 }
 function schoolSort(a,b){
@@ -2511,11 +2663,13 @@ function renderSidebar(){
   meta.textContent=`${state.filtered.length} 所院校｜${totalGroups} 个专业组｜学校 ${admissionBandSummaryText(schoolBands,'所')}｜组 ${admissionBandSummaryText(groupBands,'组')}`;
   meta.title='冲稳保按统一录取概率 p 判断：p<40% 为冲，40%≤p<80% 为稳，p≥80% 为保；阈值可由 window.ADMISSION_RISK_CONFIG 覆盖。学校统计按该校当前显示专业组中的最佳档位粗略归类。';
   renderVolunteerStructureBar();
-  $('#schoolList').innerHTML=state.filtered.map(s=>`<div class="school-item ${s.id===state.activeSchoolId?'active':''} ${admissionPriorityInfo(s)?'priority-admission-school':''}" data-school-id="${s.id}" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="name">${esc(s.name)}${admissionPriorityBadge(s,true)}${noteBadge('schools',keySchool(s))}</div><div class="meta"><span>${esc(displayRegionLabel(s))}</span><span>${esc(s.subject)}</span><span>${esc(s.batch)}</span><span>${s.visibleGroups.length}组</span></div>${schoolSidebarRiskHTML(s)}<div class="score-pill">加权均分 ${fmtNum(s.weightedScore)}</div></div>`).join('');
+  const visibleSchools=sidebarVisibleSchools();
+  renderSidebarControls(state.filtered.length,visibleSchools);
+  $('#schoolList').innerHTML=visibleSchools.map(s=>`<div class="school-item ${s.id===state.activeSchoolId?'active':''} ${admissionPriorityInfo(s)?'priority-admission-school':''}" data-school-id="${s.id}" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="name">${esc(s.name)}${admissionPriorityBadge(s,true)}${noteBadge('schools',keySchool(s))}</div><div class="meta"><span>${esc(displayRegionLabel(s))}</span><span>${esc(s.subject)}</span><span>${esc(s.batch)}</span><span>${s.visibleGroups.length}组</span></div>${schoolSidebarRiskHTML(s)}<div class="score-pill">加权均分 ${fmtNum(s.weightedScore)}</div></div>`).join('');
   $$('.school-item').forEach(el=>el.addEventListener('click',()=>{state.activeSchoolId=el.dataset.schoolId;render();}));
   bindNoteHoverAndContext();
 }
-function getActiveSchool(){return state.filtered.find(s=>s.id===state.activeSchoolId)||state.filtered[0]||null;}
+function getActiveSchool(){return state.filtered.find(s=>schoolMatchesActiveId(s,state.activeSchoolId))||state.filtered[0]||null;}
 function renderSchoolMode(){const s=getActiveSchool(); if(!s){$('#main').innerHTML='<div class="empty">没有匹配数据，请调整筛选条件。</div>';return;} $('#main').innerHTML=schoolHTML(s,s.visibleGroups,true); bindDynamic();}
 function renderGroupMode(){
   const groups=[]; state.filtered.forEach(s=>s.visibleGroups.forEach(g=>groups.push([s,g])));
