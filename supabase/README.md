@@ -8,7 +8,7 @@
 https://qnspmqsrbjcgrgpqkzgl.supabase.co
 ```
 
-数据库以 `schema.sql` 为基础，并通过学生档案、采集表、开放注册和 CRM 增量脚本补齐。所有业务脚本执行后，必须最后执行 `emergency_security_patch.sql` 收口权限。
+数据库以 `schema.sql` 为基础，并通过学生档案、采集表、开放注册、CRM 和综合评价增量脚本补齐。`emergency_security_patch.sql` 负责收口原有模块权限，`comprehensive_integration.sql` 必须在它之后执行，以加入学生本人账号权限。
 
 ## 为什么选 Supabase
 
@@ -79,7 +79,10 @@ supabase/student_intake_schema.sql
 supabase/open_signup_patch.sql
 supabase/crm_schema.sql
 supabase/emergency_security_patch.sql
+supabase/comprehensive_integration.sql
 ```
+
+`comprehensive_integration.sql` 会建立手机号账号与学生档案的唯一绑定、综合评价云端资料表、首次登录按唯一手机号自动匹配，以及综合评价核心字段回写 `students` 主档的保存接口。手机号账号应先在 Supabase Auth 中创建；也可由管理员调用 `link_student_account_by_phone` 明确绑定。
 
 4. 在 Supabase Auth 里创建你的管理员账号。
 5. 找到这个账号的 user id，然后执行：

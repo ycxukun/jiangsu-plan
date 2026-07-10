@@ -4184,11 +4184,11 @@ function clearAnonymousAccountFields(){
 function showModuleChoiceModal(){
   if(!auth.user)return;
   $('#modal').innerHTML=`<h3>选择工作区</h3><div class="modal-body">
-    <div class="account-notice"><b>登录成功。</b><br>请选择志愿填报、升学规划资讯或综合评价模拟工作区。</div>
+    <div class="account-notice"><b>登录成功。</b><br>请选择志愿填报、升学规划资讯或综合评价工作区。</div>
     <div class="module-choice-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px">
       <button id="goPlanModule" class="save" type="button" style="border:1px solid #b7dfc6;border-radius:18px;background:#f0faf4;color:#0a7c42;padding:16px;text-align:left;font-weight:900">志愿填报系统<br><span style="display:block;margin-top:6px;color:#647067;font-size:12px;font-weight:600;line-height:1.5">继续使用本科/专科数据、学生档案、志愿表、选科与体检风控。</span></button>
       <button id="goContentModule" type="button" style="border:1px solid #bfdbfe;border-radius:18px;background:#eff6ff;color:#1d4ed8;padding:16px;text-align:left;font-weight:900">升学规划资讯<br><span style="display:block;margin-top:6px;color:#647067;font-size:12px;font-weight:600;line-height:1.5">查看公开图文资料、在线阅读 PDF，并上传公开资料。</span></button>
-      <button id="goComprehensiveModule" type="button" style="border:1px solid #a5dbe4;border-radius:18px;background:#effafd;color:#287f98;padding:16px;text-align:left;font-weight:900">综合评价模拟<br><span style="display:block;margin-top:6px;color:#647067;font-size:12px;font-weight:600;line-height:1.5">练习手机号登录、个人信息、成绩、活动获奖与推荐信息填报。</span></button>
+      <button id="goComprehensiveModule" type="button" style="border:1px solid #a5dbe4;border-radius:18px;background:#effafd;color:#287f98;padding:16px;text-align:left;font-weight:900">综合评价系统<br><span style="display:block;margin-top:6px;color:#647067;font-size:12px;font-weight:600;line-height:1.5">同步当前学生的个人信息、成绩、活动获奖与推荐材料。</span></button>
     </div>
     <div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')" type="button">暂不选择</button></div>
   </div>`;
