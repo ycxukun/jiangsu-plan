@@ -82,7 +82,7 @@ supabase/emergency_security_patch.sql
 supabase/comprehensive_integration.sql
 ```
 
-`comprehensive_integration.sql` 会建立手机号账号与学生档案的唯一绑定、综合评价云端资料表、首次登录按唯一手机号自动匹配，以及综合评价核心字段回写 `students` 主档的保存接口。手机号账号应先在 Supabase Auth 中创建；也可由管理员调用 `link_student_account_by_phone` 明确绑定。
+`comprehensive_integration.sql` 会建立综合评价云端资料表和保存接口，并把核心字段回写 `students` 主档。综合评价不单独登录：它复用主系统登录状态与主系统当前选中的学生，因此邮箱、手机号只作为学生资料字段，不用于二次认证或自动绑定。
 
 4. 在 Supabase Auth 里创建你的管理员账号。
 5. 找到这个账号的 user id，然后执行：
