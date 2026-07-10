@@ -63,7 +63,9 @@ async function ensureAdmin(){
   if(!auth.user)throw new Error('请先登录管理员账号。');
   const rows=await apiFetch(`profiles?select=*&id=eq.${encodeURIComponent(auth.user.id)}&limit=1`);
   profile=rows?.[0]||null;
-  if(profile?.role!=='admin'||profile?.status!=='active')throw new Error('当前账号不是 active 管理员，不能进入后台。请先在 Supabase SQL Editor 执行 supabase/admin_bootstrap.sql，把当前登录邮箱设为管理员。');
+  const email=auth.user.email||'未知邮箱';
+  if(!profile)throw new Error(`当前登录账号 ${email} 没有 profiles 资料，不能进入后台。请执行 supabase/admin_bootstrap.sql。`);
+  if(profile.role!=='admin'||profile.status!=='active')throw new Error(`当前登录账号 ${email} 的角色为 ${profile.role||'未设置'}、状态为 ${profile.status||'未设置'}，不能进入后台。请执行 supabase/admin_bootstrap.sql 后退出并重新登录。`);
 }
 async function loadAll(){
   setNotice('正在读取后台数据...');
@@ -152,6 +154,11 @@ async function addPlanner(){
     id='';
   }
   if(!email){alert('请填写规划师登录邮箱。');return;}
+  const existing=planners.find(p=>(id&&p.id===id)||String(p.email||'').toLowerCase()===email.toLowerCase());
+  if(existing?.role==='admin'){
+    alert('这个账号已经是管理员，不需要再补授权为规划师。');
+    return;
+  }
   try{
     if(id){
       await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id,email,display_name:name||email,role:'planner',status:'active'})});

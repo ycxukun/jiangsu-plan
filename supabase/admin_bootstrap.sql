@@ -28,6 +28,15 @@ set email = excluded.email,
     updated_at = now()
 returning id, email, display_name, role, status, updated_at;
 
-select id, email, display_name, role, status, updated_at
-from public.profiles
-where lower(email) = lower('17855321770@163.com');
+select
+  u.id,
+  u.email as auth_email,
+  p.email as profile_email,
+  p.display_name,
+  p.role,
+  p.status,
+  (p.role::text = 'admin' and p.status = 'active') as can_enter_admin,
+  p.updated_at
+from auth.users u
+left join public.profiles p on p.id = u.id
+where lower(u.email) = lower('17855321770@163.com');
