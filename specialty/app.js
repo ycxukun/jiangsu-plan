@@ -1494,7 +1494,7 @@ function createLayout(){
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="../login_landing.html?v=20260710-admin-role-preserve-r1" title="知行学录登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="../login_landing.html?v=20260710-network-retry-r1" title="知行学录登录页"></iframe>
     </div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
@@ -3926,6 +3926,28 @@ function ensureAccountStyles(){
 function localDateStamp(){const d=new Date(); const Y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const D=String(d.getDate()).padStart(2,'0'); return Y+'-'+M+'-'+D;}
 
 function supabaseConfigured(){return Boolean(SUPABASE_URL&&SUPABASE_ANON_KEY);}
+const NETWORK_RETRY_TOTAL=3;
+function networkRetryWait(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+function isTransientNetworkStatus(status){return status===408||status===429||status>=500;}
+async function fetchWithNetworkRetry(url,options={},onRetry=null){
+  let lastError=null;
+  for(let attempt=1;attempt<=NETWORK_RETRY_TOTAL;attempt+=1){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),12000);
+    try{
+      const res=await fetch(url,{...options,signal:controller.signal});
+      if(!isTransientNetworkStatus(res.status)||attempt===NETWORK_RETRY_TOTAL)return res;
+      lastError=new Error('服务暂时不可用（'+res.status+'）');
+    }catch(err){
+      lastError=err;
+      if(attempt===NETWORK_RETRY_TOTAL)break;
+    }finally{clearTimeout(timer);}
+    if(typeof onRetry==='function')onRetry(attempt+1,NETWORK_RETRY_TOTAL);
+    await networkRetryWait(attempt*700);
+  }
+  const offline=typeof navigator!=='undefined'&&navigator.onLine===false;
+  throw new Error(offline?'当前设备已断网，请恢复网络后重试。':'网络连接不稳定，系统已自动重试 3 次，请稍后再试。');
+}
 function requireSupabase(){
   if(supabaseConfigured())return true;
   alert('还没有填写 Supabase 配置：请先在 app.js 里填 SUPABASE_URL 和 SUPABASE_ANON_KEY。');
@@ -3942,7 +3964,11 @@ function authHeaders(extra={}){
 async function apiFetch(path,options={}){
   if(!supabaseConfigured())throw new Error('Supabase 配置为空');
   if(!auth.accessToken)throw new Error('请先登录');
-  const res=await fetch(SUPABASE_URL+'/rest/v1/'+path,{...options,headers:authHeaders(options.headers||{})});
+  const requestOptions={...options,headers:authHeaders(options.headers||{})};
+  const method=String(options.method||'GET').toUpperCase();
+  const res=method==='GET'
+    ?await fetchWithNetworkRetry(SUPABASE_URL+'/rest/v1/'+path,requestOptions)
+    :await fetch(SUPABASE_URL+'/rest/v1/'+path,requestOptions);
   if(!res.ok)throw new Error(await res.text());
   if(res.status===204)return null;
   const text=await res.text();
@@ -4139,7 +4165,7 @@ async function loginSupabase(){
 async function loginSupabaseWithCredentials(email,password,options={}){
   try{
     if(!email||!password)throw new Error('请输入邮箱和密码。');
-    const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const res=await fetchWithNetworkRetry(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})},options.onRetry);
     if(!res.ok)throw new Error(await res.text());
     const data=await res.json();
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
@@ -4199,6 +4225,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
 async function handleLandingAuthMessage(event){
   if(event.origin!==window.location.origin||event.data?.source!=='auth-login')return;
   const frame=$('#authLandingFrame')?.contentWindow;
+  const reportRetry=(attempt,total)=>frame?.postMessage({source:'jiangsu-plan-auth',status:'progress',message:'网络波动，正在自动重连 '+attempt+'/'+total+'...'},event.origin);
   try{
     if(event.data.action==='register'){
       await registerSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:event.data.role||'planner'});
@@ -4210,7 +4237,7 @@ async function handleLandingAuthMessage(event){
       return;
     }
     if(event.data.action==='login'){
-      await loginSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false});
+      await loginSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,onRetry:reportRetry});
       frame?.postMessage({source:'jiangsu-plan-auth',status:'ok'},event.origin);
     }
   }catch(err){

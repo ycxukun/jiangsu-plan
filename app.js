@@ -1577,7 +1577,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="./login_landing.html?v=20260710-admin-role-preserve-r1" title="知行学录登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="./login_landing.html?v=20260710-network-retry-r1" title="知行学录登录页"></iframe>
     </div>
     <header class="topbar">
       <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><a id="contentCenterBtn" class="header-toggle content-toggle" href="./content/index.html">升学资讯</a><a id="crmCenterBtn" class="header-toggle content-toggle" href="./crm.html">CRM 工作台</a><div class="version">${VERSION}</div><div id="studentProfileMenu" class="student-profile-menu"><button id="studentProfileBtn" class="student-profile-trigger" type="button" aria-expanded="false"><span id="studentProfileAvatar" class="student-profile-avatar">未</span><span class="student-profile-copy"><b id="studentProfileName">未选择学生</b><small id="studentProfileSummary">登录后管理学生、志愿表和账号</small></span><span class="student-profile-caret">⌄</span></button><div class="student-profile-dropdown"><div class="student-profile-card"><span id="studentProfileAvatarLarge" class="student-profile-avatar large">未</span><div><b id="studentProfileNameLarge">未选择学生</b><p id="studentProfileMeta">登录后可保存和加载志愿表。</p></div></div><div class="student-profile-mini"><span id="studentProfileAccount">账号：未登录</span><span id="studentProfileVolunteer">志愿表 0/40</span></div><div class="student-profile-actions"><button id="profileOpenStudents" type="button">学生档案</button><button id="profileOpenVolunteer" type="button">志愿表</button><button id="profileAccountCenter" type="button">账号中心</button><button id="profileSwitchAccount" type="button">切换账号</button><button id="profileLogout" class="danger" type="button">退出登录</button></div></div></div><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
@@ -4264,6 +4264,28 @@ function ensureAccountStyles(){
 }
 
 function supabaseConfigured(){return Boolean(SUPABASE_URL&&SUPABASE_ANON_KEY);}
+const NETWORK_RETRY_TOTAL=3;
+function networkRetryWait(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+function isTransientNetworkStatus(status){return status===408||status===429||status>=500;}
+async function fetchWithNetworkRetry(url,options={},onRetry=null){
+  let lastError=null;
+  for(let attempt=1;attempt<=NETWORK_RETRY_TOTAL;attempt+=1){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),12000);
+    try{
+      const res=await fetch(url,{...options,signal:controller.signal});
+      if(!isTransientNetworkStatus(res.status)||attempt===NETWORK_RETRY_TOTAL)return res;
+      lastError=new Error(`服务暂时不可用（${res.status}）`);
+    }catch(err){
+      lastError=err;
+      if(attempt===NETWORK_RETRY_TOTAL)break;
+    }finally{clearTimeout(timer);}
+    if(typeof onRetry==='function')onRetry(attempt+1,NETWORK_RETRY_TOTAL);
+    await networkRetryWait(attempt*700);
+  }
+  const offline=typeof navigator!=='undefined'&&navigator.onLine===false;
+  throw new Error(offline?'当前设备已断网，请恢复网络后重试。':'网络连接不稳定，系统已自动重试 3 次，请稍后再试。');
+}
 function requireSupabase(){
   if(supabaseConfigured())return true;
   alert('还没有填写 Supabase 配置：请先在 app.js 里填 SUPABASE_URL 和 SUPABASE_ANON_KEY。');
@@ -4298,7 +4320,11 @@ async function apiFetch(path,options={},retried=false){
   if(!supabaseConfigured())throw new Error('Supabase 配置为空');
   if(!auth.accessToken)throw new Error('请先登录');
   await refreshSessionIfNeeded();
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{...options,headers:authHeaders(options.headers||{})});
+  const requestOptions={...options,headers:authHeaders(options.headers||{})};
+  const method=String(options.method||'GET').toUpperCase();
+  const res=method==='GET'
+    ?await fetchWithNetworkRetry(`${SUPABASE_URL}/rest/v1/${path}`,requestOptions)
+    :await fetch(`${SUPABASE_URL}/rest/v1/${path}`,requestOptions);
   if(!res.ok){
     const text=await res.text();
     if(!retried&&(res.status===401||res.status===403||isJwtExpiredErrorText(text))){
@@ -4503,7 +4529,7 @@ async function loginSupabase(){
 async function loginSupabaseWithCredentials(email,password,options={}){
   try{
     if(!email||!password)throw new Error('请输入邮箱和密码。');
-    const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const res=await fetchWithNetworkRetry(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})},options.onRetry);
     if(!res.ok)throw new Error(await res.text());
     const data=await res.json();
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
@@ -4563,6 +4589,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
 async function handleLandingAuthMessage(event){
   if(event.origin!==window.location.origin||event.data?.source!=='auth-login')return;
   const frame=$('#authLandingFrame')?.contentWindow;
+  const reportRetry=(attempt,total)=>frame?.postMessage({source:'jiangsu-plan-auth',status:'progress',message:`网络波动，正在自动重连 ${attempt}/${total}...`},event.origin);
   try{
     if(event.data.action==='register'){
       await registerSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:event.data.role||'planner'});
@@ -4579,7 +4606,7 @@ async function handleLandingAuthMessage(event){
       return;
     }
     if(event.data.action==='login'){
-      await loginSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:event.data.role||'consultant'});
+      await loginSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:event.data.role||'consultant',onRetry:reportRetry});
       frame?.postMessage({source:'jiangsu-plan-auth',status:'ok'},event.origin);
     }
   }catch(err){

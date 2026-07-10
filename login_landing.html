@@ -634,6 +634,14 @@
       font-size: 16px;
     }
 
+    .login-actions button:disabled,
+    .login-options button:disabled {
+      cursor: wait;
+      opacity: .58;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
     .login-card .workbench-login-btn {
       border: 0 !important;
       color: #fff !important;
@@ -1002,6 +1010,42 @@
     const loginForm = document.getElementById('landingLoginForm');
     const registerBtn = document.getElementById('landingRegisterBtn');
     const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+    const loginSubmitBtn = loginForm.querySelector('button[type="submit"]');
+    const NETWORK_RETRY_TOTAL = 3;
+    let authBusy = false;
+    function networkRetryWait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    function isTransientNetworkStatus(status) {
+      return status === 408 || status === 429 || status >= 500;
+    }
+    function setAuthBusy(busy) {
+      authBusy = busy;
+      [loginSubmitBtn, registerBtn, forgotPasswordBtn].forEach(button => {
+        if (button) button.disabled = busy;
+      });
+    }
+    async function fetchWithNetworkRetry(url, options = {}, onRetry = null) {
+      let lastError = null;
+      for (let attempt = 1; attempt <= NETWORK_RETRY_TOTAL; attempt += 1) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12000);
+        try {
+          const res = await fetch(url, { ...options, signal: controller.signal });
+          if (!isTransientNetworkStatus(res.status) || attempt === NETWORK_RETRY_TOTAL) return res;
+          lastError = new Error(`服务暂时不可用（${res.status}）`);
+        } catch (err) {
+          lastError = err;
+          if (attempt === NETWORK_RETRY_TOTAL) break;
+        } finally {
+          clearTimeout(timer);
+        }
+        if (typeof onRetry === 'function') onRetry(attempt + 1, NETWORK_RETRY_TOTAL);
+        await networkRetryWait(attempt * 700);
+      }
+      const offline = navigator.onLine === false;
+      throw new Error(offline ? '当前设备已断网，请恢复网络后重试。' : '网络连接不稳定，系统已自动重试 3 次，请稍后再试。');
+    }
     function isEmbedded() {
       return window.parent && window.parent !== window;
     }
@@ -1029,9 +1073,9 @@
         Authorization: `Bearer ${accessToken}`
       };
       const readProfile = async () => {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=role,status&id=eq.${encodeURIComponent(user.id)}&limit=1`, {
+        const res = await fetchWithNetworkRetry(`${SUPABASE_URL}/rest/v1/profiles?select=role,status&id=eq.${encodeURIComponent(user.id)}&limit=1`, {
           headers: profileHeaders
-        });
+        }, (attempt, total) => { tip.textContent = `网络波动，正在自动重连 ${attempt}/${total}...`; });
         if (!res.ok) {
           console.warn('读取用户资料失败，按内测开放注册默认规划师放行。', await res.text());
           return null;
@@ -1080,11 +1124,11 @@
       }
     }
     async function standaloneLogin(email, pwd) {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      const res = await fetchWithNetworkRetry(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pwd })
-      });
+      }, (attempt, total) => { tip.textContent = `网络波动，正在自动重连 ${attempt}/${total}...`; });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       saveStandaloneAuth(data);
@@ -1133,22 +1177,25 @@
     });
     loginForm.addEventListener('submit', event => {
       event.preventDefault();
+      if (authBusy) return;
       const email = account.value.trim();
       const pwd = password.value;
       if (!email || !pwd) {
         tip.textContent = '请先输入账号和密码。';
         return;
       }
+      setAuthBusy(true);
       tip.textContent = '正在登录，请稍候...';
       if (!isEmbedded()) {
         standaloneLogin(email, pwd).catch(err => {
           tip.textContent = '登录失败：' + err.message;
-        });
+        }).finally(() => setAuthBusy(false));
         return;
       }
       sendAuthMessage({ action: 'login', email, password: pwd, role: activeRole });
     });
     registerBtn.addEventListener('click', () => {
+      if (authBusy) return;
       const email = account.value.trim();
       const pwd = password.value;
       if (!email || !pwd) {
@@ -1159,35 +1206,45 @@
         tip.textContent = '密码至少需要 6 位。';
         return;
       }
+      setAuthBusy(true);
       tip.textContent = '正在注册，请稍候...';
       if (!isEmbedded()) {
         standaloneRegister(email, pwd).catch(err => {
           tip.textContent = '注册失败：' + err.message;
-        });
+        }).finally(() => setAuthBusy(false));
         return;
       }
       sendAuthMessage({ action: 'register', email, password: pwd, role: activeRole });
     });
     forgotPasswordBtn.addEventListener('click', () => {
+      if (authBusy) return;
       const email = account.value.trim();
       if (!email) {
         tip.textContent = '请先输入需要重置密码的邮箱。';
         account.focus();
         return;
       }
+      setAuthBusy(true);
       tip.textContent = '正在发送密码重置邮件...';
       if (!isEmbedded()) {
         standaloneRecover(email).catch(err => {
           tip.textContent = '发送失败：' + err.message;
-        });
+        }).finally(() => setAuthBusy(false));
         return;
       }
       sendAuthMessage({ action: 'reset-password', email });
     });
     window.addEventListener('message', event => {
       if (event.origin !== window.location.origin || event.data?.source !== 'jiangsu-plan-auth') return;
-      if (event.data.status === 'ok' && event.data.message) tip.textContent = event.data.message;
-      if (event.data.status === 'error') tip.textContent = event.data.message || '登录失败，请检查账号密码。';
+      if (event.data.status === 'progress') tip.textContent = event.data.message || '网络波动，正在自动重连...';
+      if (event.data.status === 'ok') {
+        if (event.data.message) tip.textContent = event.data.message;
+        setAuthBusy(false);
+      }
+      if (event.data.status === 'error') {
+        tip.textContent = event.data.message || '登录失败，请检查账号密码。';
+        setAuthBusy(false);
+      }
     });
   </script>
 </body>
