@@ -81,9 +81,13 @@ let ASSASSIN_RISK_STRICT_V03=Boolean(window.ASSASSIN_RISK_STRICT_V03);
 let state={batch:'',subject:'',selectedProvinces:new Set(),selectedCities:new Set(),selectedLevels:new Set(),selectedSpecialTypes:new Set(),specialTypeMode:'exclude',selectedRequirements:new Set(),requirementAutoFromStudent:false,role:'',mode:'schools',q:'',selectedClasses:new Set(),riskFilter:'',scoreRange:null,medicalCodes:new Set(loadMedicalRestrictionCodes()),compact:true,activeSchoolId:null,filtered:[]};
 let notes={schools:{},groups:{},majors:{}};
 let auth={accessToken:'',user:null};
+let authProfileVerified=false;
+let authValidationSeq=0;
+let authRefreshPromise=null;
 let currentStudent=null;
 let currentVolunteerForm=null;
 const AUTH_STORAGE_KEY='js-plan-auth-v1';
+const ACTIVE_PROFILE_ROLES=new Set(['admin','consultant','planner','viewer','manager','sales','assistant','reviewer','finance','observer']);
 const CURRENT_STUDENT_STORAGE_KEY='js-plan-current-student-v1';
 const VOLUNTEER_LIMIT=40;
 const MAX_MAJOR_PER_GROUP=6;
@@ -438,6 +442,24 @@ function saveMedicalRestrictionCodes(){try{localStorage.setItem(MEDICAL_RESTRICT
 function loadSavedAuth(){try{const data=JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'{}'); if(data&&data.accessToken&&data.user)auth={accessToken:data.accessToken,refreshToken:data.refreshToken||'',user:data.user};}catch(e){}}
 function saveAuth(){try{localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify({accessToken:auth.accessToken||'',refreshToken:auth.refreshToken||'',user:auth.user||null}));}catch(e){}}
 function clearSavedAuth(){try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(e){}}
+function invalidateAuthSession(options={}){
+  authValidationSeq+=1;
+  authRefreshPromise=null;
+  auth={accessToken:'',refreshToken:'',user:null};
+  authProfileVerified=false;
+  currentStudent=null;
+  currentVolunteerForm=null;
+  volunteerKeys=[];
+  volunteerMajorKeys={};
+  volunteerMeta={};
+  clearSavedAuth();
+  if(options.render===false)return;
+  updateAccountUI();
+  updateAuthGate();
+  updateVolunteerUI();
+  render();
+  renderStudentPanel();
+}
 function loadCurrentStudent(){
   try{
     const userId=auth.user?.id;
@@ -1494,7 +1516,7 @@ function createLayout(){
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="../login_landing.html?v=20260710-network-retry-r1" title="知行学录登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="../login_landing.html?v=20260710-security-integrity-r1" title="知行学录登录页"></iframe>
     </div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
@@ -3785,16 +3807,6 @@ async function fetchNotes(){
   try{const res=await fetch(`${SUPABASE_URL}/rest/v1/notes?select=scope,target_key,note`,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken||SUPABASE_ANON_KEY}`}}); if(!res.ok)throw new Error(await res.text()); const rows=await res.json(); notes={schools:{},groups:{},majors:{}}; rows.forEach(r=>{if(notes[r.scope])notes[r.scope][r.target_key]=r.note;}); applyFilters();}
   catch(err){console.warn('读取备注失败',err);}
 }
-function showLoginModal(){
-  $('#modal').innerHTML=`<h3>登录 Supabase 数据库</h3><div class="modal-body"><p class="muted">需要先在 app.js 中填写 Supabase URL 与 anon key，并在 Supabase 中配置 notes / admin_users 表与 RLS。</p><div class="score-row"><label>邮箱</label><input id="loginEmail" type="email" value="${esc(ADMIN_EMAIL)}" style="grid-column:span 2;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 10px"></div><div class="score-row"><label>密码</label><input id="loginPwd" type="password" style="grid-column:span 2;height:38px;border:1px solid var(--line);border-radius:10px;padding:0 10px"></div><div class="modal-actions"><button onclick="document.getElementById('modalMask').classList.remove('open')">取消</button><button id="doLogin" class="save">登录</button></div></div>`;
-  openModal(); $('#doLogin').addEventListener('click',loginSupabase);
-}
-async function loginSupabase(){
-  if(!SUPABASE_URL||!SUPABASE_ANON_KEY){alert('请先在 app.js 中填写 Supabase 配置。');return;}
-  const email=$('#loginEmail').value, password=$('#loginPwd').value;
-  try{const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})}); if(!res.ok)throw new Error(await res.text()); const data=await res.json(); auth.accessToken=data.access_token; auth.user=data.user; closeModal(); alert('登录成功'); fetchNotes();}
-  catch(err){alert('登录失败：'+err.message);}
-}
 function showNoteEditor(scope,key,title){
   if(document.body.dataset.admin!=='1')return;
   const old=notes[scope]?.[key]||'';
@@ -3923,7 +3935,7 @@ function ensureAccountStyles(){
   `;
   document.head.appendChild(style);
 }
-function localDateStamp(){const d=new Date(); const Y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const D=String(d.getDate()).padStart(2,'0'); return Y+'-'+M+'-'+D;}
+function localIsoDateStamp(){const d=new Date(); const Y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const D=String(d.getDate()).padStart(2,'0'); return Y+'-'+M+'-'+D;}
 
 function supabaseConfigured(){return Boolean(SUPABASE_URL&&SUPABASE_ANON_KEY);}
 const NETWORK_RETRY_TOTAL=3;
@@ -3954,22 +3966,66 @@ function requireSupabase(){
   return false;
 }
 function requireLogin(){
-  if(auth.accessToken&&auth.user)return true;
+  if(auth.accessToken&&auth.user&&authProfileVerified)return true;
   showAccountModal('login');
   return false;
 }
 function authHeaders(extra={}){
   return {apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+auth.accessToken,'Content-Type':'application/json',...extra};
 }
-async function apiFetch(path,options={}){
+function decodeJwtPayload(token){try{const part=String(token||'').split('.')[1]; if(!part)return null; const json=atob(part.replace(/-/g,'+').replace(/_/g,'/')); return JSON.parse(decodeURIComponent(Array.from(json).map(function(c){return '%'+c.charCodeAt(0).toString(16).padStart(2,'0');}).join('')));}catch(e){return null;}}
+function tokenExpiresSoon(token){const payload=decodeJwtPayload(token); if(!payload?.exp)return true; return payload.exp*1000-Date.now()<120000;}
+function isJwtExpiredErrorText(text){return /JWT expired|exp.*claim|timestamp check failed|invalid jwt|unauthorized|PGRST303/i.test(String(text||''));}
+async function refreshSessionIfNeeded(force=false){
+  if(!auth.accessToken)throw new Error('请先登录');
+  if(!force&&!tokenExpiresSoon(auth.accessToken))return;
+  if(authRefreshPromise)return authRefreshPromise;
+  const expectedUserId=auth.user?.id||'';
+  const expectedSeq=authValidationSeq;
+  const refreshToken=auth.refreshToken||'';
+  if(!expectedUserId||!refreshToken){
+    invalidateAuthSession();
+    throw new Error('登录状态已过期，请重新登录。');
+  }
+  const request=(async function(){
+    try{
+      const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
+        method:'POST',
+        headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:refreshToken})
+      });
+      if(!res.ok)throw new Error('登录状态已过期，请重新登录。');
+      const data=await res.json();
+      if(!data.access_token||!data.user?.id||data.user.id!==expectedUserId)throw new Error('刷新后的账号信息不一致，请重新登录。');
+      if(expectedSeq!==authValidationSeq||auth.user?.id!==expectedUserId)throw new Error('登录状态已切换，请重试。');
+      auth={accessToken:data.access_token,refreshToken:data.refresh_token||refreshToken,user:data.user};
+      saveAuth();
+    }catch(err){
+      if(expectedSeq===authValidationSeq&&auth.user?.id===expectedUserId)invalidateAuthSession();
+      throw err;
+    }
+  })();
+  authRefreshPromise=request;
+  try{return await request;}
+  finally{if(authRefreshPromise===request)authRefreshPromise=null;}
+}
+async function apiFetch(path,options={},retried=false){
   if(!supabaseConfigured())throw new Error('Supabase 配置为空');
   if(!auth.accessToken)throw new Error('请先登录');
+  await refreshSessionIfNeeded();
   const requestOptions={...options,headers:authHeaders(options.headers||{})};
   const method=String(options.method||'GET').toUpperCase();
   const res=method==='GET'
     ?await fetchWithNetworkRetry(SUPABASE_URL+'/rest/v1/'+path,requestOptions)
     :await fetch(SUPABASE_URL+'/rest/v1/'+path,requestOptions);
-  if(!res.ok)throw new Error(await res.text());
+  if(!res.ok){
+    const text=await res.text();
+    if(!retried&&(res.status===401||res.status===403||isJwtExpiredErrorText(text))){
+      await refreshSessionIfNeeded(true);
+      return apiFetch(path,options,true);
+    }
+    throw new Error(text);
+  }
   if(res.status===204)return null;
   const text=await res.text();
   return text?JSON.parse(text):null;
@@ -4064,7 +4120,7 @@ function switchAccountFromProfile(){
   showAccountModal('login');
 }
 function updateAuthGate(){
-  const locked=!(auth.accessToken&&auth.user);
+  const locked=!(auth.accessToken&&auth.user&&authProfileVerified);
   document.body.classList.toggle('auth-locked',locked);
   const cover=$('#authCover');
   if(cover)cover.hidden=!locked;
@@ -4079,10 +4135,10 @@ function showAccountModal(mode='login'){
   if(auth.user&&mode==='login'){showAccountCenter();return;}
   $('#modal').innerHTML='<h3>登录账号</h3><div class="modal-body">'+
     (supabaseConfigured()?'':'<div class="account-notice">数据库还没有配置。请先创建 Supabase 项目并执行 <code>supabase/schema.sql</code>。</div>')+
-    '<div class="account-notice"><b>内测阶段开放自由注册。</b><br>输入邮箱和密码即可注册登录；新账号默认按规划师权限启用，管理员后续可在后台改角色或禁用。</div>'+
+    '<div class="account-notice"><b>内测阶段开放自由注册。</b><br>输入邮箱和密码即可注册登录；新账号仅获得个人使用权限，内部岗位权限由管理员分配。</div>'+
     '<div class="account-form">'+
-    '<label>邮箱<input id="accountEmail" type="email" value="" placeholder="you@example.com" autocomplete="off" autocapitalize="none" spellcheck="false"></label>'+
-    '<label>密码<input id="accountPassword" type="password" placeholder="至少 6 位" autocomplete="new-password"></label>'+
+    '<label>邮箱<input id="accountEmail" type="email" value="" placeholder="you@example.com" autocomplete="username" autocapitalize="none" spellcheck="false"></label>'+
+    '<label>密码<input id="accountPassword" type="password" placeholder="至少 6 位" autocomplete="current-password"></label>'+
     '</div>'+
     '<div class="modal-actions"><button id="accountRegisterBtn" type="button">立即注册</button><button onclick="document.getElementById(\'modalMask\').classList.remove(\'open\')">取消</button><button id="accountSubmit" class="save">登录</button></div>'+
     '</div>';
@@ -4094,7 +4150,7 @@ function showAccountModal(mode='login'){
 }
 function showAccessRequestModal(){
   $('#modal').innerHTML='<h3>申请开通</h3><div class="modal-body">'+
-    '<div class="account-notice"><b>申请不会自动创建账号。</b><br>管理员审核通过后，会分配账号、角色和可管理学生。为保护学生数据，当前不接受自由注册。</div>'+
+    '<div class="account-notice"><b>这里申请的是内部岗位权限。</b><br>个人账号仍可自由注册；管理员审核通过后，再分配岗位角色和可管理学生。</div>'+
     '<div class="account-form">'+
     '<label>申请人姓名<input id="accessName" placeholder="例如：王老师 / 张同学家长"></label>'+
     '<label>联系邮箱或手机号<input id="accessContact" placeholder="用于接收开通通知"></label>'+
@@ -4156,7 +4212,7 @@ async function registerSupabase(){
   if(!requireSupabase())return;
   const email=($('#accountEmail')||$('#loginEmail')).value.trim();
   const password=($('#accountPassword')||$('#loginPwd')).value;
-  try{await registerSupabaseWithCredentials(email,password,{notify:true,role:'planner'});}catch(err){}
+  try{await registerSupabaseWithCredentials(email,password,{notify:true,role:'viewer'});}catch(err){}
 }
 async function loginSupabase(){
   if(!requireSupabase())return;
@@ -4165,15 +4221,23 @@ async function loginSupabase(){
   try{await loginSupabaseWithCredentials(email,password,{notify:true});}catch(err){}
 }
 async function loginSupabaseWithCredentials(email,password,options={}){
+  const validationSeq=++authValidationSeq;
+  authRefreshPromise=null;
+  authProfileVerified=false;
+  updateAuthGate();
   try{
     if(!email||!password)throw new Error('请输入邮箱和密码。');
     const res=await fetchWithNetworkRetry(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})},options.onRetry);
     if(!res.ok)throw new Error(await res.text());
     const data=await res.json();
+    if(!data.access_token||!data.user?.id)throw new Error('登录响应不完整，请重试。');
+    authProfileVerified=false;
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
     saveAuth();
-    await ensureUserProfile(data.user?.user_metadata?.display_name||'',options.role||data.user?.user_metadata?.role||'planner');
-    await requireApprovedProfile();
+    await ensureUserProfile(data.user?.user_metadata?.display_name||'',data.user);
+    await requireApprovedProfile(data.user.id);
+    if(validationSeq!==authValidationSeq||auth.user?.id!==data.user.id)throw new Error('登录状态已切换，请重试。');
+    authProfileVerified=true;
     loadCurrentStudent();
     loadCurrentVolunteerDraft();
     closeModal();
@@ -4187,26 +4251,34 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     if(options.notify!==false)alert('登录成功。');
     return true;
   }catch(err){
+    if(validationSeq===authValidationSeq)invalidateAuthSession();
     if(options.notify!==false)alert('登录失败：'+err.message);
     throw err;
   }
 }
 async function registerSupabaseWithCredentials(email,password,options={}){
+  const validationSeq=++authValidationSeq;
+  authRefreshPromise=null;
+  authProfileVerified=false;
+  updateAuthGate();
   try{
     if(!email||!password)throw new Error('请输入邮箱和密码。');
     if(String(password).length<6)throw new Error('密码至少需要 6 位。');
     const res=await fetch(SUPABASE_URL+'/auth/v1/signup',{
       method:'POST',
       headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({email,password,data:{role:options.role||'planner',display_name:email.split('@')[0]}})
+      body:JSON.stringify({email,password,data:{role:'viewer',display_name:email.split('@')[0]}})
     });
     if(!res.ok)throw new Error(await res.text());
     const data=await res.json();
-    if(!data.access_token)throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
+    if(!data.access_token||!data.user?.id)throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
+    authProfileVerified=false;
     auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
     saveAuth();
-    await ensureUserProfile(data.user?.user_metadata?.display_name||'',options.role||data.user?.user_metadata?.role||'planner');
-    await requireApprovedProfile();
+    await ensureUserProfile(data.user?.user_metadata?.display_name||'',data.user);
+    await requireApprovedProfile(data.user.id);
+    if(validationSeq!==authValidationSeq||auth.user?.id!==data.user.id)throw new Error('登录状态已切换，请重试。');
+    authProfileVerified=true;
     loadCurrentStudent();
     loadCurrentVolunteerDraft();
     closeModal();
@@ -4220,22 +4292,28 @@ async function registerSupabaseWithCredentials(email,password,options={}){
     if(options.notify!==false)alert('注册成功，已自动登录。');
     return true;
   }catch(err){
+    if(validationSeq===authValidationSeq)invalidateAuthSession();
     if(options.notify!==false)alert('注册失败：'+err.message);
     throw err;
   }
 }
 async function handleLandingAuthMessage(event){
-  if(event.origin!==window.location.origin||event.data?.source!=='auth-login')return;
   const frame=$('#authLandingFrame')?.contentWindow;
+  if(event.origin!==window.location.origin||event.source!==frame||event.data?.source!=='auth-login')return;
   const reportRetry=(attempt,total)=>frame?.postMessage({source:'jiangsu-plan-auth',status:'progress',message:'网络波动，正在自动重连 '+attempt+'/'+total+'...'},event.origin);
   try{
     if(event.data.action==='register'){
-      await registerSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:event.data.role||'planner'});
+      await registerSupabaseWithCredentials(String(event.data.email||''),String(event.data.password||''),{notify:false,role:'viewer'});
       frame?.postMessage({source:'jiangsu-plan-auth',status:'ok',message:'注册成功，正在进入系统...'},event.origin);
       return;
     }
     if(event.data.action==='apply-access'){
       showAccessRequestModal();
+      return;
+    }
+    if(event.data.action==='reset-password'){
+      await sendPasswordReset(String(event.data.email||''));
+      frame?.postMessage({source:'jiangsu-plan-auth',status:'ok',message:'已发送密码重置邮件，请到邮箱中继续操作。'},event.origin);
       return;
     }
     if(event.data.action==='login'){
@@ -4246,29 +4324,65 @@ async function handleLandingAuthMessage(event){
     frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:'登录失败：'+err.message},event.origin);
   }
 }
-async function ensureUserProfile(displayName='',role='planner'){
-  if(!auth.user?.id)return;
-  try{
-    const existing=await apiFetch('profiles?select=id,role,status&id=eq.'+encodeURIComponent(auth.user.id)+'&limit=1');
-    if(existing?.[0])return existing[0];
-    const signupRole=['consultant','planner'].includes(role)?role:'planner';
-    await apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({id:auth.user.id,email:auth.user.email,display_name:displayName||auth.user.email,role:signupRole,status:'active'})});
-  }catch(err){console.warn('创建/更新用户资料失败',err);}
+async function sendPasswordReset(email){
+  if(!requireSupabase())return;
+  if(!email)throw new Error('请先输入需要重置密码的邮箱。');
+  const redirectTo=new URL('../login_landing.html#login',window.location.href).href;
+  const res=await fetch(SUPABASE_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirectTo),{
+    method:'POST',
+    headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({email:email})
+  });
+  if(!res.ok)throw new Error(await res.text());
+  return true;
 }
-async function requireApprovedProfile(){
-  if(!auth.user?.id)return;
-  const rows=await apiFetch('profiles?select=role,status&id=eq.'+encodeURIComponent(auth.user.id)+'&limit=1');
+async function ensureUserProfile(displayName='',user=auth.user){
+  if(!user?.id)throw new Error('登录响应缺少用户标识，请重新登录。');
+  const existing=await apiFetch('profiles?select=id,role,status&id=eq.'+encodeURIComponent(user.id)+'&limit=1');
+  if(existing?.[0])return existing[0];
+  return apiFetch('profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({id:user.id,email:user.email,display_name:displayName||user.email,role:'viewer',status:'active'})});
+}
+async function requireApprovedProfile(userId=auth.user?.id){
+  if(!userId)throw new Error('登录响应缺少用户标识，请重新登录。');
+  const rows=await apiFetch('profiles?select=role,status&id=eq.'+encodeURIComponent(userId)+'&limit=1');
   const p=rows?.[0]||null;
   if(!p){
-    console.warn('未读取到账号 profiles 行，按内测开放注册默认规划师放行。');
-    return;
+    throw new Error('账号资料不存在或无法读取，请联系管理员。');
   }
-  const allowed=p.status==='active'&&['admin','consultant','planner'].includes(p.role);
+  const allowed=p.status==='active'&&ACTIVE_PROFILE_ROLES.has(p.role);
   if(!allowed){
-    auth={accessToken:'',refreshToken:'',user:null};
-    clearSavedAuth();
     throw new Error('账号资料未启用。请联系管理员检查 profiles 角色和状态。');
   }
+}
+async function validateRestoredAuth(){
+  if(!auth.user?.id){
+    if(auth.accessToken||auth.user)invalidateAuthSession({render:false});
+    updateAuthGate();
+    fetchNotes();
+    return;
+  }
+  const expectedUser={...auth.user};
+  const expectedUserId=expectedUser.id;
+  const validationSeq=++authValidationSeq;
+  authRefreshPromise=null;
+  authProfileVerified=false;
+  updateAuthGate();
+  try{
+    await ensureUserProfile(expectedUser.user_metadata?.display_name||'',expectedUser);
+    await requireApprovedProfile(expectedUserId);
+    if(validationSeq!==authValidationSeq||auth.user?.id!==expectedUserId)return;
+    authProfileVerified=true;
+  }catch(err){
+    if(validationSeq!==authValidationSeq||auth.user?.id!==expectedUserId)return;
+    invalidateAuthSession({render:false});
+    console.warn('登录状态未通过权限校验',err);
+  }
+  updateAccountUI();
+  updateAuthGate();
+  updateVolunteerUI();
+  render();
+  renderStudentPanel();
+  fetchNotes();
 }
 function logoutSupabase(options={}){
   if(auth.user&&!options.skipConfirm){
@@ -4278,13 +4392,7 @@ function logoutSupabase(options={}){
   }
   saveCurrentVolunteerDraft();
   saveCurrentStudent();
-  auth={accessToken:'',refreshToken:'',user:null};
-  currentStudent=null;
-  currentVolunteerForm=null;
-  volunteerKeys=[];
-  volunteerMajorKeys={};
-  volunteerMeta={};
-  clearSavedAuth();
+  invalidateAuthSession({render:false});
   updateAccountUI();
   updateAuthGate();
   updateVolunteerUI();
@@ -4517,9 +4625,12 @@ function majorPayloadsForSave(groupKey,dbGroupId){
     return {form_group_id:dbGroupId,owner_id:auth.user.id,position:index+1,major_key:majorKey,major_code:m.code||null,major_name:m.name,major_class:m.majorClass||null,discipline:m.discipline||null,plan26:dbInteger(m.plan26),plan25:dbInteger(m.plan25),score25:dbNumber(m.score25),rank25:dbInteger(m.rank25),avg_score3:dbNumber(m.avgScore3),avg_rank3:dbInteger(m.avgRank3),source_payload:{major:m}};
   }).filter(Boolean);
 }
-async function replaceVolunteerFormGroups(formId){
-  // volunteer_form_majors is deleted by the DB cascade on volunteer_form_groups.
-  await apiFetch('volunteer_form_groups?form_id=eq.'+encodeURIComponent(formId),{method:'DELETE'});
+function volunteerGroupsForAtomicSave(){
+  return volunteerKeys.map(function(key,index){return groupPayloadForSave(key,index);}).filter(Boolean).map(function(row){
+    const majors=majorPayloadsForSave(row.group_key,null).map(function(major){const {form_group_id,owner_id,...safeMajor}=major;return safeMajor;});
+    const {form_id,owner_id,...group}=row;
+    return {...group,majors:majors};
+  });
 }
 function setVolunteerSaving(isSaving){
   const btn=$('#saveVolunteerBtn');
@@ -4559,25 +4670,24 @@ async function saveCurrentVolunteerForm(){
   if(!confirmVolunteerWarnings('保存'))return;
   setVolunteerSaving(true);
   try{
-    const title=currentStudent.name+' 专科志愿表 '+localDateStamp();
+    const title=currentStudent.name+' 专科志愿表 '+localIsoDateStamp();
     const payload={student_id:currentStudent.id,owner_id:auth.user.id,title:currentVolunteerForm?.title||title,stage:'specialty',source_version:VERSION,max_group_count:VOLUNTEER_LIMIT,snapshot:{volunteerKeys,volunteerMajorKeys,volunteerMeta,medicalCodes:[...state.medicalCodes]}};
     const editingId=currentVolunteerForm?.id;
-    const forms=editingId
-      ? await apiFetch('volunteer_forms?id=eq.'+encodeURIComponent(editingId),{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)})
-      : await apiFetch('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(payload)});
-    if(editingId&&!forms?.length)throw new Error('没有权限更新这份志愿表，或记录已不存在。');
-    const form=forms?.[0]||{...payload,id:editingId};
-    if(editingId)await replaceVolunteerFormGroups(editingId);
-    const groupRows=volunteerKeys.map(function(key,index){return groupPayloadForSave(key,index);}).filter(Boolean).map(function(row){return {...row,form_id:form.id};});
-    const savedGroups=groupRows.length?await apiFetch('volunteer_form_groups',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(groupRows)}):[];
-    const majorRows=savedGroups.flatMap(function(row){return majorPayloadsForSave(row.group_key,row.id);});
-    if(majorRows.length)await apiFetch('volunteer_form_majors',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(majorRows)});
+    const {owner_id,...formPayload}=payload;
+    const result=await apiFetch('rpc/save_volunteer_form_atomic',{method:'POST',body:JSON.stringify({p_form:{...formPayload,id:editingId||null},p_groups:volunteerGroupsForAtomicSave()})});
+    const form=result?.form;
+    if(!form?.id)throw new Error('数据库没有返回已保存的志愿表，请确认已执行紧急安全补丁。');
     currentVolunteerForm=form;
     saveCurrentVolunteerDraft();
     updateAccountUI();
     renderStudentPanel();
-    alert((editingId?'已更新':'已保存')+'到 '+currentStudent.name+'：'+groupRows.length+' 个专业组，'+majorRows.length+' 个专业。');
-  }catch(err){alert('保存志愿表失败：'+err.message);}
+    alert((editingId?'已更新':'已保存')+'到 '+currentStudent.name+'：'+(result.group_count||0)+' 个专业组，'+(result.major_count||0)+' 个专业。');
+  }catch(err){
+    const message=/save_volunteer_form_atomic|PGRST202|schema cache/i.test(String(err?.message||err))
+      ?'数据库尚未启用安全保存补丁，请管理员先执行 supabase/emergency_security_patch.sql。当前旧志愿表没有被删除。'
+      :err.message;
+    alert('保存志愿表失败：'+message);
+  }
   finally{setVolunteerSaving(false);}
 }
 async function loadLatestVolunteerFormForStudent(student,options){
@@ -4650,7 +4760,7 @@ function init(){
   updateAccountUI();
   updateAuthGate();
   applyFilters();
-  fetchNotes();
+  validateRestoredAuth();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init); else init();
 })();

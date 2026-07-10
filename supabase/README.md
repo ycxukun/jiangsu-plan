@@ -8,7 +8,7 @@
 https://qnspmqsrbjcgrgpqkzgl.supabase.co
 ```
 
-这个项目目前已经有 `notes` 表，但还没有 `students`、`volunteer_forms`、`volunteer_form_groups`、`volunteer_form_majors` 等学生和志愿表相关表。所以需要在该 Supabase 项目的 SQL Editor 里执行一次 `schema.sql`。
+数据库以 `schema.sql` 为基础，并通过学生档案、采集表、开放注册和 CRM 增量脚本补齐。所有业务脚本执行后，必须最后执行 `emergency_security_patch.sql` 收口权限。
 
 ## 为什么选 Supabase
 
@@ -70,7 +70,17 @@ volunteer_form_majors.major_key
 
 1. 打开 Supabase 项目 `qnspmqsrbjcgrgpqkzgl`。
 2. 打开 SQL Editor。
-3. 粘贴执行 `supabase/schema.sql`。
+3. 按下面顺序执行 SQL；最后一项不能省略，也不能提前：
+
+```text
+supabase/schema.sql
+supabase/student_archive_schema.sql
+supabase/student_intake_schema.sql
+supabase/open_signup_patch.sql
+supabase/crm_schema.sql
+supabase/emergency_security_patch.sql
+```
+
 4. 在 Supabase Auth 里创建你的管理员账号。
 5. 找到这个账号的 user id，然后执行：
 
@@ -103,6 +113,8 @@ supabase/crm_schema.sql
 
 这个迁移会增加客户、订单、服务案例、分配、任务、沟通记录、方案版本、风险项、附件和 CRM 操作日志等表，并创建 `crm-files` 私有存储桶。执行后，管理员、咨询师、规划师、复核、财务等角色才能在 CRM 工作台里完成收单、建档、分配、跟进、交付和归档。
 
+执行或重跑 `crm_schema.sql` 后，要立即再次执行 `emergency_security_patch.sql`，避免旧的宽松策略重新生效。
+
 ## 新增学生接口示例
 
 ```js
@@ -129,16 +141,14 @@ await fetch(`${SUPABASE_URL}/rest/v1/students`, {
 });
 ```
 
-## 保存志愿表思路
+## 保存志愿表
 
-1. 先插入 `students`。
-2. 为学生创建一张 `volunteer_forms`。
-3. 把 `volunteerKeys` 按顺序插入 `volunteer_form_groups`。
-4. 把每个 `volunteerMajorKeys[groupKey]` 插入 `volunteer_form_majors`。
-5. 导出时继续用现有前端 Excel 逻辑，同时插入一条 `volunteer_exports` 留痕。
+前端通过 `save_volunteer_form_atomic(p_form, p_groups)` 一次保存主表、专业组和专业。数据库会在同一事务中完成全部写入，任一步失败都会完整回滚，不会先删掉旧志愿再留下空表。导出仍使用前端 Excel 逻辑，并插入 `volunteer_exports` 留痕。
 
 ## 注意
 
 - 不要在业务表保存明文密码。
 - `anon key` 可以放前端，但必须启用 RLS。
+- 新注册账号固定为 `viewer/active`，只管理自己名下数据；内部岗位只能由管理员授权。
+- 如果以后重跑任何旧 schema 或增量 SQL，必须再次把 `emergency_security_patch.sql` 放在最后执行。
 - 学生手机号、分数、位次属于敏感信息，后期如果用户规模上来，建议加脱敏展示和操作审计。

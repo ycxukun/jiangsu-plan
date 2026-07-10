@@ -928,15 +928,15 @@
 
           <form id="landingLoginForm">
             <div class="field">
-              <label for="account">账号 / 手机号</label>
-              <input id="account" name="account" placeholder="请输入规划师账号" autocomplete="off" autocapitalize="none" spellcheck="false" />
+              <label for="account">邮箱账号</label>
+              <input id="account" name="account" type="email" placeholder="请输入邮箱账号" autocomplete="username" autocapitalize="none" spellcheck="false" />
             </div>
             <div class="field">
               <label for="password">登录密码</label>
-              <input id="password" name="password" type="password" placeholder="请输入密码" autocomplete="new-password" />
+              <input id="password" name="password" type="password" placeholder="请输入密码" autocomplete="current-password" />
             </div>
             <div class="login-options">
-              <label><input type="checkbox" /> 保持登录状态</label>
+              <span>此设备会保持登录，请勿在公共电脑使用</span>
               <button id="forgotPasswordBtn" class="link-button" type="button">忘记密码</button>
             </div>
             <div class="login-actions">
@@ -945,7 +945,7 @@
             </div>
           </form>
 
-          <p class="login-tip">内测阶段开放邮箱注册；输入邮箱和密码后可直接注册登录。</p>
+          <p class="login-tip">开放邮箱注册；新账号默认为个人账号，只能操作自己名下的数据。内部职务由管理员授权。</p>
         </section>
 
         <section class="system-card" id="security">
@@ -986,16 +986,17 @@
     const SUPABASE_URL = 'https://qnspmqsrbjcgrgpqkzgl.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
     const AUTH_STORAGE_KEY = 'js-plan-auth-v1';
+    const ACTIVE_PROFILE_ROLES = new Set(['admin', 'consultant', 'planner', 'viewer', 'manager', 'sales', 'assistant', 'reviewer', 'finance', 'observer']);
     const buttons = document.querySelectorAll('.role-tabs button');
     const account = document.getElementById('account');
     const tip = document.querySelector('.login-tip');
     const params = new URLSearchParams(window.location.search);
     const nextPath = params.get('next') || '';
-    let activeRole = 'consultant';
+    let activeRole = 'viewer';
     const roleTips = {
-      '规划师端': ['请输入邮箱账号', 'planner', '内测阶段开放注册；新账号默认可进入规划师工作台。'],
-      '家长端': ['请输入邮箱账号', 'planner', '内测阶段先统一按规划师权限注册，后续可由管理员调整角色。'],
-      '学生端': ['请输入邮箱账号', 'planner', '内测阶段先统一按规划师权限注册，后续可由管理员调整角色。']
+      '规划师端': ['请输入邮箱账号', 'viewer', '已有内部账号可直接登录；新账号先按个人权限注册，再由管理员授予规划师职务。'],
+      '家长端': ['请输入邮箱账号', 'viewer', '家长新账号只能操作自己名下的数据。'],
+      '学生端': ['请输入邮箱账号', 'viewer', '学生新账号只能操作自己名下的数据。']
     };
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1012,6 +1013,11 @@
     const registerBtn = document.getElementById('landingRegisterBtn');
     const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
     const loginSubmitBtn = loginForm.querySelector('button[type="submit"]');
+    const roleTabs = document.querySelector('.role-tabs');
+    const loginOptions = document.querySelector('.login-options');
+    const recoveryParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    let recoveryAccessToken = recoveryParams.get('type') === 'recovery' ? (recoveryParams.get('access_token') || '') : '';
+    let recoveryMode = Boolean(recoveryAccessToken);
     const NETWORK_RETRY_TOTAL = 3;
     let authBusy = false;
     function networkRetryWait(ms) {
@@ -1025,6 +1031,26 @@
       [loginSubmitBtn, registerBtn, forgotPasswordBtn].forEach(button => {
         if (button) button.disabled = busy;
       });
+    }
+    function setRecoveryMode(active) {
+      recoveryMode = Boolean(active);
+      account.closest('.field').hidden = recoveryMode;
+      if (roleTabs) roleTabs.hidden = recoveryMode;
+      if (loginOptions) loginOptions.hidden = recoveryMode;
+      registerBtn.hidden = recoveryMode;
+      password.autocomplete = recoveryMode ? 'new-password' : 'current-password';
+      password.closest('.field').querySelector('label').textContent = recoveryMode ? '设置新密码' : '登录密码';
+      loginSubmitBtn.textContent = recoveryMode ? '保存新密码' : '登录系统';
+      if (recoveryMode) {
+        password.value = '';
+        password.placeholder = '请输入至少 6 位的新密码';
+        tip.textContent = '身份验证已通过，请设置新密码。';
+        window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#login`);
+        password.focus();
+      } else {
+        password.value = '';
+        password.placeholder = '请输入密码';
+      }
     }
     async function fetchWithNetworkRetry(url, options = {}, onRetry = null) {
       let lastError = null;
@@ -1063,11 +1089,24 @@
       }));
     }
     function safeNextUrl() {
-      if (!nextPath || /^https?:\/\//i.test(nextPath) || nextPath.startsWith('//')) return './index.html';
-      return nextPath;
+      const appRoot = new URL('.', window.location.href);
+      const fallback = new URL('index.html', appRoot);
+      const allowedPaths = new Set([
+        'index.html', 'specialty/index.html', 'students/index.html',
+        'students/archive.html', 'content/index.html', 'crm.html', 'admin-console.html'
+      ].map(path => new URL(path, appRoot).pathname));
+      try {
+        const target = new URL(nextPath || 'index.html', appRoot);
+        if (!['http:', 'https:'].includes(target.protocol)) return `${fallback.pathname}${fallback.search}${fallback.hash}`;
+        if (target.origin !== window.location.origin) return `${fallback.pathname}${fallback.search}${fallback.hash}`;
+        if (!allowedPaths.has(target.pathname)) return `${fallback.pathname}${fallback.search}${fallback.hash}`;
+        return `${target.pathname}${target.search}${target.hash}`;
+      } catch (err) {
+        return `${fallback.pathname}${fallback.search}${fallback.hash}`;
+      }
     }
-    async function ensureStandaloneProfile(user, role = 'planner') {
-      if (!user?.id) return;
+    async function ensureStandaloneProfile(user) {
+      if (!user?.id) throw new Error('登录响应缺少用户标识，请重新登录。');
       const accessToken = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || '{}').accessToken || '';
       const profileHeaders = {
         apikey: SUPABASE_ANON_KEY,
@@ -1078,27 +1117,25 @@
           headers: profileHeaders
         }, (attempt, total) => { tip.textContent = `网络波动，正在自动重连 ${attempt}/${total}...`; });
         if (!res.ok) {
-          console.warn('读取用户资料失败，按内测开放注册默认规划师放行。', await res.text());
-          return null;
+          throw new Error('读取账号权限失败：' + await res.text());
         }
         const rows = await res.json();
         return rows?.[0] || null;
       };
       let profile = await readProfile();
       if (profile) {
-        const allowed = profile.status === 'active' && ['admin', 'consultant', 'planner'].includes(profile.role);
+        const allowed = profile.status === 'active' && ACTIVE_PROFILE_ROLES.has(profile.role);
         if (!allowed) {
           localStorage.removeItem(AUTH_STORAGE_KEY);
           throw new Error('账号资料未启用。请联系管理员检查 profiles 角色和状态。');
         }
         return;
       }
-      const signupRole = ['consultant', 'planner'].includes(role) ? role : 'planner';
       const profileBody = {
         id: user.id,
         email: user.email || '',
         display_name: user.user_metadata?.display_name || user.email || '',
-        role: signupRole,
+        role: 'viewer',
         status: 'active'
       };
       const upsert = await fetch(`${SUPABASE_URL}/rest/v1/profiles?on_conflict=id`, {
@@ -1111,14 +1148,13 @@
         body: JSON.stringify(profileBody)
       });
       if (!upsert.ok) {
-        console.warn('创建/更新用户资料失败，按内测开放注册默认规划师放行。', await upsert.text());
+        throw new Error('创建个人账号资料失败：' + await upsert.text());
       }
       profile = await readProfile();
       if (!profile) {
-        console.warn('未读取到账号 profiles 行，按内测开放注册默认规划师放行。');
-        return;
+        throw new Error('账号资料创建失败，请联系管理员。');
       }
-      const allowed = profile.status === 'active' && ['admin', 'consultant', 'planner'].includes(profile.role);
+      const allowed = profile.status === 'active' && ACTIVE_PROFILE_ROLES.has(profile.role);
       if (!allowed) {
         localStorage.removeItem(AUTH_STORAGE_KEY);
         throw new Error('账号资料未启用。请联系管理员检查 profiles 角色和状态。');
@@ -1132,8 +1168,14 @@
       }, (attempt, total) => { tip.textContent = `网络波动，正在自动重连 ${attempt}/${total}...`; });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
+      if (!data.access_token || !data.user?.id) throw new Error('登录响应不完整，请重试。');
       saveStandaloneAuth(data);
-      await ensureStandaloneProfile(data.user, activeRole);
+      try {
+        await ensureStandaloneProfile(data.user);
+      } catch (err) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        throw err;
+      }
       tip.textContent = '登录成功，正在进入系统...';
       window.location.href = safeNextUrl();
     }
@@ -1144,16 +1186,21 @@
         body: JSON.stringify({
           email,
           password: pwd,
-          data: { role: activeRole || 'planner', display_name: email.split('@')[0] }
+          data: { role: 'viewer', display_name: email.split('@')[0] }
         })
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      if (!data.access_token) {
+      if (!data.access_token || !data.user?.id) {
         throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
       }
       saveStandaloneAuth(data);
-      await ensureStandaloneProfile(data.user, activeRole);
+      try {
+        await ensureStandaloneProfile(data.user);
+      } catch (err) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        throw err;
+      }
       tip.textContent = '注册成功，正在进入系统...';
       window.location.href = safeNextUrl();
     }
@@ -1168,6 +1215,31 @@
       if (!res.ok) throw new Error(await res.text());
       tip.textContent = '已发送密码重置邮件，请到邮箱中继续操作。';
     }
+    async function updateRecoveredPassword(newPassword) {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${recoveryAccessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: newPassword })
+      });
+      if (!res.ok) {
+        const error = new Error(await res.text());
+        error.status = res.status;
+        throw error;
+      }
+      recoveryAccessToken = '';
+      setRecoveryMode(false);
+      tip.textContent = '密码已更新，请使用新密码登录。';
+      account.focus();
+    }
+    if (recoveryMode) setRecoveryMode(true);
+    else if (recoveryParams.get('error_description')) {
+      tip.textContent = `重置链接无效：${recoveryParams.get('error_description')}`;
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#login`);
+    }
     [account, password].forEach(input => {
       [0, 120, 500].forEach(delay => setTimeout(() => {
         if (input && !input.dataset.userEdited) input.value = '';
@@ -1179,8 +1251,26 @@
     loginForm.addEventListener('submit', event => {
       event.preventDefault();
       if (authBusy) return;
-      const email = account.value.trim();
       const pwd = password.value;
+      if (recoveryMode) {
+        if (pwd.length < 6) {
+          tip.textContent = '新密码至少需要 6 位。';
+          return;
+        }
+        setAuthBusy(true);
+        tip.textContent = '正在更新密码...';
+        updateRecoveredPassword(pwd).catch(err => {
+          if (err.status === 401 || err.status === 403) {
+            recoveryAccessToken = '';
+            setRecoveryMode(false);
+            tip.textContent = '重置链接已失效，请输入邮箱后重新发送重置邮件。';
+            return;
+          }
+          tip.textContent = '密码更新失败：' + err.message;
+        }).finally(() => setAuthBusy(false));
+        return;
+      }
+      const email = account.value.trim();
       if (!email || !pwd) {
         tip.textContent = '请先输入账号和密码。';
         return;
@@ -1236,7 +1326,7 @@
       sendAuthMessage({ action: 'reset-password', email });
     });
     window.addEventListener('message', event => {
-      if (event.origin !== window.location.origin || event.data?.source !== 'jiangsu-plan-auth') return;
+      if (event.origin !== window.location.origin || event.source !== window.parent || event.data?.source !== 'jiangsu-plan-auth') return;
       if (event.data.status === 'progress') tip.textContent = event.data.message || '网络波动，正在自动重连...';
       if (event.data.status === 'ok') {
         if (event.data.message) tip.textContent = event.data.message;

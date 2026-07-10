@@ -208,6 +208,12 @@ body.students-page .form-title-btn span{
     padding-left:24px!important;
     padding-right:24px!important;
   }
+  body.students-page .content-grid{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  body.students-page .content-grid > .panel{
+    min-width:0!important;
+  }
 }
 @media(max-width:560px){
   body.students-page .hero,

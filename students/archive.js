@@ -120,7 +120,10 @@ async function openVolunteerForm(formId){
   const form=formRows?.[0];
   if(!form)throw new Error('没有找到这份志愿表。');
   const groups=await apiFetch(`volunteer_form_groups?select=*&form_id=eq.${encodeURIComponent(formId)}&order=position.asc`);
-  const majors=await apiFetch(`volunteer_form_majors?select=*&form_id=eq.${encodeURIComponent(formId)}&order=form_group_id.asc,position.asc`);
+  const groupIds=(groups||[]).map(g=>g.id).filter(Boolean);
+  const majors=groupIds.length
+    ?await apiFetch(`volunteer_form_majors?select=*&form_group_id=in.(${groupIds.map(id=>encodeURIComponent(id)).join(',')})&order=form_group_id.asc,position.asc`)
+    :[];
   const volunteerKeys=(groups||[]).map(g=>g.group_key);
   const volunteerMajorKeys={};
   (groups||[]).forEach(g=>{volunteerMajorKeys[g.group_key]=(majors||[]).filter(m=>m.form_group_id===g.id).sort((a,b)=>(a.position||0)-(b.position||0)).map(m=>m.major_key).filter(Boolean);});

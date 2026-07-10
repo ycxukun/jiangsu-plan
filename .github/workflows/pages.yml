@@ -20,21 +20,106 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate JavaScript
+      - name: Validate JavaScript and inline scripts
         run: |
-          node --check app.js
-          node --check batch-guide.js
-          node --check batch-guide-links.js
-          node --check qualification-risk.js
-          node --check admin-console.js
-          node --check students/app.js
-          node --check specialty/app.js
-          node --check content/app.js
-          node --check content/editor.js
-          node --check content/article.js
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(git ls-files -z -- '*.js' '*.mjs')
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const { execFileSync } = require('node:child_process');
+
+          const htmlFiles = execFileSync('git', ['ls-files', '*.html'], { encoding: 'utf8' })
+            .trim()
+            .split('\n')
+            .filter(Boolean);
+          let checked = 0;
+
+          for (const file of htmlFiles) {
+            const html = fs.readFileSync(file, 'utf8');
+            const scripts = html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi);
+            let block = 0;
+            for (const match of scripts) {
+              if (/\bsrc\s*=/i.test(match[1]) || !match[2].trim()) continue;
+              block += 1;
+              checked += 1;
+              new vm.Script(match[2], { filename: `${file}:inline-${block}` });
+            }
+          }
+
+          console.log(`Validated ${checked} inline script blocks across ${htmlFiles.length} HTML files.`);
+          NODE
 
       - name: Prepare static site
         run: scripts/prepare-static-site.sh _site
+
+      - name: Validate static routes and assets
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const root = path.resolve('_site');
+          const htmlFiles = [];
+          const walk = (dir, relative = '') => {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const next = path.join(dir, entry.name);
+              const rel = path.posix.join(relative, entry.name);
+              if (entry.isDirectory()) walk(next, rel);
+              else if (entry.name.endsWith('.html')) htmlFiles.push(rel);
+            }
+          };
+          walk(root);
+
+          const missing = [];
+          const missingAnchors = [];
+          const idCache = new Map();
+          const idsFor = file => {
+            if (!idCache.has(file)) {
+              const html = fs.readFileSync(path.join(root, file), 'utf8');
+              idCache.set(file, new Set(
+                [...html.matchAll(/\b(?:id|name)\s*=\s*["']([^"']+)["']/gi)].map(match => match[1])
+              ));
+            }
+            return idCache.get(file);
+          };
+          let checked = 0;
+
+          for (const file of htmlFiles) {
+            const html = fs.readFileSync(path.join(root, file), 'utf8');
+            const refs = html.matchAll(/<(?:script|link|img|iframe|source|a)\b[^>]*?\b(?:src|href)\s*=\s*["']([^"'<>]+)["']/gi);
+            for (const match of refs) {
+              const ref = match[1].trim();
+              checked += 1;
+              if (!ref || /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|\/\/)/i.test(ref)) continue;
+
+              const url = new URL(ref, `https://static.invalid/${file}`);
+              let target = decodeURIComponent(url.pathname.replace(/^\//, '')) || 'index.html';
+              if (target.endsWith('/')) target += 'index.html';
+              const targetPath = path.join(root, target);
+
+              if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
+                missing.push(`${file} -> ${ref} (${target})`);
+                continue;
+              }
+              if (url.hash && url.hash !== '#' && target.endsWith('.html')) {
+                const anchor = decodeURIComponent(url.hash.slice(1));
+                if (!idsFor(target).has(anchor)) missingAnchors.push(`${file} -> ${ref}`);
+              }
+            }
+          }
+
+          if (missing.length || missingAnchors.length) {
+            throw new Error([
+              ...missing.map(item => `Missing asset: ${item}`),
+              ...missingAnchors.map(item => `Missing anchor: ${item}`)
+            ].join('\n'));
+          }
+          console.log(`Validated ${htmlFiles.length} HTML routes and ${checked} local references.`);
+          NODE
 
       - name: Validate deployment secrets
         run: |

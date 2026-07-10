@@ -60,7 +60,7 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
-alter table public.profiles alter column role set default 'planner';
+alter table public.profiles alter column role set default 'viewer';
 alter table public.profiles alter column status set default 'active';
 alter table public.profiles drop constraint if exists profiles_status_check;
 alter table public.profiles add constraint profiles_status_check
@@ -160,6 +160,38 @@ drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
+
+-- 自助注册只能创建 viewer/active；非管理员不能自行改变角色或状态。
+create or replace function public.guard_profile_privileges()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null or public.is_admin() then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.id is distinct from auth.uid()
+       or new.role::text <> 'viewer'
+       or new.status <> 'active' then
+      raise exception using errcode = '42501', message = 'New accounts must start as viewer/active.';
+    end if;
+  elsif new.role is distinct from old.role
+     or new.status is distinct from old.status then
+    raise exception using errcode = '42501', message = 'Only an active administrator can change profile role or status.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_guard_privileges on public.profiles;
+create trigger profiles_guard_privileges
+before insert or update on public.profiles
+for each row execute function public.guard_profile_privileges();
 
 -- 学生档案：一个登录用户可以管理多个学生。
 create table if not exists public.students (
@@ -557,8 +589,8 @@ create policy "profiles_insert_self"
 on public.profiles for insert
 with check (
   id = auth.uid()
-  and role::text in ('viewer', 'consultant', 'planner')
-  and status in ('active', 'pending')
+  and role::text = 'viewer'
+  and status = 'active'
 );
 
 drop policy if exists "profiles_admin_insert" on public.profiles;
@@ -572,11 +604,7 @@ on public.profiles for update
 using (id = auth.uid() or public.is_admin())
 with check (
   public.is_admin()
-  or (
-    id = auth.uid()
-    and role::text in ('viewer', 'consultant', 'planner')
-    and status in ('active', 'pending')
-  )
+  or id = auth.uid()
 );
 
 drop policy if exists "students_owner_all" on public.students;

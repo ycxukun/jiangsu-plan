@@ -33,6 +33,7 @@ const num=value=>Number(value||0)||0;
 const uniq=arr=>Array.from(new Set((arr||[]).filter(Boolean)));
 
 let auth={accessToken:'',refreshToken:'',user:null,expiresAt:0};
+let refreshPromise=null;
 let profile=null;
 let view='dashboard';
 let query='';
@@ -80,22 +81,43 @@ function authHeaders(extra={}){
   return {apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${auth.accessToken}`,'Content-Type':'application/json',...extra};
 }
 
+function accessTokenExpiresAt(token){
+  try{
+    const part=String(token||'').split('.')[1];
+    if(!part)return 0;
+    const normalized=part.replace(/-/g,'+').replace(/_/g,'/');
+    const padded=normalized.padEnd(Math.ceil(normalized.length/4)*4,'=');
+    return Number(JSON.parse(atob(padded))?.exp)||0;
+  }catch(e){
+    return 0;
+  }
+}
+
 async function refreshSessionIfNeeded(){
   if(!auth.refreshToken)return;
   const now=Math.floor(Date.now()/1000);
-  if(auth.expiresAt&&auth.expiresAt-now>90)return;
-  const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{
-    method:'POST',
-    headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({refresh_token:auth.refreshToken})
-  });
-  if(!res.ok)return;
-  const json=await res.json();
-  auth.accessToken=json.access_token;
-  auth.refreshToken=json.refresh_token||auth.refreshToken;
-  auth.user=json.user||auth.user;
-  auth.expiresAt=json.expires_at||0;
-  saveAuth();
+  const expiresAt=accessTokenExpiresAt(auth.accessToken)||Number(auth.expiresAt)||0;
+  if(expiresAt-now>90)return;
+  if(refreshPromise)return refreshPromise;
+  refreshPromise=(async()=>{
+    const res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{
+      method:'POST',
+      headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:auth.refreshToken})
+    });
+    if(!res.ok)return;
+    const json=await res.json();
+    auth.accessToken=json.access_token||auth.accessToken;
+    auth.refreshToken=json.refresh_token||auth.refreshToken;
+    auth.user=json.user||auth.user;
+    auth.expiresAt=Number(json.expires_at)||accessTokenExpiresAt(json.access_token)||0;
+    saveAuth();
+  })();
+  try{
+    await refreshPromise;
+  }finally{
+    refreshPromise=null;
+  }
 }
 
 async function apiFetch(path,options={}){
@@ -805,8 +827,6 @@ async function submitStudentForm(form){
   const choices=subjectChoicesFromField('studentFormSubjects');
   const codes=String(fd.get('medical_codes')||'').split(/[、,，\s]+/).filter(Boolean);
   const payload={
-    owner_id:auth.user.id,
-    planner_id:auth.user.id,
     name:fd.get('name'),
     phone:fd.get('phone'),
     province:fd.get('province')||'江苏',
@@ -830,6 +850,10 @@ async function submitStudentForm(form){
     major_blacklist:fd.get('major_blacklist'),
     parent_demand:fd.get('parent_demand')
   };
+  if(!id){
+    payload.owner_id=auth.user.id;
+    payload.planner_id=auth.user.id;
+  }
   const rows=await writeStudentRecord(id?`students?id=eq.${encodeURIComponent(id)}`:'students',id?'PATCH':'POST',payload);
   if(rows?.[0]){
     rows[0].subject_choices=choices;
@@ -1156,8 +1180,8 @@ function volunteerStudentPayload(student){
     rank,
     gaokao_score:firstFilled(student?.gaokao_score,score),
     gaokao_rank:firstFilled(student?.gaokao_rank,rank),
-    target_cities:Array.isArray(student?.target_cities)?student.target_cities:splitVolunteerList(student?.region_preference).filter(Boolean),
-    target_majors:Array.isArray(student?.target_majors)?student.target_majors:splitVolunteerList(student?.major_preference).filter(Boolean)
+    target_cities:Array.isArray(student?.target_cities)&&student.target_cities.length?student.target_cities:splitVolunteerList(student?.region_preference).filter(Boolean),
+    target_majors:Array.isArray(student?.target_majors)&&student.target_majors.length?student.target_majors:splitVolunteerList(student?.major_preference).filter(Boolean)
   };
 }
 
@@ -1170,6 +1194,8 @@ function saveVolunteerStudentIndexes(student){
     localStorage.setItem(subjectKey,JSON.stringify(subjectMap));
     if(student.medical_codes?.length){
       localStorage.setItem('js-plan-medical-restriction-codes-v1',JSON.stringify(student.medical_codes));
+    }else{
+      localStorage.removeItem('js-plan-medical-restriction-codes-v1');
     }
   }catch(e){}
 }
