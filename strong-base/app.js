@@ -30,8 +30,11 @@
     trainerQuery:'',
     trainerQuestionIndex:0,
     saveTimer:null,
+    savePromise:null,
     toastTimer:null,
-    loadingStudent:false
+    loadingStudent:false,
+    recordWritable:false,
+    recordLoadError:''
   };
 
   function defaultRecord(){
@@ -62,7 +65,7 @@
       tasks:{...base.tasks,...(input.tasks||{})},
       brochureChecks:{...base.brochureChecks,...(input.brochureChecks||{})},
       mapChoices:{...base.mapChoices,...(input.mapChoices||{})},
-      interview:{...base.interview,...(input.interview||{}),ratings:{...base.interview.ratings,...(input.interview?.ratings||{})}},
+      interview:{...base.interview,...(input.interview||{}),ratings:{...base.interview.ratings,...(input.interview?.ratings||{})},reviews:Array.isArray(input.interview?.reviews)?input.interview.reviews:[]},
       statement:{...base.statement,...(input.statement||{})}
     };
   }
@@ -70,8 +73,12 @@
   function storageJSON(key,fallback){
     try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(err){return fallback;}
   }
-  function saveAuth(){
-    try{localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(state.auth));}catch(err){}
+  function saveAuth(){try{localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(state.auth));}catch(err){}}
+  function clearAuth(){
+    clearTimeout(state.saveTimer);state.saveTimer=null;state.savePromise=null;
+    state.auth={accessToken:'',refreshToken:'',user:null};state.students=[];state.currentStudent=null;state.record=null;
+    state.recordWritable=false;state.recordLoadError='';state.cloudReady=false;
+    try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(err){}
   }
   function currentStudentStorageKey(){
     return state.auth.user?.id?`${CURRENT_STUDENT_STORAGE_KEY}:${state.auth.user.id}`:CURRENT_STUDENT_STORAGE_KEY;
@@ -79,9 +86,13 @@
   function localDraftKey(studentId=state.currentStudent?.id){
     return `${LOCAL_DRAFT_KEY}:${state.auth.user?.id||'guest'}:${studentId||'none'}:2026`;
   }
-  function saveLocalDraft(){
-    if(!state.currentStudent?.id||!state.record)return;
-    try{localStorage.setItem(localDraftKey(),JSON.stringify({...state.record,updatedAt:nowISO()}));}catch(err){}
+  function saveLocalDraft(studentId=state.currentStudent?.id,record=state.record,{touch=true}={}){
+    if(!studentId||!record)return '';
+    const updatedAt=touch?nowISO():(record.updatedAt||nowISO());
+    const draft={...record,updatedAt};
+    try{localStorage.setItem(localDraftKey(studentId),JSON.stringify(draft));}catch(err){}
+    if(studentId===state.currentStudent?.id&&record===state.record)state.record.updatedAt=updatedAt;
+    return updatedAt;
   }
   function saveCurrentStudent(student){
     state.currentStudent=student||null;
@@ -105,14 +116,14 @@
     return !payload?.exp||payload.exp*1000-Date.now()<120000;
   }
   async function refreshSession(force=false){
-    if(!state.auth.accessToken)throw new Error('请先登录。');
+    if(!state.auth.accessToken){const error=new Error('请先登录。');error.authExpired=true;throw error;}
     if(!force&&!tokenExpiresSoon())return;
-    if(!state.auth.refreshToken)throw new Error('登录状态已过期，请重新登录。');
+    if(!state.auth.refreshToken){const error=new Error('登录状态已过期，请重新登录。');error.authExpired=true;throw error;}
     const response=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{
       method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
       body:JSON.stringify({refresh_token:state.auth.refreshToken})
     });
-    if(!response.ok)throw new Error('登录状态已过期，请重新登录。');
+    if(!response.ok){const error=new Error('登录状态已过期，请重新登录。');error.authExpired=true;error.status=response.status;throw error;}
     const data=await response.json();
     state.auth={accessToken:data.access_token||'',refreshToken:data.refresh_token||state.auth.refreshToken,user:data.user||state.auth.user};
     saveAuth();
@@ -128,7 +139,7 @@
     if(!response.ok){
       const text=await response.text();
       const error=new Error(text||`请求失败（${response.status}）`);
-      error.status=response.status;error.body=text;throw error;
+      error.status=response.status;error.body=text;if(response.status===401)error.authExpired=true;throw error;
     }
     if(response.status===204)return null;
     const text=await response.text();
@@ -138,6 +149,11 @@
   function showAuthCover(show){
     $('#authCover').hidden=!show;
     $('#appShell').hidden=show;
+  }
+  function returnToLogin(message=''){
+    clearAuth();showAuthCover(true);
+    const frame=$('#authFrame');
+    if(frame){frame.src=`../login_landing.html?next=strong-base%2F${message?`&notice=${encodeURIComponent(message)}`:''}`;}
   }
   async function ensureProfile(user){
     const rows=await apiFetch(`profiles?select=role,status&id=eq.${encodeURIComponent(user.id)}&limit=1`);
@@ -169,9 +185,10 @@
     if(!response.ok)throw new Error(await response.text());
     const data=await response.json();
     if(!data.access_token||!data.user?.id)throw new Error(action==='register'?'注册已提交，但当前仍需要邮箱验证。':'登录响应不完整。');
+    const previousAuth=state.auth;
     state.auth={accessToken:data.access_token,refreshToken:data.refresh_token||'',user:data.user};
-    saveAuth();
-    await ensureProfile(data.user);
+    try{await ensureProfile(data.user);saveAuth();}
+    catch(err){state.auth=previousAuth;try{localStorage.removeItem(AUTH_STORAGE_KEY);}catch(storageErr){}throw err;}
     return {message:action==='register'?'注册成功，正在进入系统...':'登录成功，正在进入系统...'};
   }
   async function handleAuthMessage(event){
@@ -179,9 +196,10 @@
     if(event.origin!==location.origin||event.source!==frame||event.data?.source!=='auth-login')return;
     try{
       const result=await authenticateFromLanding(event.data);
+      if(!result.stay){await loadWorkspaceData();showAuthCover(false);}
       frame?.postMessage({source:'jiangsu-plan-auth',status:'ok',message:result.message},event.origin);
-      if(!result.stay){showAuthCover(false);await loadWorkspaceData();}
     }catch(err){
+      if(err.authExpired)clearAuth();
       frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:`${event.data.action==='register'?'注册':'登录'}失败：${humanError(err)}`},event.origin);
     }
   }
@@ -217,43 +235,76 @@
       regionPreference:studentValue(student,'region_preference'),riskTolerance:studentValue(student,'risk_tolerance')
     };
   }
-  async function loadRecord(student){
-    state.cloudReady=true;
-    const local=normalizeRecord(storageJSON(localDraftKey(student.id),{}));
+  function recordTimestamp(record){
+    const value=Date.parse(record?.updatedAt||'');return Number.isFinite(value)?value:0;
+  }
+  function newestRecord(candidates){
+    return candidates.filter(Boolean).reduce((best,current)=>!best||recordTimestamp(current)>recordTimestamp(best)?current:best,null);
+  }
+  function isMissingStrongBaseSchema(err){
+    const text=String(err?.body||err?.message||'');
+    return err?.status===404||/PGRST20[245]|student_strong_base_records.*(?:does not exist|schema cache)|cycle_year.*(?:does not exist|schema cache)|save_student_strong_base.*schema cache/i.test(text);
+  }
+  async function loadRecordData(student){
+    const localRaw=storageJSON(localDraftKey(student.id),null);
+    const local=localRaw&&typeof localRaw==='object'?normalizeRecord(localRaw):null;
     const studentCloud=student?.intake_payload?.strong_base&&typeof student.intake_payload.strong_base==='object'
       ?normalizeRecord(student.intake_payload.strong_base)
       :null;
+    let cloudReady=true;
+    let tableRecord=null;
     try{
-      const rows=await apiFetch(`student_strong_base_records?select=*&student_id=eq.${encodeURIComponent(student.id)}&cycle_year=eq.2026&limit=1`);
+      const rows=await apiFetch(`student_strong_base_records?select=*&student_id=eq.${encodeURIComponent(student.id)}&limit=1`);
       const row=rows?.[0];
       const payload=row?.payload||row?.profile_payload||{};
-      state.record=normalizeRecord(row?{...payload,status:row.status||payload.status,selectedSchoolIds:row.selected_school_ids||payload.selectedSchoolIds,updatedAt:row.updated_at}:(studentCloud||local));
+      tableRecord=row?normalizeRecord({...payload,status:row.status||payload.status,selectedSchoolIds:row.selected_school_ids||payload.selectedSchoolIds,updatedAt:row.updated_at}):null;
     }catch(err){
-      if(err.status===404||/student_strong_base_records|schema cache|PGRST/i.test(err.message||'')){
-        state.cloudReady='student_record';state.record=studentCloud||local;
-      }else throw err;
+      if(err.authExpired||err.status===401)throw err;
+      if(isMissingStrongBaseSchema(err))cloudReady='student_record';
+      else if(local||studentCloud)cloudReady=false;
+      else throw err;
     }
+    return {record:newestRecord([tableRecord,studentCloud,local])||defaultRecord(),cloudReady};
+  }
+  function applyLoadedRecord(student,loaded){
+    state.record=loaded.record;state.cloudReady=loaded.cloudReady;state.recordWritable=true;state.recordLoadError='';
     const imported=profileFromStudent(student);
     Object.keys(imported).forEach(key=>{if(state.record.profile[key]===''&&imported[key]!=='')state.record.profile[key]=imported[key];});
     state.mapChoices={...state.record.mapChoices};
     state.selectedStage=firstIncompleteStage()?.id||'result';
     state.trainerSchoolId=state.record.interview.schoolId||state.record.selectedSchoolIds[0]||RULES.interviews?.[0]?.schoolId||'';
     state.trainerQuestionIndex=Number(state.record.interview.questionIndex)||0;
-    saveLocalDraft();
+    saveLocalDraft(student.id,state.record,{touch:false});
   }
   async function loadWorkspaceData(){
     setSaveState('saving','正在读取');
+    state.recordLoadError='';state.recordWritable=false;
+    let fetchError=null;
     try{
       await fetchStudents();
-      const chosen=findStoredStudent()||state.students[0]||null;
-      saveCurrentStudent(chosen);
-      if(chosen)await loadRecord(chosen);else state.record=defaultRecord();
-      updateStudentHeader();render();
-      setSaveState(state.cloudReady?'saved':'error',state.cloudReady?'云端已连接':'本机草稿');
     }catch(err){
-      setSaveState('error','读取失败');
-      state.record=state.record||defaultRecord();render();
-      toast('读取学生数据失败：'+humanError(err));
+      if(err.authExpired||err.status===401)throw err;
+      fetchError=err;
+      const cached=storageJSON(currentStudentStorageKey(),null);
+      state.students=cached?.id?[cached]:[];
+      if(!state.students.length){
+        state.currentStudent=null;state.record=defaultRecord();state.recordLoadError=humanError(err);
+        setSaveState('error','读取失败');render();toast('读取学生数据失败：'+humanError(err));return false;
+      }
+    }
+    const chosen=findStoredStudent()||state.students[0]||null;
+    if(!chosen){saveCurrentStudent(null);state.record=defaultRecord();state.recordWritable=true;render();setSaveState('saved','云端已连接');return true;}
+    try{
+      const loaded=await loadRecordData(chosen);
+      if(fetchError)loaded.cloudReady=false;
+      saveCurrentStudent(chosen);applyLoadedRecord(chosen,loaded);updateStudentHeader();render();
+      setSaveState(loaded.cloudReady?'saved':'error',loaded.cloudReady?'云端已连接':'本机草稿');
+      if(fetchError)toast('网络暂不可用，已打开本机草稿。');
+      return true;
+    }catch(err){
+      if(err.authExpired||err.status===401)throw err;
+      saveCurrentStudent(chosen);state.record=defaultRecord();state.cloudReady=false;state.recordWritable=false;state.recordLoadError=humanError(err);
+      setSaveState('error','读取失败');render();toast('读取强基档案失败：'+humanError(err));return false;
     }
   }
 
@@ -265,36 +316,43 @@
     clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>el.classList.remove('show'),2800);
   }
   function queueSave(message='修改已保存'){
-    if(!state.currentStudent?.id)return;
+    if(!state.currentStudent?.id||!state.recordWritable)return;
     saveLocalDraft();setSaveState('saving','保存中');clearTimeout(state.saveTimer);
-    state.saveTimer=setTimeout(()=>saveRecord(message),650);
+    state.saveTimer=setTimeout(()=>{state.saveTimer=null;saveRecord(message,{fromTimer:true});},650);
   }
-  async function saveRecord(message='修改已保存'){
-    if(!state.currentStudent?.id||!state.record)return;
-    state.record.updatedAt=nowISO();saveLocalDraft();
-    if(!state.cloudReady){setSaveState('error','本机草稿');return;}
+  async function flushPendingSave(){
+    if(state.saveTimer){clearTimeout(state.saveTimer);state.saveTimer=null;await saveRecord('',{fromTimer:true});}
+    else if(state.savePromise)await state.savePromise;
+  }
+  async function saveStudentFallback(studentId,snapshot){
+    const rows=await apiFetch(`students?select=intake_payload&id=eq.${encodeURIComponent(studentId)}&limit=1`);
+    const intake=rows?.[0]?.intake_payload&&typeof rows[0].intake_payload==='object'?rows[0].intake_payload:{};
+    await apiFetch(`students?id=eq.${encodeURIComponent(studentId)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({strong_base_status:snapshot.status||'准备中',intake_payload:{...intake,strong_base:snapshot}})});
+    return intake;
+  }
+  async function saveRecord(message='修改已保存',options={}){
+    if(!state.currentStudent?.id||!state.record||!state.recordWritable)return false;
+    if(!options.fromTimer){clearTimeout(state.saveTimer);state.saveTimer=null;}
+    const studentId=state.currentStudent.id;const snapshot=clone(state.record);snapshot.updatedAt=nowISO();
+    state.record.updatedAt=snapshot.updatedAt;saveLocalDraft(studentId,snapshot,{touch:false});
+    if(!state.cloudReady){setSaveState('error','本机草稿');return false;}
+    const operation=async()=>{
     try{
       if(state.cloudReady==='student_record'){
-        const rows=await apiFetch(`students?select=intake_payload&id=eq.${encodeURIComponent(state.currentStudent.id)}&limit=1`);
-        const intake=rows?.[0]?.intake_payload&&typeof rows[0].intake_payload==='object'?rows[0].intake_payload:{};
-        await apiFetch(`students?id=eq.${encodeURIComponent(state.currentStudent.id)}`,{
-          method:'PATCH',headers:{Prefer:'return=minimal'},
-          body:JSON.stringify({strong_base_status:state.record.status||'准备中',intake_payload:{...intake,strong_base:state.record}})
-        });
-        state.currentStudent.intake_payload={...intake,strong_base:state.record};
-        setSaveState('saved','已保存');if(message)toast(message);return;
+        const intake=await saveStudentFallback(studentId,snapshot);
+        if(state.currentStudent?.id===studentId)state.currentStudent.intake_payload={...intake,strong_base:snapshot};
+      }else{
+        try{await apiFetch('rpc/save_student_strong_base',{method:'POST',body:JSON.stringify({p_student_id:studentId,p_status:snapshot.status||'准备中',p_payload:snapshot})});}
+        catch(err){if(!isMissingStrongBaseSchema(err))throw err;state.cloudReady='student_record';const intake=await saveStudentFallback(studentId,snapshot);if(state.currentStudent?.id===studentId)state.currentStudent.intake_payload={...intake,strong_base:snapshot};}
       }
-      const result=await apiFetch('rpc/save_student_strong_base',{
-        method:'POST',body:JSON.stringify({p_student_id:state.currentStudent.id,p_status:state.record.status||'准备中',p_payload:state.record})
-      });
-      if(Array.isArray(result)&&result[0]?.updated_at)state.record.updatedAt=result[0].updated_at;
-      setSaveState('saved','已保存');if(message)toast(message);
+      if(state.currentStudent?.id===studentId){setSaveState('saved','已保存');if(message)toast(message);}return true;
     }catch(err){
-      if(/save_student_strong_base|schema cache|PGRST202|404/i.test(err.message||'')){
-        state.cloudReady='student_record';
-        await saveRecord(message);
-      }else{setSaveState('error','保存失败');toast('保存失败：'+humanError(err));}
+      if(err.authExpired||err.status===401){returnToLogin('登录状态已过期');return false;}
+      if(state.currentStudent?.id===studentId){setSaveState('error','本机草稿');toast('云端保存失败，修改已保留在本机：'+humanError(err));}return false;
     }
+    };
+    state.savePromise=(state.savePromise||Promise.resolve()).catch(()=>false).then(operation);
+    return state.savePromise;
   }
 
   function scoreSummary(student=state.currentStudent){
@@ -336,9 +394,9 @@
   function verificationLabel(school){
     const status=school.verification?.status;
     if(status==='blocked')return ['资料不足','red'];
-    if(status==='official_verified')return ['官方已核','green'];
-    if(status==='source_checked')return ['原稿含江苏线索','blue'];
-    return ['待核江苏计划','orange'];
+    if(status==='official_verified')return ['江苏官方已核','green'];
+    if(status==='source_checked')return ['原稿线索，待官方核验','orange'];
+    return ['待江苏官方核验','orange'];
   }
 
   function pageHead(eyebrow,title,description,actions=''){
@@ -347,10 +405,14 @@
   function emptyStudentHTML(){
     return `${pageHead('STRONG BASE 2026','先选择一个学生','强基策略、报名任务和训练记录都按学生独立保存。')}<div class="empty-state"><strong>还没有可用的学生档案</strong><p>先在学生档案中建立学生，或确认当前账号拥有对应学生的查看权限。</p><a class="button primary" href="../students/index.html">去学生档案</a></div>`;
   }
+  function recordLoadErrorHTML(){
+    return `${pageHead('STRONG BASE 2026','强基档案暂未安全打开','为避免用空白内容覆盖云端原记录，本页已暂停编辑。')}<div class="empty-state"><strong>读取失败，尚未写入任何内容</strong><p>${esc(state.recordLoadError||'请检查网络后重试。')}</p><button class="button primary" type="button" id="retryWorkspace">重新读取</button></div>`;
+  }
 
   function render(){
     if(!state.record)state.record=defaultRecord();
     $$('.nav-item').forEach(button=>button.classList.toggle('active',button.dataset.view===state.view));
+    if(state.recordLoadError){$('#appView').innerHTML=recordLoadErrorHTML();updateStudentHeader();bindView();return;}
     if(!state.currentStudent){$('#appView').innerHTML=emptyStudentHTML();updateStudentHeader();return;}
     const renderers={dashboard:renderDashboard,profile:renderProfile,map:renderMap,majors:renderMajors,schools:renderSchools,timeline:renderTimeline,brochure:renderBrochure,interview:renderInterview,statement:renderStatement,sources:renderSources};
     $('#appView').innerHTML=(renderers[state.view]||renderDashboard)();
@@ -364,9 +426,9 @@
     const focus=[];
     if(!state.record.profile.ordinaryBaseline)focus.push({icon:'基',title:'补全普通批基线',detail:'强基不是孤立方案，先明确不走强基时的学校与专业。',view:'profile'});
     if(!state.record.profile.acceptsNoTransfer)focus.push({icon:'限',title:'确认专业限制接受度',detail:'多数学校限制本科阶段转专业，不能把跨转当作保证。',view:'profile'});
-    if(selected===0)focus.push({icon:'校',title:'建立第一版院校研究清单',detail:'从决策地图逐层展开，再把候选学校加入清单。',view:'map'});
+    if(selected===0)focus.push({icon:'校',title:'建立第一版待核研究清单',detail:'从决策地图逐层展开，把原稿线索加入清单，再逐校完成江苏官方核验。',view:'map'});
     if(completedCheckCount()<Math.min(6,totalCheckCount()))focus.push({icon:'核',title:'启动简章六项核对',detail:'江苏计划、入围公式、校测、报名、培养和身体限制逐项留痕。',view:'brochure'});
-    if(!focus.length)focus.push({icon:'练',title:'进入目标校面试训练',detail:'从学校回忆题开始，完成一次作答与五维复盘。',view:'interview'});
+    if(!focus.length)focus.push({icon:'练',title:'进入目标校面试训练',detail:'从往年形式整理出的训练改编题开始，完成一次作答与复盘。',view:'interview'});
     return `
       <section class="hero-panel">
         <div class="hero-copy">
@@ -460,7 +522,7 @@
   }
   function mapCandidates(choices=derivedMapChoices()){
     return (RULES.schools||[]).filter(school=>{
-      if(!school.recommendable)return false;
+      if(!school.researchable)return false;
       const values=Object.values(choices).filter(Boolean);
       return !values.length||values.every(value=>(school.fit||[]).includes(value)||value===choices.trend);
     });
@@ -470,9 +532,9 @@
     const steps=[['trend','第 1 层｜成绩走势',CORE.mapBranches.trend],['major','第 2 层｜专业目标',CORE.mapBranches.major],['assessment','第 3 层｜校测适配',CORE.mapBranches.assessment],['risk','第 4 层｜风险边界',CORE.mapBranches.risk]];
     const candidates=mapCandidates(choices);
     return `${pageHead('DECISION MAP','强基决策地图','像思维导图一样逐层展开：每点一个判断，下面的路径和院校研究清单都会跟着变化。','<button class="button ghost" type="button" id="resetMap">重置路径</button><button class="button primary" type="button" data-go-view="schools">进入院校矩阵</button>')}
-      <section class="map-shell"><div class="map-toolbar"><p>当前路径：${esc(Object.values(choices).filter(Boolean).map(value=>branchLabel(value)).join(' → ')||'请从第一层开始')}</p><div class="map-toolbar-actions"><span class="badge orange">研究候选，不是资格结论</span></div></div>
+      <section class="map-shell"><div class="map-toolbar"><p>当前路径：${esc(Object.values(choices).filter(Boolean).map(value=>branchLabel(value)).join(' → ')||'请从第一层开始')}</p><div class="map-toolbar-actions"><span class="badge orange">待核研究线索，不是正式推荐</span></div></div>
         <div class="map-canvas">${steps.map(([key,title,items])=>`<div class="map-level" style="--cols:${Math.min(items.length,4)}">${items.map(item=>`<button class="map-node ${choices[key]===item.id?'active':''}" type="button" data-map-key="${key}" data-map-value="${item.id}"><small>${esc(title)}</small><b>${esc(item.label)}</b><p>${esc(item.hint)}</p>${choices[key]===item.id?'<i class="node-count">已选</i>':''}</button>`).join('')}</div>`).join('')}</div>
-        <div class="map-result-strip"><h3>当前路径下的院校研究候选 · ${candidates.length} 所</h3><div class="map-result-list">${candidates.length?candidates.slice(0,18).map(school=>`<button class="school-chip" type="button" data-school-id="${school.id}"><b>${esc(school.name)}</b><small>${esc(school.testStage)}｜${esc(school.testMode)}</small></button>`).join(''):'<p>当前条件过窄。可以放宽一层，或到院校矩阵查看被排除的原因。</p>'}</div></div>
+        <div class="map-result-strip"><h3>当前路径下的待核研究线索 · ${candidates.length} 所</h3><div class="map-result-list">${candidates.length?candidates.slice(0,18).map(school=>`<button class="school-chip" type="button" data-school-id="${school.id}"><b>${esc(school.name)}</b><small>待江苏官方核验｜${esc(school.testStage)}｜${esc(school.testMode)}</small></button>`).join(''):'<p>当前条件过窄。可以放宽一层，或到院校矩阵查看被排除的原因。</p>'}</div></div>
       </section>`;
   }
   function branchLabel(id){
@@ -492,9 +554,11 @@
   function openMajorDrawer(id){
     const item=(CORE.majorProfiles||[]).find(profile=>profile.id===id);if(!item)return;
     const schools=(RULES.schools||[]).filter(school=>(school.sourceMajorDirections||[]).join(' ').includes(item.name.split(/[ /]/)[0])).slice(0,8);
+    const sourceBadges=(item.sourceRefs||[]).map(sourceId=>{const source=(CORE.sources||[]).find(entry=>entry.id===sourceId);return `<span class="badge">${esc(source?.title||sourceId)}</span>`;}).join('');
     $('#drawerTitle').textContent=item.name;
     $('#drawerBody').innerHTML=`
       <section class="detail-section"><div class="source-line"><span class="badge">${esc(item.group)}</span><span class="badge blue">${esc(item.nature)}</span><span class="badge orange">专业知识层，非招生计划</span></div></section>
+      <section class="detail-section"><h3>内容来源层级</h3><div class="source-line">${sourceBadges}</div><p>${esc(item.sourceNotice||'')}</p></section>
       <section class="detail-section"><h3>三层信息必须分开</h3><div class="path-flow"><div class="path-step"><span>第 1 层</span><b>招生专业：简章里真正录取的名称</b></div><div class="path-step"><span>第 2 层</span><b>培养方向：学院、课程与分流后的实际训练</b></div><div class="path-step"><span>第 3 层</span><b>转段方向：满足条件后可申请的研究生路径</b></div></div></section>
       <section class="detail-section"><h3>主要学习内容</h3><p>${esc(item.study)}</p></section>
       <section class="detail-section"><h3>培养与延展方向</h3><p>${esc(item.route)}</p></section>
@@ -514,12 +578,13 @@
   }
   function renderSchools(){
     const schools=filteredSchools();const selected=new Set(state.record.selectedSchoolIds);
+    const officialCount=schools.filter(school=>school.recommendable).length;
     const options=(values,current)=>values.map(value=>`<option value="${esc(value)}" ${value===current?'selected':''}>${esc(value)}</option>`).join('');
     const regions=unique((RULES.schools||[]).map(s=>s.region));
-    return `${pageHead('39-SCHOOL MATRIX','2026 院校矩阵','先看规则证据和江苏计划状态，再比较学校层次、专业方向与校测适配。','<span class="badge orange">当前 ${schools.length} 所</span>')}
-      <div class="source-policy"><b>硬过滤优先</b>只有当“年份=2026、省份=江苏、选科匹配、专业在江苏投放、健康与语言限制通过”时，才能称为可报名。表中原稿提到的专业只是研究线索。</div>
+    return `${pageHead('39-SCHOOL MATRIX','2026 院校矩阵','原稿线索只用于待核研究；完成江苏官方计划核验后，院校才可进入正式推荐。',`<span class="badge orange">待核线索 ${schools.length} 所</span><span class="badge green">正式可推荐 ${officialCount} 所</span>`)}
+      <div class="source-policy"><b>硬过滤优先</b>只有当“年份=2026、省份=江苏、选科匹配、专业在江苏投放、健康与语言限制通过”时，才能进入正式推荐。当前原稿专业均为待核线索；固定裸分档不参与推荐，请改用江苏位次与普通批线差。</div>
       <div class="filter-bar"><input id="schoolQuery" value="${esc(state.schoolFilters.q)}" placeholder="搜索学校、城市、专业方向或规则"><select id="schoolStage"><option value="">全部校测时机</option>${options(['出分前','出分后','待官方简章'],state.schoolFilters.stage)}</select><select id="schoolMode"><option value="">全部考核方式</option>${options(['笔试','仅面试','上机','待官方简章'],state.schoolFilters.mode)}</select><select id="schoolRegion"><option value="">全部地区</option>${options(regions,state.schoolFilters.region)}</select><select id="schoolVerification"><option value="">全部复核状态</option><option value="source_checked" ${state.schoolFilters.verification==='source_checked'?'selected':''}>原稿含江苏线索</option><option value="needs_official_plan" ${state.schoolFilters.verification==='needs_official_plan'?'selected':''}>待核江苏计划</option><option value="blocked" ${state.schoolFilters.verification==='blocked'?'selected':''}>资料不足</option></select></div>
-      <div class="school-table-wrap"><table class="school-table"><thead><tr><th>研究</th><th>院校</th><th>层次/地区</th><th>校测</th><th>入围原稿</th><th>专业研究线索</th><th>复核状态</th></tr></thead><tbody>${schools.map(school=>{const verify=verificationLabel(school);return `<tr><td class="check-cell"><input type="checkbox" data-toggle-school="${school.id}" ${selected.has(school.id)?'checked':''} ${!school.recommendable?'disabled':''} aria-label="${esc(school.name)}加入研究清单"></td><td><button class="school-name-button" type="button" data-school-id="${school.id}">${esc(school.name)}</button><small>${esc(school.scoreBand)}｜${esc(school.city)}</small></td><td><span class="badge">${esc(school.tier)}</span><small>${esc(school.region)}</small></td><td><span class="badge ${school.testStage==='出分前'?'red':'green'}">${esc(school.testStage)}</span><small>${esc(school.testMode)}</small></td><td><p>${esc(school.entryRule)}</p><small>${esc(school.formula)}</small></td><td><p>${esc((school.sourceMajorDirections||[]).slice(0,5).join('、'))}</p>${school.jiangsuMajors?.length?`<small>原稿江苏线索：${esc(school.jiangsuMajors.join('、'))}</small>`:'<small>尚未录入江苏官方专业计划</small>'}</td><td><span class="badge ${verify[1]}">${verify[0]}</span><small>${esc(school.verification?.lastVerified||'')}</small></td></tr>`;}).join('')}</tbody></table></div>`;
+      <div class="school-table-wrap"><table class="school-table"><thead><tr><th>待核研究</th><th>院校</th><th>层次/地区</th><th>校测</th><th>入围原稿</th><th>专业研究线索</th><th>复核状态</th></tr></thead><tbody>${schools.map(school=>{const verify=verificationLabel(school);return `<tr><td class="check-cell"><input type="checkbox" data-toggle-school="${school.id}" ${selected.has(school.id)?'checked':''} ${!school.researchable?'disabled':''} aria-label="${esc(school.name)}加入待核研究清单"></td><td><button class="school-name-button" type="button" data-school-id="${school.id}">${esc(school.name)}</button><small>${esc(school.city)}｜${esc(school.scoreGuidance)}</small></td><td><span class="badge">${esc(school.tier)}</span><small>${esc(school.region)}</small></td><td><span class="badge ${school.testStage==='出分前'?'red':'green'}">${esc(school.testStage)}</span><small>${esc(school.testMode)}</small></td><td><p>${esc(school.entryRule)}</p><small>${esc(school.formula)}</small></td><td><p>${esc((school.sourceMajorDirections||[]).slice(0,5).join('、'))}</p>${school.jiangsuMajors?.length?`<small>原稿江苏线索（非官方计划）：${esc(school.jiangsuMajors.join('、'))}</small>`:'<small>尚未录入江苏官方专业计划</small>'}</td><td><span class="badge ${verify[1]}">${verify[0]}</span><small>资料整理 ${esc(school.verification?.lastStructuredAt||'待补')}</small></td></tr>`;}).join('')}</tbody></table></div>`;
   }
 
   function renderTimeline(){
@@ -544,15 +609,24 @@
     });
   }
   function schoolById(id){return (RULES.schools||[]).find(s=>s.id===id);}
+  function interviewReview(schoolId,questionIndex){return (state.record.interview.reviews||[]).find(item=>item.schoolId===schoolId&&Number(item.questionIndex)===Number(questionIndex))||null;}
+  function captureInterviewDraft(){
+    if(!state.trainerSchoolId||!$('#interviewAnswer'))return;
+    const answer=$('#interviewAnswer').value;const ratings=Object.fromEntries($$('[data-interview-rating]').map(input=>[input.dataset.interviewRating,Number(input.value)]));
+    const review={schoolId:state.trainerSchoolId,questionIndex:state.trainerQuestionIndex,answer,ratings,updatedAt:nowISO()};
+    const reviews=(state.record.interview.reviews||[]).filter(item=>!(item.schoolId===review.schoolId&&Number(item.questionIndex)===Number(review.questionIndex)));
+    state.record.interview={...state.record.interview,...review,reviews:[...reviews,review]};
+  }
   function renderInterview(){
     const entries=interviewEntries();let entry=(RULES.interviews||[]).find(x=>x.schoolId===state.trainerSchoolId)||entries[0]||RULES.interviews?.[0];
-    const school=schoolById(entry?.schoolId);const questions=entry?.questions||[];const index=Math.min(state.trainerQuestionIndex,Math.max(questions.length-1,0));const question=questions[index]||'请选择一所学校开始训练。';
-    const draft=state.record.interview.schoolId===entry?.schoolId&&state.record.interview.questionIndex===index?state.record.interview.answer:'';
-    return `${pageHead('INTERVIEW LAB','面试训练','题目来自往年考生回忆，用于能力训练，不代表 2026 必考或重复。','<button class="button primary" type="button" id="saveInterview">保存本次训练</button>')}
+    const school=schoolById(entry?.schoolId);const questions=entry?.questions||[];const missingSource=entry?.availability==='missing_source';const index=Math.min(state.trainerQuestionIndex,Math.max(questions.length-1,0));const question=questions[index]||'该校暂无可追溯的面试题，待补可靠来源。';
+    const savedReview=interviewReview(entry?.schoolId,index);const legacy=state.record.interview.schoolId===entry?.schoolId&&Number(state.record.interview.questionIndex)===index?state.record.interview:null;
+    const draft=savedReview?.answer??legacy?.answer??'';const reviewRatings={...state.record.interview.ratings,...(legacy?.ratings||{}),...(savedReview?.ratings||{})};
+    return `${pageHead('INTERVIEW LAB','面试训练','题目依据往年回忆的形式或主题整理为训练改编题，不是原题，也不代表 2026 年会考。',missingSource?'<span class="badge orange">暂无来源待补</span>':'<button class="button primary" type="button" id="saveInterview">保存本次训练</button>')}
       <section class="trainer-layout"><aside class="trainer-list"><input id="trainerQuery" class="trainer-search" value="${esc(state.trainerQuery)}" placeholder="搜索学校或题目">${entries.map(item=>{const s=schoolById(item.schoolId);return `<button class="trainer-school ${item.schoolId===entry?.schoolId?'active':''}" type="button" data-trainer-school="${item.schoolId}"><b>${esc(s?.name||item.schoolId)}</b><small>${esc((item.formats||[]).join(' / '))}</small></button>`;}).join('')}</aside>
-        <div class="trainer-stage"><span class="eyebrow">MOCK INTERVIEW · 回忆题</span><h2>${esc(school?.name||'面试训练')}</h2><div class="format-line">${(entry?.formats||[]).map(format=>`<span class="badge blue">${esc(format)}</span>`).join('')}<span class="badge orange">年份/专业可能不同</span></div><p>${esc(entry?.prep||'')}</p>
-          <div class="question-card"><span class="eyebrow">QUESTION ${index+1} / ${Math.max(questions.length,1)}</span><blockquote>${esc(question)}</blockquote><div class="page-actions" style="justify-content:flex-start"><button class="button" id="prevQuestion" type="button" ${index<=0?'disabled':''}>上一题</button><button class="button" id="nextQuestion" type="button" ${index>=questions.length-1?'disabled':''}>下一题</button></div></div>
-          <div class="question-card"><label class="field"><span>作答与复盘</span><textarea id="interviewAnswer" class="answer-area" placeholder="建议先限时口述，再记录结构、证据与卡顿点。">${esc(draft)}</textarea></label><div class="review-grid">${[['academic','学术准确性'],['logic','逻辑结构'],['expression','表达与应变']].map(([key,label])=>`<label>${esc(label)} <span><b data-rating-label="${key}">${esc(state.record.interview.ratings[key]||3)}</b>/5</span><input type="range" min="1" max="5" value="${esc(state.record.interview.ratings[key]||3)}" data-interview-rating="${key}"></label>`).join('')}</div></div>
+        <div class="trainer-stage"><span class="eyebrow">MOCK INTERVIEW · 训练改编</span><h2>${esc(school?.name||'面试训练')}</h2><div class="format-line">${(entry?.formats||[]).map(format=>`<span class="badge blue">${esc(format)}</span>`).join('')}<span class="badge orange">${missingSource?'暂无来源待补':'训练改编题 · 非 2026 真题'}</span></div><p>${esc(entry?.prep||'')}</p><p class="verify-mark">${esc(entry?.notice||'')}</p>
+          <div class="question-card"><span class="eyebrow">${missingSource?'SOURCE GAP':`TRAINING QUESTION ${index+1} / ${Math.max(questions.length,1)}`}</span><blockquote>${esc(question)}</blockquote>${missingSource?'':`<div class="page-actions" style="justify-content:flex-start"><button class="button" id="prevQuestion" type="button" ${index<=0?'disabled':''}>上一题</button><button class="button" id="nextQuestion" type="button" ${index>=questions.length-1?'disabled':''}>下一题</button></div>`}</div>
+          ${missingSource?'':`<div class="question-card"><label class="field"><span>作答与复盘</span><textarea id="interviewAnswer" class="answer-area" placeholder="建议先限时口述，再记录结构、证据与卡顿点。">${esc(draft)}</textarea></label><div class="review-grid">${[['academic','学术准确性'],['logic','逻辑结构'],['expression','表达与应变']].map(([key,label])=>`<label>${esc(label)} <span><b data-rating-label="${key}">${esc(reviewRatings[key]||3)}</b>/5</span><input type="range" min="1" max="5" value="${esc(reviewRatings[key]||3)}" data-interview-rating="${key}"></label>`).join('')}</div></div>`}
         </div></section>`;
   }
 
@@ -585,8 +659,8 @@
       <section class="detail-section"><h3>原稿专业研究线索</h3><p>${esc((school.sourceMajorDirections||[]).join('、')||'暂无')}</p>${school.jiangsuMajors?.length?`<p><b>原稿明确提到的江苏线索：</b>${esc(school.jiangsuMajors.join('、'))}</p>`:'<p class="verify-mark">尚未录入 2026 江苏官方专业计划，不能据此判断可报名。</p>'}</section>
       <section class="detail-section"><h3>培养与转段</h3><p>${esc(school.transferPolicy)}</p><p>允许申请、培养方向和往届实际去向是三类不同信息；最终以当届培养方案和接收条件为准。</p></section>
       <section class="detail-section"><h3>需要前置讨论的风险</h3><ul>${(school.riskNotes||[]).map(note=>`<li>${esc(note)}</li>`).join('')}</ul></section>
-      <section class="detail-section"><h3>来源状态</h3><div class="source-line">${(school.verification?.sourceRefs||[]).map(id=>{const source=(CORE.sources||[]).find(s=>s.id===id);return `<span class="badge">${esc(source?.title||id)}</span>`;}).join('')}</div><p>整理日期：${esc(school.verification?.lastVerified||'')}｜适用标记：${esc(school.verification?.year||'')} 年 / ${esc(school.verification?.province||'')}</p></section>
-      <button class="button primary" type="button" data-drawer-toggle-school="${school.id}" ${!school.recommendable?'disabled':''}>${state.record.selectedSchoolIds.includes(school.id)?'移出研究清单':'加入研究清单'}</button>`;
+      <section class="detail-section"><h3>来源状态</h3><div class="source-line">${(school.verification?.sourceRefs||[]).map(id=>{const source=(CORE.sources||[]).find(s=>s.id===id);return `<span class="badge">${esc(source?.title||id)}</span>`;}).join('')}</div><p>资料整理日期：${esc(school.verification?.lastStructuredAt||'待补')}｜官方核验日期：${esc(school.verification?.officialVerifiedAt||'尚未核验')}｜适用标记：${esc(school.verification?.year||'')} 年 / ${esc(school.verification?.province||'')}</p></section>
+      <button class="button primary" type="button" data-drawer-toggle-school="${school.id}" ${!school.researchable?'disabled':''}>${state.record.selectedSchoolIds.includes(school.id)?'移出待核研究清单':'加入待核研究清单'}</button>`;
     $('#schoolDrawer').classList.add('open');$('#schoolDrawer').setAttribute('aria-hidden','false');$('#drawerScrim').hidden=false;
     $('[data-drawer-toggle-school]')?.addEventListener('click',()=>{toggleSchool(id);openSchoolDrawer(id);});
   }
@@ -594,6 +668,7 @@
     $('#schoolDrawer').classList.remove('open');$('#schoolDrawer').setAttribute('aria-hidden','true');$('#drawerScrim').hidden=true;
   }
   function toggleSchool(id){
+    const school=schoolById(id);if(!school?.researchable){toast('该校资料不足，暂不能加入研究清单');return;}
     const set=new Set(state.record.selectedSchoolIds);set.has(id)?set.delete(id):set.add(id);state.record.selectedSchoolIds=[...set];queueSave('院校研究清单已更新');render();
   }
 
@@ -606,8 +681,17 @@
   function closeModal(){$('#modalMask').hidden=true;}
   async function selectStudent(id){
     if(state.loadingStudent)return;const student=state.students.find(item=>item.id===id);if(!student)return;
-    state.loadingStudent=true;closeModal();setSaveState('saving','正在切换');saveCurrentStudent(student);
-    try{await loadRecord(student);updateStudentHeader();render();setSaveState(state.cloudReady?'saved':'error',state.cloudReady?'云端已连接':'本机草稿');toast(`已切换到 ${student.name}`);}catch(err){toast('切换学生失败：'+humanError(err));}
+    const previous={student:state.currentStudent,record:state.record,cloudReady:state.cloudReady,recordWritable:state.recordWritable,recordLoadError:state.recordLoadError};
+    state.loadingStudent=true;closeModal();setSaveState('saving','正在切换');
+    try{
+      await flushPendingSave();
+      const loaded=await loadRecordData(student);
+      saveCurrentStudent(student);applyLoadedRecord(student,loaded);updateStudentHeader();render();setSaveState(state.cloudReady?'saved':'error',state.cloudReady?'云端已连接':'本机草稿');toast(`已切换到 ${student.name}`);
+    }catch(err){
+      if(err.authExpired||err.status===401||!state.auth.user){returnToLogin('登录状态已过期');return;}
+      saveCurrentStudent(previous.student);state.record=previous.record;state.cloudReady=previous.cloudReady;state.recordWritable=previous.recordWritable;state.recordLoadError=previous.recordLoadError;
+      updateStudentHeader();render();setSaveState('error','切换失败');toast('切换学生失败：'+humanError(err));
+    }
     finally{state.loadingStudent=false;}
   }
 
@@ -618,6 +702,7 @@
     state.record.profile=next;
   }
   function bindView(){
+    $('#retryWorkspace')?.addEventListener('click',()=>loadWorkspaceData().catch(err=>{if(err.authExpired||err.status===401)returnToLogin('登录状态已过期');}));
     $$('[data-go-view]').forEach(button=>button.addEventListener('click',()=>{state.view=button.dataset.goView;render();$('#appView').focus({preventScroll:true});scrollTo({top:0,behavior:'smooth'});}));
     $$('[data-school-id]').forEach(button=>button.addEventListener('click',()=>openSchoolDrawer(button.dataset.schoolId)));
     const form=$('#profileForm');
@@ -635,12 +720,13 @@
     $$('[data-brochure-key]').forEach(input=>input.addEventListener('change',()=>{state.record.brochureChecks[input.dataset.brochureKey]=input.checked;queueSave('简章核对已更新');}));
     $('#saveBrochure')?.addEventListener('click',()=>saveRecord('简章核对已保存'));
     $('#trainerQuery')?.addEventListener('input',event=>{state.trainerQuery=event.target.value;render();$('#trainerQuery')?.focus();});
-    $$('[data-trainer-school]').forEach(button=>button.addEventListener('click',()=>{state.trainerSchoolId=button.dataset.trainerSchool;state.trainerQuestionIndex=0;render();}));
-    $('#prevQuestion')?.addEventListener('click',()=>{state.trainerQuestionIndex=Math.max(0,state.trainerQuestionIndex-1);render();});
-    $('#nextQuestion')?.addEventListener('click',()=>{state.trainerQuestionIndex+=1;render();});
-    $$('[data-interview-rating]').forEach(input=>input.addEventListener('input',()=>{$(`[data-rating-label="${input.dataset.interviewRating}"]`).textContent=input.value;}));
+    $$('[data-trainer-school]').forEach(button=>button.addEventListener('click',()=>{captureInterviewDraft();queueSave('面试草稿已保存');state.trainerSchoolId=button.dataset.trainerSchool;state.trainerQuestionIndex=0;render();}));
+    $('#prevQuestion')?.addEventListener('click',()=>{captureInterviewDraft();queueSave('面试草稿已保存');state.trainerQuestionIndex=Math.max(0,state.trainerQuestionIndex-1);render();});
+    $('#nextQuestion')?.addEventListener('click',()=>{captureInterviewDraft();queueSave('面试草稿已保存');state.trainerQuestionIndex+=1;render();});
+    $('#interviewAnswer')?.addEventListener('input',()=>{captureInterviewDraft();queueSave('面试草稿已保存');});
+    $$('[data-interview-rating]').forEach(input=>input.addEventListener('input',()=>{$(`[data-rating-label="${input.dataset.interviewRating}"]`).textContent=input.value;captureInterviewDraft();queueSave('面试草稿已保存');}));
     $('#saveInterview')?.addEventListener('click',()=>{
-      state.record.interview={...state.record.interview,schoolId:state.trainerSchoolId,questionIndex:state.trainerQuestionIndex,answer:$('#interviewAnswer')?.value.trim()||'',ratings:Object.fromEntries($$('[data-interview-rating]').map(input=>[input.dataset.interviewRating,Number(input.value)])),savedAt:nowISO()};
+      captureInterviewDraft();state.record.interview.savedAt=nowISO();
       saveRecord('本次面试训练已保存');
     });
     $$('[data-statement-key]').forEach(area=>area.addEventListener('input',()=>{state.record.statement[area.dataset.statementKey]=area.value;queueSave('个人陈述素材已更新');}));
@@ -652,6 +738,7 @@
     $('#studentPicker').addEventListener('click',openStudentPicker);
     $('#closeDrawer').addEventListener('click',closeDrawer);$('#drawerScrim').addEventListener('click',closeDrawer);
     $('#modalMask').addEventListener('click',event=>{if(event.target===$('#modalMask'))closeModal();});
+    $('#logoutBtn')?.addEventListener('click',()=>returnToLogin());
     document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeDrawer();closeModal();}});
     window.addEventListener('message',handleAuthMessage);
   }
@@ -666,8 +753,11 @@
       showAuthCover(false);updateStudentHeader();render();setSaveState('error','本地预览');return;
     }
     const saved=storageJSON(AUTH_STORAGE_KEY,{});
-    if(saved?.accessToken&&saved?.user){state.auth={accessToken:saved.accessToken,refreshToken:saved.refreshToken||'',user:saved.user};showAuthCover(false);await loadWorkspaceData();}
-    else{showAuthCover(true);}
+    if(saved?.accessToken&&saved?.user){
+      state.auth={accessToken:saved.accessToken,refreshToken:saved.refreshToken||'',user:saved.user};
+      try{await ensureProfile(saved.user);await loadWorkspaceData();showAuthCover(false);}
+      catch(err){returnToLogin('登录状态已过期');}
+    }else{showAuthCover(true);}
   }
   init();
 })();

@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="知行学录 2026 强基计划报考辅助系统：学生画像、择校决策、报名进度、简章核对与面试训练。">
   <title>2026 强基计划助手｜知行学录</title>
-  <link rel="stylesheet" href="./styles.css?v=20260712-qiangji-r1">
+  <link rel="stylesheet" href="./styles.css?v=20260712-qiangji-r2">
 </head>
 <body>
   <div id="authCover" class="auth-cover" hidden>
     <iframe id="authFrame" title="知行学录登录" src="../login_landing.html?next=strong-base%2F"></iframe>
   </div>
 
-  <div id="appShell" class="app-shell">
+  <div id="appShell" class="app-shell" hidden>
     <header class="topbar">
       <a class="brand" href="../login_landing.html" aria-label="返回知行学录首页">
         <span class="brand-mark">知</span>
@@ -27,6 +27,7 @@
         <span id="saveState" class="save-state" data-state="idle">尚未保存</span>
         <a class="top-link" href="../students/index.html">学生档案</a>
         <a class="top-link" href="../index.html">志愿工作台</a>
+        <button id="logoutBtn" class="top-link top-button" type="button">退出</button>
       </div>
     </header>
 
@@ -48,7 +49,7 @@
           <button class="nav-item" type="button" data-view="schools"><span>校</span><b>院校矩阵</b><small>39 校筛选</small></button>
           <button class="nav-item" type="button" data-view="timeline"><span>期</span><b>报名与提醒</b><small>不漏节点</small></button>
           <button class="nav-item" type="button" data-view="brochure"><span>核</span><b>简章核对</b><small>规则清单</small></button>
-          <button class="nav-item" type="button" data-view="interview"><span>练</span><b>面试训练</b><small>真题复盘</small></button>
+          <button class="nav-item" type="button" data-view="interview"><span>练</span><b>面试训练</b><small>改编题复盘</small></button>
           <button class="nav-item" type="button" data-view="statement"><span>述</span><b>个人陈述</b><small>素材准备</small></button>
           <button class="nav-item" type="button" data-view="sources"><span>源</span><b>来源与复核</b><small>六份原稿</small></button>
         </nav>
@@ -78,8 +79,8 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="./data.js?v=20260712-qiangji-r1"></script>
-  <script src="./rules-2026.js?v=20260712-qiangji-r1"></script>
-  <script src="./app.js?v=20260712-qiangji-r1"></script>
+  <script src="./data.js?v=20260712-qiangji-r2"></script>
+  <script src="./rules-2026.js?v=20260712-qiangji-r2"></script>
+  <script src="./app.js?v=20260712-qiangji-r2"></script>
 </body>
 </html>

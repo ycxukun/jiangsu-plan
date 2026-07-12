@@ -24,6 +24,7 @@ EXPECTED_YEAR = 2026
 EXPECTED_PROVINCE = "江苏"
 EXPECTED_SCHOOL_COUNT = 39
 EXPECTED_SOURCE_COUNT = 6
+EXPECTED_MISSING_INTERVIEW_IDS = {"bnu", "cau", "scut", "sdu"}
 EXPECTED_SOURCE_IDS = {
     "source-2026-core",
     "source-guide",
@@ -59,7 +60,8 @@ REQUIRED_VERIFICATION_FIELDS = (
     "sourceType",
     "year",
     "province",
-    "lastVerified",
+    "lastStructuredAt",
+    "officialVerifiedAt",
     "sourceRefs",
 )
 EMPTY_MAJOR_STATUSES = {"blocked", "needs_official_plan"}
@@ -337,9 +339,16 @@ def verify(rules: dict[str, Any]) -> tuple[list[str], list[str], dict[str, Any]]
             errors.append(f"{label}: verification.year must be {EXPECTED_YEAR}")
         if str(verification.get("province") or "").strip() != EXPECTED_PROVINCE:
             errors.append(f"{label}: verification.province must be {EXPECTED_PROVINCE}")
-        last_verified = str(verification.get("lastVerified") or "").strip()
-        if not DATE_RE.fullmatch(last_verified):
-            errors.append(f"{label}: verification.lastVerified must be YYYY-MM-DD")
+        last_structured = str(verification.get("lastStructuredAt") or "").strip()
+        if not DATE_RE.fullmatch(last_structured):
+            errors.append(f"{label}: verification.lastStructuredAt must be YYYY-MM-DD")
+        official_verified_at = verification.get("officialVerifiedAt")
+        if official_verified_at is not None and not DATE_RE.fullmatch(
+            str(official_verified_at).strip()
+        ):
+            errors.append(
+                f"{label}: verification.officialVerifiedAt must be null or YYYY-MM-DD"
+            )
         refs = verification.get("sourceRefs")
         if not isinstance(refs, list) or not refs:
             errors.append(f"{label}: verification.sourceRefs must be a non-empty array")
@@ -357,6 +366,18 @@ def verify(rules: dict[str, Any]) -> tuple[list[str], list[str], dict[str, Any]]
             errors.append(
                 f"{label}: empty Jiangsu majors require verification.status "
                 "blocked or needs_official_plan"
+            )
+
+        officially_recommendable = (
+            status == "official_verified"
+            and as_int(verification.get("year")) == EXPECTED_YEAR
+            and str(verification.get("province") or "").strip() == EXPECTED_PROVINCE
+            and bool(majors)
+            and bool(official_verified_at)
+        )
+        if school.get("recommendable") is not officially_recommendable:
+            errors.append(
+                f"{label}: recommendable must equal the official 2026 Jiangsu verification gate"
             )
 
     duplicate_school_ids = sorted(
@@ -380,6 +401,57 @@ def verify(rules: dict[str, Any]) -> tuple[list[str], list[str], dict[str, Any]]
             errors.append("国防科技大学 verification.status must be blocked")
         if defense.get("recommendable") is not False:
             errors.append("国防科技大学 recommendable must be false")
+        if defense.get("researchable") is not False:
+            errors.append("国防科技大学 researchable must be false")
+
+    interview_ids: list[str] = []
+    missing_interview_ids: set[str] = set()
+    if isinstance(interviews, list):
+        if len(interviews) != EXPECTED_SCHOOL_COUNT:
+            errors.append(
+                f"interviews: expected {EXPECTED_SCHOOL_COUNT}, got {len(interviews)}"
+            )
+        for index, interview in enumerate(interviews):
+            label = f"interviews[{index}]"
+            if not isinstance(interview, dict):
+                errors.append(f"{label} must be an object")
+                continue
+            school_id = str(interview.get("schoolId") or "").strip()
+            if not school_id:
+                errors.append(f"{label}.schoolId is required")
+                continue
+            interview_ids.append(school_id)
+            availability = str(interview.get("availability") or "").strip()
+            kind = str(interview.get("kind") or "").strip()
+            refs = interview.get("sourceRefs")
+            questions = interview.get("questions")
+            if availability == "missing_source":
+                missing_interview_ids.add(school_id)
+                if kind != "missing_source":
+                    errors.append(f"{label}: missing source entry must use kind=missing_source")
+                if questions != []:
+                    errors.append(f"{label}: missing source entry must have no questions")
+            else:
+                if availability != "training_only":
+                    errors.append(f"{label}: sourced entry must use availability=training_only")
+                if kind != "training_adaptation":
+                    errors.append(f"{label}: sourced entry must use kind=training_adaptation")
+                if not isinstance(refs, list) or "source-interview" not in refs:
+                    errors.append(f"{label}: training adaptation must reference source-interview")
+                if not isinstance(questions, list) or not questions:
+                    errors.append(f"{label}: training adaptation needs at least one question")
+        duplicate_interviews = sorted(
+            key for key, count in Counter(interview_ids).items() if count > 1
+        )
+        if duplicate_interviews:
+            errors.append(f"duplicate interview school ids: {', '.join(duplicate_interviews)}")
+        if set(interview_ids) != set(school_ids):
+            errors.append("interviews must contain exactly one entry for every school")
+        if missing_interview_ids != EXPECTED_MISSING_INTERVIEW_IDS:
+            errors.append(
+                "missing-source interview ids must be: "
+                + ", ".join(sorted(EXPECTED_MISSING_INTERVIEW_IDS))
+            )
 
     unreferenced_sources = sorted(known_source_ids - referenced_source_ids)
     if unreferenced_sources:

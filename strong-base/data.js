@@ -2,7 +2,7 @@
   'use strict';
 
   window.STRONG_BASE_CORE = {
-    version: '2026.07.12-r1',
+    version: '2026.07.12-r2',
     province: '江苏',
     year: 2026,
     stages: [
@@ -85,7 +85,7 @@
         {id:'humanities',label:'文史哲方向',hint:'计划少、校测重阅读与表达，需真实学术积累。'}
       ],
       assessment: [
-        {id:'early-written',label:'接受提前校测 + 强笔试',hint:'高风险高收益，录取后可能影响后续普通批。'},
+        {id:'early-written',label:'接受提前校测 + 强笔试',hint:'高风险高收益；一旦被强基录取，将不能再参加后续普通批投档。'},
         {id:'post-written',label:'偏好出分后 + 笔面试',hint:'先看高考结果，再决定是否参加校测。'},
         {id:'interview-only',label:'偏好出分后 + 仅面试',hint:'适合表达与综合素质更强的学生，但部分学校可能现场做题。'}
       ],
@@ -136,10 +136,17 @@
     sources: [
       {id:'source-2026-core',title:'26 年强基计划',kind:'2026 院校原稿',scope:'学生画像、报名流程、38 校规则、专业与转段观点',lines:3369,status:'需逐校官方核验',yuque:'https://www.yuque.com/u26507439/ufqnb5/tuoxug0apaidggik?singleDoc'},
       {id:'source-guide',title:'强基计划报考指南',kind:'政策与专业手册',scope:'政策原理、专业解读、适宜人群、文书与面试；院校规则主体为 2025 版',lines:2107,status:'不可直接当 2026 规则',yuque:'https://www.yuque.com/u26507439/ufqnb5/ig6l3olxsnxovvte?singleDoc'},
-      {id:'source-interview',title:'强基计划面试全攻略',kind:'往年回忆题库',scope:'35 校面试形式、题型、真题示例与备考框架',lines:384,status:'年份/专业需分层',yuque:'https://www.yuque.com/u26507439/ufqnb5/srh0r7d68vhlhtrx?singleDoc'},
+      {id:'source-interview',title:'强基计划面试全攻略',kind:'往年回忆与训练素材',scope:'35 校往年面试形式、题型示例与备考框架；系统题目均按训练目的改编',lines:384,status:'训练改编题，非 2026 真题',yuque:'https://www.yuque.com/u26507439/ufqnb5/srh0r7d68vhlhtrx?singleDoc'},
       {id:'source-trend',title:'2026年强基计划新风向解读专项讲座 · 结构化笔记',kind:'讲座观点',scope:'专业、平台校/跳板校、新工科与过程优化观点',lines:583,status:'经验判断非官方承诺',yuque:'https://www.yuque.com/u26507439/ufqnb5/udkqzfm3n73tam5a?singleDoc'},
       {id:'source-choice',title:'26 强基择校逻辑',kind:'顾问策略原稿',scope:'提前/非提前校测与江苏择校逻辑',lines:180,status:'需与官方简章对照',yuque:'https://www.yuque.com/u26507439/ufqnb5/ztbhhx7gx0bda8x0?singleDoc'},
       {id:'source-national',title:'强基计划全国讲座',kind:'全国培训讲座',scope:'39 校框架、专业与历史样本、清北华五等分层案例',lines:2349,status:'含 2025 规则与非官方统计',yuque:'https://www.yuque.com/u26507439/ufqnb5/zbesiiq8l6slzhzc?singleDoc'}
     ]
   };
+
+  window.STRONG_BASE_CORE.majorProfiles = window.STRONG_BASE_CORE.majorProfiles.map(profile => ({
+    ...profile,
+    evidenceStatus: 'knowledge_synthesis',
+    sourceRefs: ['source-guide', 'source-trend', 'source-national'],
+    sourceNotice: '专业知识综合层：依据报考指南与讲座材料整理，不等同于任何学校的 2026 招生专业、江苏计划或培养承诺。'
+  }));
 })();
