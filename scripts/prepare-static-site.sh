@@ -45,7 +45,7 @@ copy_file beian-icon.png
 copy_glob 'style-claude-*.css'
 copy_glob 'data*.js'
 
-for dir in articles content students specialty comprehensive; do
+for dir in articles content students specialty comprehensive major-map; do
   if [[ -d "$dir" ]]; then
     rsync -a --delete \
       --exclude='.DS_Store' \
@@ -101,6 +101,11 @@ required=(
   content/editor.js
   content/post-style.css
   comprehensive/index.html
+  major-map/index.html
+  major-map/styles.css
+  major-map/catalog-2026.js
+  major-map/data.js
+  major-map/app.js
   articles/zhaoban-negotiation-strategy.html
 )
 
