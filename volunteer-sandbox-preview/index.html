@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>志愿填报沙盘｜独立预览</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true">志</div>
+      <div>
+        <p class="eyebrow">INDEPENDENT PREVIEW</p>
+        <h1>志愿填报沙盘</h1>
+      </div>
+    </div>
+    <nav class="header-actions" aria-label="页面操作">
+      <button class="button button-secondary" id="algorithmButton" type="button">算法口径</button>
+      <button class="button button-secondary" id="resetButton" type="button">清空方案</button>
+      <button class="button button-primary" id="exportButton" type="button">导出 CSV</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="student-toolbar" aria-labelledby="studentTitle">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="eyebrow">STUDENT PROFILE</p>
+          <h2 id="studentTitle">学生参数</h2>
+        </div>
+        <p class="data-note" id="dataNote"></p>
+      </div>
+      <div class="student-grid">
+        <label><span>学号</span><input id="studentIdInput" value="HSYDEMO001" autocomplete="off"></label>
+        <label><span>姓名</span><input id="studentNameInput" value="演示学生" autocomplete="off"></label>
+        <label><span>高考分数</span><input id="scoreInput" type="number" min="0" max="750" value="610"></label>
+        <label><span>位次</span><input id="rankInput" type="number" min="1" value="25000"></label>
+        <label><span>科类</span><input value="物理类" disabled></label>
+        <label><span>批次</span><input value="本科批" disabled></label>
+        <label class="avoid-field"><span>不接受专业关键词</span><input id="avoidMajorsInput" placeholder="例如：护理学、土木、动物医学" autocomplete="off"></label>
+      </div>
+    </section>
+
+    <section class="structure-band" aria-labelledby="structureTitle">
+      <div class="structure-copy">
+        <h2 id="structureTitle">当前结构</h2>
+        <p><strong id="selectedTotal">已选 0 / 40</strong><span id="selectedBreakdown">冲 0｜稳 0｜保 0</span></p>
+      </div>
+      <div class="structure-visual">
+        <div class="structure-track" aria-label="当前志愿冲稳保结构">
+          <i class="track-chong" id="selectedChongBar"></i>
+          <i class="track-wen" id="selectedWenBar"></i>
+          <i class="track-bao" id="selectedBaoBar"></i>
+        </div>
+        <p id="catalogBreakdown">当前列表：冲 0｜稳 0｜保 0</p>
+      </div>
+      <div class="risk-filters" role="group" aria-label="按冲稳保筛选">
+        <button class="filter-button active" type="button" data-risk-filter="all">全部 <b id="filterAllCount">0</b></button>
+        <button class="filter-button chong" type="button" data-risk-filter="chong">冲 <b id="filterChongCount">0</b></button>
+        <button class="filter-button wen" type="button" data-risk-filter="wen">稳 <b id="filterWenCount">0</b></button>
+        <button class="filter-button bao" type="button" data-risk-filter="bao">保 <b id="filterBaoCount">0</b></button>
+      </div>
+    </section>
+
+    <section class="browse-toolbar" aria-label="专业组检索与排序">
+      <label class="search-field"><span class="sr-only">搜索院校专业组</span><input id="searchInput" type="search" placeholder="搜索院校、专业组、专业或专业类"></label>
+      <label><span>排序</span><select id="sortSelect"><option value="probability">按录取概率</option><option value="score">按 2025 最低分</option><option value="school">按院校名称</option></select></label>
+      <p>概率会随分数实时重算；未加入志愿表也会直接显示冲稳保。</p>
+    </section>
+
+    <div class="workspace-grid">
+      <aside class="probability-rail" aria-labelledby="probabilityTitle">
+        <div class="rail-heading">
+          <div><p class="eyebrow">SAME STATE · 01</p><h2 id="probabilityTitle">概率索引</h2></div>
+          <span id="pageRange">0–0</span>
+        </div>
+        <div id="probabilityList" class="probability-list"></div>
+      </aside>
+
+      <section class="group-workbench" aria-labelledby="groupTitle">
+        <div class="workbench-heading">
+          <div><p class="eyebrow">SAME STATE · 02</p><h2 id="groupTitle">专业组卡片</h2></div>
+          <p id="resultCount">0 个结果</p>
+        </div>
+        <div id="groupList" class="group-list"></div>
+        <nav id="pagination" class="pagination" aria-label="专业组分页"></nav>
+      </section>
+
+      <aside class="volunteer-panel" id="volunteerPanel" aria-labelledby="volunteerTitle">
+        <div class="volunteer-heading">
+          <div><p class="eyebrow">SAME STATE · 03</p><h2 id="volunteerTitle">有序志愿表</h2></div>
+          <b id="volunteerCount">0 / 40</b>
+        </div>
+        <p class="panel-hint">拖拽或使用上下按钮调整顺序。删除后左侧与中间会同步取消选中。</p>
+        <div class="strategy-controls" aria-label="一键生成策略">
+          <select id="strategySelect" aria-label="选择生成策略"><option value="balanced">均衡型 30/45/25</option><option value="conservative">保守型 20/40/40</option><option value="progressive">进取型 40/40/20</option></select>
+          <button class="button button-secondary" id="strategyButton" type="button">生成 20 组</button>
+        </div>
+        <div class="confirmation-strip" id="confirmationStrip">
+          <div><b id="confirmationStatus">家长未确认</b><small id="confirmationDetail">当前方案还没有家长确认记录</small></div>
+          <div><button class="text-button" id="confirmationHistoryButton" type="button">确认记录</button><button class="button button-secondary" id="parentConfirmButton" type="button">家长确认</button></div>
+        </div>
+        <div id="volunteerList" class="volunteer-list"></div>
+        <div class="volunteer-footer">
+          <p id="lastSaved">尚未保存</p>
+          <button class="button button-primary" id="saveButton" type="button">保存志愿表</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <button class="mobile-volunteer-button" id="mobileVolunteerButton" type="button">志愿表 <b>0</b></button>
+
+  <dialog id="warningDialog" class="dialog-shell">
+    <form method="dialog" class="dialog-card">
+      <header><div><p class="eyebrow">MEDICAL WARNING</p><h2>体检条件提醒</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></header>
+      <div class="dialog-body">
+        <p id="warningCopy"></p>
+        <ul id="warningMajors"></ul>
+        <label class="confirm-check"><input id="warningAcknowledge" type="checkbox"><span>我已看到提醒，将结合目标院校招生章程逐校核对。</span></label>
+      </div>
+      <footer><button class="button button-secondary" value="cancel">取消</button><button class="button button-danger" id="warningContinue" value="default" disabled>仍然加入</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="algorithmDialog" class="dialog-shell">
+    <form method="dialog" class="dialog-card algorithm-card">
+      <header><div><p class="eyebrow">ALGORITHM SETTINGS</p><h2>冲稳保口径</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></header>
+      <div class="dialog-body">
+        <p>概率根据当前分数与 2023–2025 专业组最低分的差值、够到年份占比综合估算。它是内部辅助判断，不是录取承诺。</p>
+        <div class="algorithm-grid">
+          <label><span>冲上限（不含）</span><input id="chongThresholdInput" type="number" min="1" max="98"></label>
+          <label><span>稳上限（不含）</span><input id="wenThresholdInput" type="number" min="2" max="99"></label>
+        </div>
+        <div class="formula-box"><b>当前规则</b><p id="formulaCopy"></p></div>
+      </div>
+      <footer><button class="button button-secondary" id="restoreThresholdButton" type="button">恢复默认</button><button class="button button-primary" id="saveThresholdButton" value="default">应用设置</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="saveDialog" class="dialog-shell">
+    <form method="dialog" class="dialog-card">
+      <header><div><p class="eyebrow">STRUCTURE CHECK</p><h2>保存前风险提醒</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></header>
+      <div class="dialog-body"><p id="saveWarningCopy"></p><p>此提醒不强制拦截，确认后仍可保存。</p></div>
+      <footer><button class="button button-secondary" value="cancel">返回调整</button><button class="button button-primary" id="forceSaveButton" value="default">仍然保存</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="parentConfirmDialog" class="dialog-shell">
+    <form method="dialog" class="dialog-card">
+      <header><div><p class="eyebrow">PARENT CONFIRMATION</p><h2>家长确认当前志愿方案</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></header>
+      <div class="dialog-body">
+        <div class="confirmation-summary" id="parentConfirmationSummary"></div>
+        <div class="parent-grid">
+          <label><span>确认人姓名</span><input id="parentNameInput" autocomplete="off" placeholder="请输入家长姓名"></label>
+          <label><span>与学生关系</span><select id="parentRelationSelect"><option value="父亲">父亲</option><option value="母亲">母亲</option><option value="监护人">监护人</option><option value="其他">其他</option></select></label>
+        </div>
+        <label class="parent-note"><span>确认备注</span><textarea id="parentNoteInput" rows="3" placeholder="可记录家长提出的保留意见或调整要求"></textarea></label>
+        <label class="confirm-check"><input id="parentRiskAcknowledge" type="checkbox"><span>我已看到当前冲、稳、保结构及录取概率提示，理解概率不是录取承诺。</span></label>
+        <label class="confirm-check"><input id="parentAdjustmentAcknowledge" type="checkbox"><span>我已看到各专业组的最差调剂结果提示，并已确认是否服从专业调剂。</span></label>
+      </div>
+      <footer><button class="button button-secondary" value="cancel">取消</button><button class="button button-primary" id="submitParentConfirmation" value="default" disabled>确认并记录版本</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="confirmationHistoryDialog" class="dialog-shell">
+    <form method="dialog" class="dialog-card">
+      <header><div><p class="eyebrow">AUDIT TRAIL</p><h2>家长确认记录</h2></div><button class="icon-button" value="cancel" aria-label="关闭">×</button></header>
+      <div class="dialog-body"><div class="confirmation-history" id="confirmationHistoryList"></div></div>
+      <footer><button class="button button-primary" value="default">关闭</button></footer>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

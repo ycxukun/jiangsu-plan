@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>强基综评流程系统｜独立预览</title>
+  <meta name="description" content="面向升学咨询现场的强基计划与综合评价流程讲解、学生适配和材料管理预览。">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true">知</div>
+      <div><strong>知行学录</strong><span>多元升学路径实验室</span></div>
+    </div>
+    <nav class="main-nav" aria-label="系统页面">
+      <button class="nav-tab is-active" type="button" data-view="overview">路径总览</button>
+      <button class="nav-tab" type="button" data-view="track" data-track="foundation">强基路径</button>
+      <button class="nav-tab" type="button" data-view="track" data-track="comprehensive">综评路径</button>
+      <button class="nav-tab" type="button" data-view="materials">材料工作台</button>
+      <button class="nav-tab" type="button" data-view="compare">方案对比</button>
+      <button class="nav-tab role-admin-only" type="button" data-view="editor">规则编辑</button>
+    </nav>
+    <div class="header-actions">
+      <div class="role-switch" role="group" aria-label="预览身份">
+        <button class="role-button is-active" type="button" data-role="consultant">咨询师</button>
+        <button class="role-button" type="button" data-role="public">家长/学生</button>
+        <button class="role-button" type="button" data-role="admin">管理员</button>
+      </div>
+      <span class="preview-badge">独立预览</span>
+    </div>
+  </header>
+
+  <section class="policy-bar" aria-label="政策版本">
+    <div><span>适用地区</span><strong id="policyRegion">江苏</strong></div>
+    <label><span>规则年份</span><select id="policyYear"><option>2025</option><option selected>2026</option></select></label>
+    <div class="policy-status" id="policyStatus"></div>
+  </section>
+
+  <main class="app-main" id="app" tabindex="-1">
+    <section class="view is-active" data-view-panel="overview">
+      <div class="page-heading">
+        <div><p class="eyebrow">一名学生，两条独立路径</p><h1>强基与综评路径总览</h1><p>先判断学生是否适配，再分别管理年度规则、关键节点、材料和普通批备选方案。</p></div>
+        <div class="heading-status"><strong>当前身份</strong><span id="currentRoleLabel">咨询师</span><small id="roleScopeText">显示公开解释、风险提示和内部咨询建议。</small></div>
+      </div>
+
+      <div class="overview-layout">
+        <aside class="student-panel">
+          <div class="panel-title"><div><span>学生画像</span><h2>适配条件试算</h2></div><button class="text-button" type="button" data-action="reset-profile">重置</button></div>
+          <label>校内位置<select id="profileGrade"><option value="top5">前 5%</option><option value="top10">前 10%</option><option value="top20" selected>前 20%</option><option value="top30">前 30%</option><option value="other">其他</option></select></label>
+          <div class="profile-group"><span>首选科目</span><div class="segmented"><button type="button" class="is-active" data-profile-key="subject" data-value="physics">物理</button><button type="button" data-profile-key="subject" data-value="history">历史</button></div></div>
+          <div class="profile-group"><span>兴趣主线</span><div class="choice-grid"><button type="button" class="is-active" data-profile-key="interest" data-value="basic">基础学科</button><button type="button" data-profile-key="interest" data-value="research">研究探索</button><button type="button" data-profile-key="interest" data-value="application">应用就业</button><button type="button" data-profile-key="interest" data-value="unclear">尚未明确</button></div></div>
+          <div class="profile-group"><span>长期培养接受度</span><div class="segmented"><button type="button" class="is-active" data-profile-key="commitment" data-value="yes">可以接受</button><button type="button" data-profile-key="commitment" data-value="unsure">需要讨论</button></div></div>
+          <div class="profile-group"><span>材料基础</span><div class="segmented"><button type="button" class="is-active" data-profile-key="evidence" data-value="basic">有基础</button><button type="button" data-profile-key="evidence" data-value="rich">较丰富</button><button type="button" data-profile-key="evidence" data-value="none">较少</button></div></div>
+          <div class="profile-group"><span>信息完整度</span><div class="segmented"><button type="button" class="is-active" data-profile-key="record" data-value="complete">较完整</button><button type="button" data-profile-key="record" data-value="partial">待补</button></div></div>
+          <div class="profile-group"><span>表达准备</span><div class="segmented"><button type="button" class="is-active" data-profile-key="communication" data-value="train">可训练</button><button type="button" data-profile-key="communication" data-value="ready">准备较好</button><button type="button" data-profile-key="communication" data-value="weak">基础薄弱</button></div></div>
+        </aside>
+
+        <div class="pathway-overview" id="pathwayOverview"></div>
+      </div>
+    </section>
+
+    <section class="view" data-view-panel="track">
+      <div id="trackContent"></div>
+    </section>
+
+    <section class="view" data-view-panel="materials">
+      <div class="page-heading compact-heading">
+        <div><p class="eyebrow">统一学生档案，按路径分发</p><h1>材料工作台</h1><p>材料只维护一份主档；每所院校仍要按当年系统字段和简章要求复核。</p></div>
+        <div class="material-actions"><select id="materialTrack"><option value="all">全部路径</option><option value="foundation">强基计划</option><option value="comprehensive">综合评价</option></select><button class="button button-secondary" id="exportChecklist" type="button">导出清单</button></div>
+      </div>
+      <div class="material-summary" id="materialSummary"></div>
+      <div class="material-list" id="materialList"></div>
+    </section>
+
+    <section class="view" data-view-panel="compare">
+      <div class="page-heading compact-heading"><div><p class="eyebrow">不混规则，只比较决策</p><h1>强基与综评方案对比</h1><p>同一名学生可以同时评估两条路径，但报名条件、材料、校测和录取动作必须分开管理。</p></div></div>
+      <div class="comparison-table" id="comparisonTable"></div>
+      <div class="portfolio-advice" id="portfolioAdvice"></div>
+    </section>
+
+    <section class="view role-admin-only" data-view-panel="editor">
+      <div class="page-heading compact-heading">
+        <div><p class="eyebrow">本地规则后台</p><h1>流程内容编辑</h1><p>仅用于核对字段和交互。保存写入当前浏览器，不会修改线上数据库。</p></div>
+        <button class="button button-danger" id="resetData" type="button">恢复示例数据</button>
+      </div>
+      <div class="editor-layout">
+        <aside class="editor-index"><label>路径<select id="editorTrack"></select></label><label>阶段<select id="editorStage"></select></label><div id="editorSource"></div></aside>
+        <form id="editorForm" class="editor-form">
+          <label><span>阶段标题</span><input name="title" required></label>
+          <label><span>负责人</span><input name="owner" required></label>
+          <label><span>时间口径</span><input name="timing" required></label>
+          <label><span>阶段目标</span><textarea name="goal" rows="4" required></textarea></label>
+          <label><span>风险提示</span><textarea name="warning" rows="4" required></textarea></label>
+          <div class="editor-footer"><span id="editorSaveHint">当前内容已载入</span><button class="button button-primary" type="submit">保存到本机</button></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>体检限报查询系统｜独立预览</title>
+  <meta name="description" content="基于教育部指导意见与2026本科专业目录的体检代码解释、专业风险查询和确认式选报工具。">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-block"><div class="brand-mark" aria-hidden="true">检</div><div><strong>知行学录</strong><span>体检限报风险查询</span></div></div>
+    <nav class="main-nav" aria-label="系统页面">
+      <button class="nav-tab is-active" type="button" data-view="query">专业查询</button>
+      <button class="nav-tab" type="button" data-view="codes">代码解读</button>
+      <button class="nav-tab" type="button" data-view="plan">选择清单 <span id="navPlanCount">0</span></button>
+      <button class="nav-tab role-admin-only" type="button" data-view="audit">规则审计</button>
+    </nav>
+    <div class="header-actions">
+      <div class="role-switch" role="group" aria-label="预览身份">
+        <button class="role-button is-active" type="button" data-role="consultant">咨询师</button>
+        <button class="role-button" type="button" data-role="public">家长/学生</button>
+        <button class="role-button" type="button" data-role="admin">管理员</button>
+      </div>
+      <span class="preview-badge">独立预览</span>
+    </div>
+  </header>
+
+  <section class="source-bar">
+    <div><span>专业目录</span><strong>2026 本科目录 · 883 专业</strong></div>
+    <div><span>通用依据</span><strong>教学〔2003〕3号</strong></div>
+    <div class="source-status"><i aria-hidden="true"></i><p><strong>提醒不拦截</strong><span>风险专业可在阅读警告并确认后继续加入，院校章程必须逐校复核。</span></p></div>
+  </section>
+
+  <main class="app-main" id="app" tabindex="-1">
+    <section class="view is-active" data-view-panel="query">
+      <div class="page-heading">
+        <div><p class="eyebrow">从体检结论出发，不靠专业名称猜测</p><h1>体检限报专业查询</h1><p>先选择体检结论代码，再从教育部 2026 年本科专业目录中筛查风险。结果是工作提示，不是自动退档结论。</p></div>
+        <div class="heading-status"><strong>当前身份</strong><span id="currentRoleLabel">咨询师</span><small id="roleScopeText">显示规则来源、内部严格预警和确认记录。</small></div>
+      </div>
+
+      <div class="query-layout">
+        <aside class="code-panel">
+          <div class="panel-title"><div><span>第一步</span><h2>选择体检代码</h2></div><button class="text-button" type="button" data-action="clear-codes">清空</button></div>
+          <div id="codePicker"></div>
+          <div class="active-code-note" id="activeCodeNote"></div>
+        </aside>
+
+        <div class="query-workspace">
+          <div class="summary-strip" id="summaryStrip"></div>
+          <div class="query-toolbar">
+            <label class="search-field"><span>搜索专业</span><input id="searchInput" type="search" placeholder="输入专业名称、代码或专业类"></label>
+            <label><span>学科门类</span><select id="disciplineFilter"><option value="">全部门类</option></select></label>
+            <label><span>风险层级</span><select id="riskFilter"><option value="risk">只看触发风险</option><option value="all">全部专业</option><option value="school">学校层面</option><option value="restricted">录取受限</option><option value="special">专项体检</option><option value="advisory">不宜就读</option><option value="safe">未触发</option></select></label>
+            <button class="button button-secondary" type="button" data-action="reset-filters">重置筛选</button>
+          </div>
+          <div class="result-meta"><strong id="resultCount">0 个专业</strong><span id="resultContext">请选择体检代码</span></div>
+          <div class="result-grid" id="resultGrid"></div>
+          <nav class="pagination" id="pagination" aria-label="查询结果分页"></nav>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view-panel="codes">
+      <div class="page-heading compact-heading"><div><p class="eyebrow">先分清效力层级，再讨论专业</p><h1>体检代码解读</h1><p>“学校可以不予录取”“有关专业可不予录取”和“不宜就读”不是同一含义；公安、军队、飞行等专项招生另行适用专门标准。</p></div></div>
+      <div class="source-links" aria-label="规则来源">
+        <a href="https://www.moe.gov.cn/jyb_xxgk/gk_gbgg/moe_0/moe_9/moe_34/tnull_40.html" target="_blank" rel="noreferrer"><span>通用依据</span><strong>教育部《普通高等学校招生体检工作指导意见》</strong></a>
+        <a href="https://www.moe.gov.cn/jyb_xwfb/xw_zt/moe_357/2026/2026_zt08/" target="_blank" rel="noreferrer"><span>年度问答</span><strong>教育部 2026 年全国高考专题</strong></a>
+        <a href="https://www.moe.gov.cn/srcsite/A08/moe_1034/s3882/202604/t20260427_1434931.html" target="_blank" rel="noreferrer"><span>专业底库</span><strong>2026 年本科专业目录</strong></a>
+      </div>
+      <div class="code-guide" id="codeGuide"></div>
+    </section>
+
+    <section class="view" data-view-panel="plan">
+      <div class="page-heading compact-heading"><div><p class="eyebrow">每一次风险选择都有确认记录</p><h1>专业选择清单</h1><p>清单保留触发代码、风险层级和确认时间。进入正式志愿表前仍需逐校核对招生章程。</p></div><button class="button button-secondary" type="button" id="exportPlan">导出确认清单</button></div>
+      <div class="plan-summary" id="planSummary"></div>
+      <div class="plan-list" id="planList"></div>
+    </section>
+
+    <section class="view role-admin-only" data-view-panel="audit">
+      <div class="page-heading compact-heading"><div><p class="eyebrow">规则可追溯，不静默扩大</p><h1>体检规则审计</h1><p>审核每条规则的效力层级、来源类型和匹配数量。内部严格预警必须单独标注，不能冒充国家指导意见原文。</p></div></div>
+      <div class="audit-summary" id="auditSummary"></div>
+      <div class="audit-table" id="auditTable"></div>
+    </section>
+  </main>
+
+  <dialog class="risk-dialog" id="riskDialog">
+    <form method="dialog">
+      <div class="dialog-heading"><span id="dialogRiskLevel">风险提醒</span><h2 id="dialogMajorName">专业名称</h2><p id="dialogMajorMeta"></p></div>
+      <div class="dialog-reasons" id="dialogReasons"></div>
+      <div class="dialog-warning"><strong>必须完成的动作</strong><p>查看目标院校当年招生章程中的身体条件要求；存在疑问时，向高校招生办公室进行可留痕咨询。</p></div>
+      <label class="acknowledge"><input id="riskAcknowledge" type="checkbox"><span>我已看到以上风险，知道系统不会替代院校审核，后续将逐校核对。</span></label>
+      <div class="dialog-actions"><button class="button button-secondary" value="cancel">取消</button><button class="button button-danger" id="confirmRiskAdd" type="button" disabled>仍然加入清单</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+  <script src="../major-visualizer-preview/catalog-2026.js"></script>
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -987,6 +987,7 @@
     </footer>
   </main>
 
+  <script src="./auth-errors.js?v=20260712-auth-errors-r1"></script>
   <script>
     const SUPABASE_URL = 'https://qnspmqsrbjcgrgpqkzgl.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
@@ -1030,6 +1031,12 @@
     }
     function isTransientNetworkStatus(status) {
       return status === 408 || status === 429 || status >= 500;
+    }
+    function formatAuthError(error, action = 'login') {
+      return window.JIANGSU_AUTH_ERRORS.format(error, action);
+    }
+    async function authErrorFromResponse(response, action) {
+      return new Error(formatAuthError(await response.text(), action));
     }
     function setAuthBusy(busy) {
       authBusy = busy;
@@ -1171,7 +1178,7 @@
         headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pwd })
       }, (attempt, total) => { tip.textContent = `网络波动，正在自动重连 ${attempt}/${total}...`; });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw await authErrorFromResponse(res, 'login');
       const data = await res.json();
       if (!data.access_token || !data.user?.id) throw new Error('登录响应不完整，请重试。');
       saveStandaloneAuth(data);
@@ -1194,7 +1201,7 @@
           data: { role: 'viewer', display_name: email.split('@')[0] }
         })
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw await authErrorFromResponse(res, 'register');
       const data = await res.json();
       if (!data.access_token || !data.user?.id) {
         throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
@@ -1284,7 +1291,7 @@
       tip.textContent = '正在登录，请稍候...';
       if (!isEmbedded()) {
         standaloneLogin(email, pwd).catch(err => {
-          tip.textContent = '登录失败：' + err.message;
+          tip.textContent = '登录失败：' + formatAuthError(err, 'login');
         }).finally(() => setAuthBusy(false));
         return;
       }
@@ -1306,7 +1313,7 @@
       tip.textContent = '正在注册，请稍候...';
       if (!isEmbedded()) {
         standaloneRegister(email, pwd).catch(err => {
-          tip.textContent = '注册失败：' + err.message;
+          tip.textContent = '注册失败：' + formatAuthError(err, 'register');
         }).finally(() => setAuthBusy(false));
         return;
       }

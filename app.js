@@ -1599,7 +1599,7 @@ function createLayout(){
   document.body.innerHTML=`
   <div class="app-shell">
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="./login_landing.html?v=20260710-security-integrity-r1" title="知行学录登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="./login_landing.html?v=20260712-auth-errors-r1" title="知行学录登录页"></iframe>
     </div>
     <header class="topbar">
       <div class="hero"><div class="brand"><h1>江苏省招生计划变化知识库</h1><p>基于 2026 在招数据与行级权威历史数据生成；院校内专业组按组内专业加权均分由高到低排列。</p></div><div class="top-actions"><div class="stage-switch"><a class="active" href="./index.html">本科</a><a href="./specialty/index.html">专科</a></div><a id="majorMapBtn" class="header-toggle content-toggle" href="./major-map/">专业地图</a><a id="contentCenterBtn" class="header-toggle content-toggle" href="./content/index.html">升学资讯</a><a id="comprehensiveCenterBtn" class="header-toggle content-toggle" href="./comprehensive/index.html">综合评价</a><a id="crmCenterBtn" class="header-toggle content-toggle" href="./crm.html">CRM 工作台</a><div class="version">${VERSION}</div><div id="studentProfileMenu" class="student-profile-menu"><button id="studentProfileBtn" class="student-profile-trigger" type="button" aria-expanded="false"><span id="studentProfileAvatar" class="student-profile-avatar">未</span><span class="student-profile-copy"><b id="studentProfileName">未选择学生</b><small id="studentProfileSummary">登录后管理学生、志愿表和账号</small></span><span class="student-profile-caret">⌄</span></button><div class="student-profile-dropdown"><div class="student-profile-card"><span id="studentProfileAvatarLarge" class="student-profile-avatar large">未</span><div><b id="studentProfileNameLarge">未选择学生</b><p id="studentProfileMeta">登录后可保存和加载志愿表。</p></div></div><div class="student-profile-mini"><span id="studentProfileAccount">账号：未登录</span><span id="studentProfileVolunteer">志愿表 0/40</span></div><div class="student-profile-actions"><button id="profileOpenStudents" type="button">学生档案</button><button id="profileOpenVolunteer" type="button">志愿表</button><button id="profileAccountCenter" type="button">账号中心</button><button id="profileSwitchAccount" type="button">切换账号</button><button id="profileLogout" class="danger" type="button">退出登录</button></div></div></div><button id="compactBtn" class="header-toggle" type="button">${state.compact?'标准显示':'紧凑显示'}</button><button id="toggleHeaderBtn" class="header-toggle" type="button">收起头部</button></div></div>
@@ -4569,6 +4569,10 @@ async function loginSupabase(){
   const password=($('#accountPassword')||$('#loginPwd')).value;
   try{await loginSupabaseWithCredentials(email,password,{notify:true});}catch(err){}
 }
+function formatAuthError(error,action='login'){
+  return window.JIANGSU_AUTH_ERRORS.format(error,action);
+}
+async function authResponseError(response,action){return new Error(formatAuthError(await response.text(),action));}
 async function loginSupabaseWithCredentials(email,password,options={}){
   const validationSeq=++authValidationSeq;
   authRefreshPromise=null;
@@ -4577,7 +4581,7 @@ async function loginSupabaseWithCredentials(email,password,options={}){
   try{
     if(!email||!password)throw new Error('请输入邮箱和密码。');
     const res=await fetchWithNetworkRetry(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})},options.onRetry);
-    if(!res.ok)throw new Error(await res.text());
+    if(!res.ok)throw await authResponseError(res,'login');
     const data=await res.json();
     if(!data.access_token||!data.user?.id)throw new Error('登录响应不完整，请重试。');
     authProfileVerified=false;
@@ -4601,7 +4605,7 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     return true;
   }catch(err){
     if(validationSeq===authValidationSeq)invalidateAuthSession();
-    if(options.notify!==false)alert('登录失败：'+err.message);
+    if(options.notify!==false)alert('登录失败：'+formatAuthError(err,'login'));
     throw err;
   }
 }
@@ -4618,7 +4622,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
       headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
       body:JSON.stringify({email,password,data:{role:'viewer',display_name:email.split('@')[0]}})
     });
-    if(!res.ok)throw new Error(await res.text());
+    if(!res.ok)throw await authResponseError(res,'register');
     const data=await res.json();
     if(!data.access_token||!data.user?.id)throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
     authProfileVerified=false;
@@ -4642,7 +4646,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
     return true;
   }catch(err){
     if(validationSeq===authValidationSeq)invalidateAuthSession();
-    if(options.notify!==false)alert('注册失败：'+err.message);
+    if(options.notify!==false)alert('注册失败：'+formatAuthError(err,'register'));
     throw err;
   }
 }
@@ -4670,7 +4674,9 @@ async function handleLandingAuthMessage(event){
       frame?.postMessage({source:'jiangsu-plan-auth',status:'ok'},event.origin);
     }
   }catch(err){
-    frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:'登录失败：'+err.message},event.origin);
+    const action=String(event.data?.action||'login');
+    const prefix=action==='register'?'注册失败：':action==='reset-password'?'发送失败：':'登录失败：';
+    frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:prefix+formatAuthError(err,action)},event.origin);
   }
 }
 async function sendPasswordReset(email){

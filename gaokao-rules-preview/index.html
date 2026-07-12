@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>高考规则讲解系统｜独立预览</title>
+  <meta name="description" content="面向升学咨询现场的平行志愿、院校专业组、投档录取、滑档退档与专业调剂规则讲解系统。">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true">知</div>
+      <div>
+        <strong>知行学录</strong>
+        <span>高考规则讲解实验室</span>
+      </div>
+    </div>
+
+    <nav class="main-tabs" id="mainTabs" aria-label="规则场景"></nav>
+
+    <div class="header-actions">
+      <div class="role-switch" role="group" aria-label="预览身份">
+        <button class="role-button is-active" type="button" data-role="consultant">咨询师</button>
+        <button class="role-button" type="button" data-role="public">家长/学生</button>
+        <button class="role-button" type="button" data-role="admin">管理员</button>
+      </div>
+      <span class="preview-badge">独立预览</span>
+    </div>
+  </header>
+
+  <section class="policy-bar" aria-label="规则版本">
+    <div class="policy-field">
+      <span>适用地区</span>
+      <strong id="policyRegion">江苏</strong>
+    </div>
+    <label class="policy-field">
+      <span>规则年份</span>
+      <select id="policyYear">
+        <option value="2026">2026 正式核对版</option>
+        <option value="2025">2025 复盘版</option>
+      </select>
+    </label>
+    <div class="policy-field">
+      <span>批次范围</span>
+      <strong id="policyBatch">普通类</strong>
+    </div>
+    <div class="policy-status is-pending" id="policyStatus">
+      <span class="status-dot" aria-hidden="true"></span>
+      <div>
+        <strong>正在载入规则核对状态</strong>
+        <small>政策年份、文件编号和逐校章程将分别显示。</small>
+      </div>
+    </div>
+  </section>
+
+  <main class="app-main" id="app">
+    <aside class="scene-index" aria-label="讲解场景">
+      <div class="scene-index-head">
+        <span>讲解目录</span>
+        <strong><span id="visitedCount">0</span> / 5 已讲</strong>
+      </div>
+      <div class="scene-index-list" id="sceneIndex"></div>
+      <div class="role-note">
+        <strong>当前身份：<span id="currentRoleLabel">咨询师</span></strong>
+        <p id="roleScopeText">显示公开解释、风险提示和内部咨询话术。</p>
+      </div>
+      <button class="button button-secondary button-block" id="exportBrief" type="button">导出本次讲解摘要</button>
+    </aside>
+
+    <section class="scene-workspace" id="sceneWorkspace" aria-live="polite">
+      <div id="sceneContent"></div>
+    </section>
+  </main>
+
+  <section class="editor-view role-admin-only" id="editorView" hidden aria-labelledby="editorTitle">
+    <div class="editor-heading">
+      <div>
+        <p class="eyebrow">本地规则后台</p>
+        <h1 id="editorTitle">规则内容编辑</h1>
+        <p>用于确认字段与操作流程。保存只写入当前浏览器，不会修改现有系统或线上数据库。</p>
+      </div>
+      <div class="editor-actions">
+        <button class="button button-secondary" id="exportData" type="button">导出 JSON</button>
+        <label class="button button-secondary file-button">导入 JSON<input id="importData" type="file" accept="application/json,.json"></label>
+        <button class="button button-danger" id="resetData" type="button">恢复示例数据</button>
+        <button class="button button-primary" id="closeEditor" type="button">返回讲解</button>
+      </div>
+    </div>
+
+    <div class="editor-layout">
+      <aside class="editor-index">
+        <label for="editorSceneSelect">选择场景</label>
+        <select id="editorSceneSelect"></select>
+        <div class="editor-source" id="editorSource"></div>
+      </aside>
+      <form class="editor-form" id="editorForm">
+        <div class="form-grid">
+          <label><span>场景标题</span><input name="title" required></label>
+          <label><span>核对状态</span><select name="status"><option value="framework">机制框架可讲解</option><option value="pending">年度细则待核对</option><option value="verified">已按正式文件核对</option></select></label>
+          <label class="form-wide"><span>一句话解释</span><textarea name="summary" rows="3" required></textarea></label>
+          <label class="form-wide"><span>风险提示</span><textarea name="risk" rows="3" required></textarea></label>
+          <label class="form-wide"><span>家长常问</span><textarea name="parentQuestion" rows="2"></textarea></label>
+          <label class="form-wide"><span>公开回答</span><textarea name="publicAnswer" rows="3"></textarea></label>
+          <label class="form-wide"><span>内部咨询话术</span><textarea name="consultantNote" rows="3"></textarea></label>
+        </div>
+        <div class="editor-footer">
+          <span id="editorSaveHint">当前内容已载入</span>
+          <button class="button button-primary" type="submit">保存到本机</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

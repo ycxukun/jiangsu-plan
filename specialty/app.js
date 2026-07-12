@@ -1516,7 +1516,7 @@ function createLayout(){
     </div>
     <div id="notePanel" class="note-panel"><h4>备注</h4><div id="notePanelText"></div></div>
     <div id="authCover" class="auth-cover" hidden>
-      <iframe id="authLandingFrame" class="auth-cover-frame" src="../login_landing.html?v=20260710-security-integrity-r1" title="知行学录登录页"></iframe>
+      <iframe id="authLandingFrame" class="auth-cover-frame" src="../login_landing.html?v=20260712-auth-errors-r1" title="知行学录登录页"></iframe>
     </div>
     <div id="modalMask" class="modal-mask"><div id="modal" class="modal"></div></div>
     <div class="admin-dock"><button id="adminDockBtn">管理员备注</button></div><div id="adminMenu" class="admin-menu"><button id="loginBtn">登录数据库</button><button id="reloadNotesBtn">读取备注</button><button id="addSchoolNoteBtn">新增当前学校备注</button><button id="logoutBtn">退出登录</button><div class="context-hint">右键学校、专业组或专业行可编辑备注。</div></div>
@@ -4220,6 +4220,10 @@ async function loginSupabase(){
   const password=($('#accountPassword')||$('#loginPwd')).value;
   try{await loginSupabaseWithCredentials(email,password,{notify:true});}catch(err){}
 }
+function formatAuthError(error,action='login'){
+  return window.JIANGSU_AUTH_ERRORS.format(error,action);
+}
+async function authResponseError(response,action){return new Error(formatAuthError(await response.text(),action));}
 async function loginSupabaseWithCredentials(email,password,options={}){
   const validationSeq=++authValidationSeq;
   authRefreshPromise=null;
@@ -4228,7 +4232,7 @@ async function loginSupabaseWithCredentials(email,password,options={}){
   try{
     if(!email||!password)throw new Error('请输入邮箱和密码。');
     const res=await fetchWithNetworkRetry(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})},options.onRetry);
-    if(!res.ok)throw new Error(await res.text());
+    if(!res.ok)throw await authResponseError(res,'login');
     const data=await res.json();
     if(!data.access_token||!data.user?.id)throw new Error('登录响应不完整，请重试。');
     authProfileVerified=false;
@@ -4252,7 +4256,7 @@ async function loginSupabaseWithCredentials(email,password,options={}){
     return true;
   }catch(err){
     if(validationSeq===authValidationSeq)invalidateAuthSession();
-    if(options.notify!==false)alert('登录失败：'+err.message);
+    if(options.notify!==false)alert('登录失败：'+formatAuthError(err,'login'));
     throw err;
   }
 }
@@ -4269,7 +4273,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
       headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
       body:JSON.stringify({email,password,data:{role:'viewer',display_name:email.split('@')[0]}})
     });
-    if(!res.ok)throw new Error(await res.text());
+    if(!res.ok)throw await authResponseError(res,'register');
     const data=await res.json();
     if(!data.access_token||!data.user?.id)throw new Error('注册已提交，但 Supabase 仍要求邮箱验证。请在 Supabase Auth 邮箱设置里关闭 Confirm email 后再试。');
     authProfileVerified=false;
@@ -4293,7 +4297,7 @@ async function registerSupabaseWithCredentials(email,password,options={}){
     return true;
   }catch(err){
     if(validationSeq===authValidationSeq)invalidateAuthSession();
-    if(options.notify!==false)alert('注册失败：'+err.message);
+    if(options.notify!==false)alert('注册失败：'+formatAuthError(err,'register'));
     throw err;
   }
 }
@@ -4321,7 +4325,9 @@ async function handleLandingAuthMessage(event){
       frame?.postMessage({source:'jiangsu-plan-auth',status:'ok'},event.origin);
     }
   }catch(err){
-    frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:'登录失败：'+err.message},event.origin);
+    const action=String(event.data?.action||'login');
+    const prefix=action==='register'?'注册失败：':action==='reset-password'?'发送失败：':'登录失败：';
+    frame?.postMessage({source:'jiangsu-plan-auth',status:'error',message:prefix+formatAuthError(err,action)},event.origin);
   }
 }
 async function sendPasswordReset(email){

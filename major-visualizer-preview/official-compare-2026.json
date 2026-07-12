@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "expected": {
+    "disciplineCount": 13,
+    "categoryCount": 92,
+    "majorCount": 883,
+    "directCrossDisciplineCount": 15
+  },
+  "metadata": {
+    "year": 2026,
+    "disciplineCount": 13,
+    "categoryCount": 92,
+    "directCrossDisciplineCount": 15,
+    "majorCount": 883,
+    "localSummaryMatchCount": 536,
+    "specificMajorTextMatchCount": 676,
+    "majorDetailCount": 724,
+    "classReferenceCount": 87,
+    "catalogOnlyCount": 72,
+    "fieldCoverage": {
+      "majorDetail": 724,
+      "classDetail": 777,
+      "courses": 195,
+      "careers": 450,
+      "universities": 183
+    },
+    "officialNoticeUrl": "https://hudong.moe.gov.cn/srcsite/A08/moe_1034/s3882/202604/t20260427_1434931.html",
+    "officialPdfUrl": "https://www.moe.gov.cn/srcsite/A08/moe_1034/s3882/202604/W020260427440749576927.pdf",
+    "officialSourceName": "普通高等学校本科专业目录（2026年）",
+    "sourceNames": [
+      "普通高等学校本科专业目录（2026年）",
+      "专业详解.xlsx",
+      "专业大类详解",
+      "大学专业课程.xlsx",
+      "专业就业去向.xlsx",
+      "专业院校宝典.xlsx"
+    ]
+  },
+  "officialComparison": {
+    "officialCount": 883,
+    "generatedCount": 883,
+    "missingCodes": [],
+    "extraCodes": [],
+    "nameMismatches": []
+  },
+  "errors": []
+}

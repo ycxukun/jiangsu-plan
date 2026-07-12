@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>本科专业可视化讲解面板｜独立预览</title>
+  <meta name="description" content="基于教育部2026年本科专业目录的专业检索、讲解、对比与院校矩阵独立预览系统。">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css?v=20260712-major-map-r1">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true">知</div>
+      <div>
+        <strong>知行学录</strong>
+        <span>本科专业讲解实验室</span>
+      </div>
+    </div>
+
+    <nav class="main-tabs" aria-label="主功能">
+      <button class="main-tab is-active" type="button" data-view="catalog">专业地图</button>
+      <button class="main-tab" type="button" data-view="detail">讲解面板</button>
+      <button class="main-tab" type="button" data-view="compare">
+        专业对比 <span class="tab-count" id="compareTabCount">0</span>
+      </button>
+      <button class="main-tab" type="button" data-view="matrix">院校矩阵</button>
+      <button class="main-tab role-admin-only" type="button" data-view="editor">内容编辑</button>
+    </nav>
+
+    <div class="header-actions">
+      <div class="role-switch" role="group" aria-label="预览身份">
+        <button class="role-button is-active" type="button" data-role="consultant">咨询师</button>
+        <button class="role-button" type="button" data-role="public">家长/学生</button>
+        <button class="role-button" type="button" data-role="admin">管理员</button>
+      </div>
+      <span class="preview-badge">独立预览</span>
+    </div>
+  </header>
+
+  <main id="app" class="app-main" tabindex="-1">
+    <section class="view is-active" id="view-catalog" data-view-panel="catalog" aria-labelledby="catalogTitle">
+      <div class="page-heading catalog-heading">
+        <div>
+          <p class="eyebrow">从全景目录点进每一个专业</p>
+          <h1 id="catalogTitle">本科专业地图</h1>
+          <p>沿用专业目录全景图的彩色分支，按“学科门类 → 专业类 → 专业”逐层展开；点击专业节点即可查看讲解。</p>
+        </div>
+        <div class="source-status" id="sourceStatus"></div>
+      </div>
+
+      <div class="catalog-integrity" id="catalogIntegrity" role="status" aria-live="polite"></div>
+
+      <section class="major-map-workbench" aria-label="本科专业目录交互地图">
+        <div class="major-map-toolbar">
+          <div class="major-map-search">
+            <label class="field-label" for="majorSearch">搜索并定位专业</label>
+            <div class="major-map-search-box">
+              <span aria-hidden="true">⌕</span>
+              <input id="majorSearch" class="text-input" type="search" autocomplete="off" placeholder="输入专业名称、专业代码或专业类">
+              <button class="map-search-clear" id="clearMajorSearch" type="button" aria-label="清空搜索" hidden>×</button>
+            </div>
+            <div class="major-map-search-results" id="majorMapSearchResults" hidden></div>
+          </div>
+
+          <nav class="major-map-breadcrumb" id="majorMapBreadcrumb" aria-label="专业地图路径"></nav>
+
+          <div class="major-map-controls" aria-label="地图控制">
+            <button class="map-control-button" type="button" data-action="map-zoom-out" aria-label="缩小地图">−</button>
+            <output id="majorMapZoomLabel" aria-live="polite">100%</output>
+            <button class="map-control-button" type="button" data-action="map-zoom-in" aria-label="放大地图">＋</button>
+            <button class="button button-secondary" type="button" data-action="map-reset">回到全景</button>
+          </div>
+        </div>
+
+        <div class="major-map-stats" aria-label="目录概览">
+          <span><strong id="disciplineCount">13</strong><small>学科门类</small></span>
+          <span><strong id="categoryCount">92</strong><small>官方专业类</small></span>
+          <span><strong id="catalogResultCount">883</strong><small>本科专业</small></span>
+          <span><strong id="contentReadyCount">811</strong><small>已有讲解</small></span>
+          <span><strong id="selectedCompareCount">0</strong><small>已加入对比</small></span>
+          <span class="major-map-role-note">
+            <strong>当前身份：<b id="currentRoleText">咨询师</b></strong>
+            <small id="roleScopeText">可查看家长讲解、风险提示、咨询话术与内部备注。</small>
+          </span>
+        </div>
+
+        <div class="major-map-layout" id="majorMapLayout">
+          <div class="major-map-stage" id="majorMapStage">
+            <div class="major-map-stage-head">
+              <span id="majorMapLevelLabel">本科专业目录全景</span>
+              <span id="majorMapHint">拖动地图 · 滚轮缩放 · 点击彩色节点逐层展开</span>
+            </div>
+            <svg id="majorMapCanvas" class="major-map-canvas" role="img" aria-labelledby="majorMapSvgTitle majorMapSvgDesc" preserveAspectRatio="xMidYMid meet">
+              <title id="majorMapSvgTitle">本科专业目录交互地图</title>
+              <desc id="majorMapSvgDesc">从本科专业目录展开到学科门类、专业类与具体专业。</desc>
+              <g id="majorMapViewport">
+                <g id="majorMapLinks" aria-hidden="true"></g>
+                <g id="majorMapNodes"></g>
+              </g>
+            </svg>
+            <div class="major-map-live-status" id="majorMapLiveStatus" role="status" aria-live="polite"></div>
+          </div>
+
+          <aside class="major-map-detail" id="majorMapDetail" aria-label="当前专业详情" hidden></aside>
+        </div>
+      </section>
+    </section>
+
+    <section class="view" id="view-detail" data-view-panel="detail" aria-labelledby="detailTitle">
+      <div id="detailContent"></div>
+    </section>
+
+    <section class="view" id="view-compare" data-view-panel="compare" aria-labelledby="compareTitle">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">横向决策</p>
+          <h1 id="compareTitle">专业对比</h1>
+          <p>一次比较 2 至 4 个专业，重点看学习负担、深造依赖、就业锚点和风险差异。</p>
+        </div>
+        <button class="button button-secondary" id="clearCompare" type="button">清空对比</button>
+      </div>
+      <div id="compareContent"></div>
+    </section>
+
+    <section class="view" id="view-matrix" data-view-panel="matrix" aria-labelledby="matrixTitle">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">专业到院校</p>
+          <h1 id="matrixTitle">院校专业矩阵</h1>
+          <p>按专业查看已完成深度讲解的代表院校、区域、层次和学科特色，不替代当年招生章程。</p>
+        </div>
+        <div class="matrix-legend">
+          <span><i class="legend-dot level-top"></i>头部平台</span>
+          <span><i class="legend-dot level-feature"></i>行业特色</span>
+          <span><i class="legend-dot level-local"></i>省内选择</span>
+        </div>
+      </div>
+
+      <div class="matrix-toolbar">
+        <label>
+          <span>专业</span>
+          <select id="matrixMajor"></select>
+        </label>
+        <label>
+          <span>区域</span>
+          <select id="matrixProvince"></select>
+        </label>
+        <label class="matrix-search-field">
+          <span>院校检索</span>
+          <input id="matrixSearch" type="search" placeholder="输入院校或特色关键词">
+        </label>
+        <button class="button button-secondary" id="clearMatrixFilters" type="button">清空</button>
+      </div>
+
+      <div class="table-shell">
+        <table class="data-table matrix-table">
+          <thead>
+            <tr>
+              <th>院校</th>
+              <th>区域</th>
+              <th>平台层次</th>
+              <th>关联专业</th>
+              <th>优势方向</th>
+              <th>咨询提示</th>
+              <th>招生组状态</th>
+            </tr>
+          </thead>
+          <tbody id="matrixRows"></tbody>
+        </table>
+      </div>
+      <div class="matrix-footnote">院校样例来自用户提供的专业院校与行业特色资料；专业组代码将在正式合并时按年度、批次、选科精确关联。</div>
+    </section>
+
+    <section class="view role-admin-only" id="view-editor" data-view-panel="editor" aria-labelledby="editorTitle">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">本地内容后台</p>
+          <h1 id="editorTitle">内容编辑</h1>
+          <p>用于确认字段和工作流。保存只写入当前浏览器，不影响现有系统或线上数据库。</p>
+        </div>
+        <div class="editor-actions">
+          <button class="button button-secondary" id="exportData" type="button">导出 JSON</button>
+          <label class="button button-secondary file-button">
+            导入 JSON
+            <input id="importData" type="file" accept="application/json,.json">
+          </label>
+          <button class="button button-danger" id="resetData" type="button">恢复示例数据</button>
+        </div>
+      </div>
+
+      <div class="editor-layout">
+        <aside class="editor-index">
+          <label class="field-label" for="editorMajorSelect">选择专业</label>
+          <select id="editorMajorSelect"></select>
+          <div class="editor-source-card" id="editorSourceCard"></div>
+        </aside>
+
+        <form class="editor-form" id="editorForm">
+          <div class="form-grid">
+            <label>
+              <span>专业名称</span>
+              <input name="name" required readonly title="专业名称以教育部目录为准，不在讲解后台修改">
+            </label>
+            <label>
+              <span>专业代码</span>
+              <input name="code" required readonly title="专业代码以教育部目录为准，不在讲解后台修改">
+            </label>
+            <label>
+              <span>学科门类</span>
+              <input name="discipline" required readonly title="学科门类以教育部目录为准，不在讲解后台修改">
+            </label>
+            <label>
+              <span>专业类</span>
+              <input name="category" required readonly title="专业类以教育部目录为准，不在讲解后台修改">
+            </label>
+            <label>
+              <span>学制</span>
+              <input name="duration" required>
+            </label>
+            <label>
+              <span>授予学位</span>
+              <input name="degree" required>
+            </label>
+          </div>
+
+          <label>
+            <span>一句话学术定义</span>
+            <textarea name="academic" rows="3" required></textarea>
+          </label>
+          <label>
+            <span>家长版解释</span>
+            <textarea name="parent" rows="3" required></textarea>
+          </label>
+          <label>
+            <span>学生版解释</span>
+            <textarea name="student" rows="3" required></textarea>
+          </label>
+          <label>
+            <span>风险提示（每行一条）</span>
+            <textarea name="risks" rows="5"></textarea>
+          </label>
+          <label>
+            <span>咨询师话术（每行一条）</span>
+            <textarea name="talkTrack" rows="5"></textarea>
+          </label>
+          <label>
+            <span>内部备注</span>
+            <textarea name="internalNote" rows="4"></textarea>
+          </label>
+
+          <div class="form-footer">
+            <span id="editorSaveHint">尚未修改</span>
+            <button class="button button-primary" type="submit">保存当前专业</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <aside class="compare-tray" id="compareTray" aria-label="专业对比栏" hidden>
+    <div class="compare-tray-head">
+      <div>
+        <strong>专业对比</strong>
+        <span id="compareTrayHint">请选择 2 至 4 个专业</span>
+      </div>
+      <button class="icon-button" id="closeCompareTray" type="button" aria-label="收起对比栏" title="收起对比栏">×</button>
+    </div>
+    <div class="compare-tray-items" id="compareTrayItems"></div>
+    <button class="button button-primary" id="openCompare" type="button">开始对比</button>
+  </aside>
+
+  <button class="compare-tray-toggle" id="compareTrayToggle" type="button" hidden>对比 <span>0</span></button>
+
+  <div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+
+  <script src="./catalog-2026.js?v=20260712-major-map-r1"></script>
+  <script src="./data.js?v=20260712-major-map-r1"></script>
+  <script src="./app.js?v=20260712-major-map-r1"></script>
+</body>
+</html>
