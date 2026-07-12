@@ -826,6 +826,7 @@
         <a href="#security">数据规范</a>
         <a href="#preview">工作台预览</a>
         <a href="./major-map/">专业地图</a>
+        <a href="./strong-base/">强基计划</a>
         <a href="./content/index.html">升学资讯</a>
         <a href="./comprehensive/index.html">综合评价</a>
         <a href="./crm.html">CRM 工作台</a>
@@ -846,6 +847,7 @@
           <a class="btn btn-secondary" href="./crm.html">进入 CRM 工作台</a>
           <a class="btn btn-secondary" href="./content/index.html">进入升学资讯</a>
           <a class="btn btn-secondary" href="./major-map/">进入专业地图</a>
+          <a class="btn btn-secondary" href="./strong-base/">进入强基计划助手</a>
           <a class="btn btn-secondary" href="./comprehensive/index.html">进入综合评价系统</a>
         </div>
 
@@ -879,6 +881,11 @@
             <div class="feature-icon">图</div>
             <h3>专业地图</h3>
             <p>按“学科门类 → 专业类 → 专业”逐层展开，查看课程、适配建议、就业方向与报考风险。</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon">强</div>
+            <h3>强基计划</h3>
+            <p>用学生画像、决策地图、39 校矩阵、报名提醒与面试训练完成强基全流程。</p>
           </article>
         </div>
 
@@ -974,7 +981,7 @@
     </section>
 
     <section class="bottom-strip" aria-label="系统指标">
-      <div class="metric"><strong>7</strong><span>核心模块：档案、工单、AI、志愿、资讯、政策、专业地图</span></div>
+      <div class="metric"><strong>8</strong><span>核心模块：档案、工单、AI、志愿、资讯、政策、专业地图、强基计划</span></div>
       <div class="metric"><strong>3</strong><span>身份入口：规划师、家长、学生分权限进入</span></div>
       <div class="metric"><strong>1</strong><span>统一工作台：把散表、散文件、散沟通归档</span></div>
       <div class="metric"><strong>0</strong><span>不强行承诺零风险，关键招生信息保留核对机制</span></div>
@@ -1105,7 +1112,7 @@
       const fallback = new URL('index.html', appRoot);
       const allowedPaths = new Set([
         'index.html', 'specialty/index.html', 'students/index.html',
-        'students/archive.html', 'content/index.html', 'crm.html', 'admin-console.html'
+        'students/archive.html', 'content/index.html', 'strong-base/', 'crm.html', 'admin-console.html'
       ].map(path => new URL(path, appRoot).pathname));
       try {
         const target = new URL(nextPath || 'index.html', appRoot);

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="知行学录 2026 强基计划报考辅助系统：学生画像、择校决策、报名进度、简章核对与面试训练。">
+  <title>2026 强基计划助手｜知行学录</title>
+  <link rel="stylesheet" href="./styles.css?v=20260712-qiangji-r1">
+</head>
+<body>
+  <div id="authCover" class="auth-cover" hidden>
+    <iframe id="authFrame" title="知行学录登录" src="../login_landing.html?next=strong-base%2F"></iframe>
+  </div>
+
+  <div id="appShell" class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="../login_landing.html" aria-label="返回知行学录首页">
+        <span class="brand-mark">知</span>
+        <span class="brand-copy"><strong>知行学录</strong><small>2026 强基计划助手</small></span>
+      </a>
+      <div class="topbar-context">
+        <button id="studentPicker" class="student-picker" type="button" aria-haspopup="dialog">
+          <span id="studentAvatar" class="student-avatar">未</span>
+          <span><small>当前学生</small><b id="studentName">请选择学生</b></span>
+          <i>⌄</i>
+        </button>
+        <span id="saveState" class="save-state" data-state="idle">尚未保存</span>
+        <a class="top-link" href="../students/index.html">学生档案</a>
+        <a class="top-link" href="../index.html">志愿工作台</a>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="cycle-card">
+          <span class="eyebrow">2026 ADMISSION CYCLE</span>
+          <strong>强基计划</strong>
+          <p>从信息采集到校测准备，所有结论保留来源与复核状态。</p>
+          <div class="cycle-progress"><i id="cycleProgressBar"></i></div>
+          <small id="cycleProgressText">准备度 0%</small>
+        </div>
+
+        <nav class="side-nav" aria-label="强基功能导航">
+          <button class="nav-item active" type="button" data-view="dashboard"><span>⌂</span><b>工作台</b><small>今日重点</small></button>
+          <button class="nav-item" type="button" data-view="profile"><span>◎</span><b>学生画像</b><small>先定底座</small></button>
+          <button class="nav-item" type="button" data-view="map"><span>⌘</span><b>决策地图</b><small>逐层展开</small></button>
+          <button class="nav-item" type="button" data-view="majors"><span>专</span><b>专业路径</b><small>培养与转段</small></button>
+          <button class="nav-item" type="button" data-view="schools"><span>校</span><b>院校矩阵</b><small>39 校筛选</small></button>
+          <button class="nav-item" type="button" data-view="timeline"><span>期</span><b>报名与提醒</b><small>不漏节点</small></button>
+          <button class="nav-item" type="button" data-view="brochure"><span>核</span><b>简章核对</b><small>规则清单</small></button>
+          <button class="nav-item" type="button" data-view="interview"><span>练</span><b>面试训练</b><small>真题复盘</small></button>
+          <button class="nav-item" type="button" data-view="statement"><span>述</span><b>个人陈述</b><small>素材准备</small></button>
+          <button class="nav-item" type="button" data-view="sources"><span>源</span><b>来源与复核</b><small>六份原稿</small></button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <span><i></i>资料基线：2026-07-12</span>
+          <p>政策与院校规则以当年官方招生简章为最终依据。</p>
+        </div>
+      </aside>
+
+      <main id="appView" class="main" tabindex="-1" aria-live="polite"></main>
+    </div>
+  </div>
+
+  <div id="modalMask" class="modal-mask" hidden>
+    <section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></section>
+  </div>
+
+  <aside id="schoolDrawer" class="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div><span class="eyebrow">SCHOOL BRIEF</span><h2 id="drawerTitle">院校详情</h2></div>
+      <button id="closeDrawer" class="icon-button" type="button" aria-label="关闭院校详情">×</button>
+    </div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </aside>
+  <div id="drawerScrim" class="drawer-scrim" hidden></div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="./data.js?v=20260712-qiangji-r1"></script>
+  <script src="./rules-2026.js?v=20260712-qiangji-r1"></script>
+  <script src="./app.js?v=20260712-qiangji-r1"></script>
+</body>
+</html>

@@ -40,12 +40,13 @@ copy_file qualification-risk.js
 copy_file student-account-hub.js
 copy_file school-life-info-data.js
 copy_file login_landing.html
+copy_file auth-errors.js
 copy_file beian-icon.png
 
 copy_glob 'style-claude-*.css'
 copy_glob 'data*.js'
 
-for dir in articles content students specialty comprehensive major-map; do
+for dir in articles content students specialty comprehensive major-map strong-base; do
   if [[ -d "$dir" ]]; then
     rsync -a --delete \
       --exclude='.DS_Store' \
@@ -67,6 +68,7 @@ required=(
   admin-console.html
   admin-console.js
   login_landing.html
+  auth-errors.js
   beian-icon.png
   style-claude-clean.css
   data-db-part-01.js
@@ -106,6 +108,11 @@ required=(
   major-map/catalog-2026.js
   major-map/data.js
   major-map/app.js
+  strong-base/index.html
+  strong-base/styles.css
+  strong-base/data.js
+  strong-base/rules-2026.js
+  strong-base/app.js
   articles/zhaoban-negotiation-strategy.html
 )
 

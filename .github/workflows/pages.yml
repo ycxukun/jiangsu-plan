@@ -53,6 +53,9 @@ jobs:
           console.log(`Validated ${checked} inline script blocks across ${htmlFiles.length} HTML files.`);
           NODE
 
+      - name: Validate 2026 strong-base rules
+        run: python3 scripts/verify_strong_base_rules_2026.py
+
       - name: Prepare static site
         run: scripts/prepare-static-site.sh _site
 

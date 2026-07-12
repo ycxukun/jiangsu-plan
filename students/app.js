@@ -448,6 +448,7 @@ function studentCardHTML(s,savedForms){
       <a class="pill-btn" href="./archive.html?student=${encodeURIComponent(s.id)}">档案库</a>
       <button data-edit-student="${esc(s.id)}" type="button">编辑档案</button>
       <button data-intake-detail="${esc(s.id)}" type="button">采集详情</button>
+      <button data-open-strong-base="${esc(s.id)}" type="button">强基计划</button>
       <a class="pill-btn" href="${esc(backUrlForStudent(s))}">去做志愿表</a>
     </div>
     ${formList}
@@ -470,6 +471,14 @@ function bindCardActions(){
   $$('[data-intake-detail]').forEach(btn=>btn.addEventListener('click',()=>{
     const s=students.find(x=>x.id===btn.dataset.intakeDetail);
     if(s)showIntakeDetail(s);
+  }));
+  $$('[data-open-strong-base]').forEach(btn=>btn.addEventListener('click',()=>{
+    const s=students.find(x=>x.id===btn.dataset.openStrongBase);
+    if(!s)return;
+    const chosen={...s,subject_choices:studentSubjectChoices(s)};
+    saveLocalStudentSubjectChoices(chosen.id,chosen.subject_choices);
+    saveCurrentStudent(chosen);
+    window.location.href='../strong-base/';
   }));
   $$('[data-open-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>openVolunteerFormForEdit(btn.dataset.openVolunteerForm)));
   $$('[data-delete-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>deleteVolunteerForm(btn.dataset.deleteVolunteerForm)));

@@ -8,7 +8,7 @@
 https://qnspmqsrbjcgrgpqkzgl.supabase.co
 ```
 
-数据库以 `schema.sql` 为基础，并通过学生档案、采集表、开放注册、CRM 和综合评价增量脚本补齐。`emergency_security_patch.sql` 负责收口原有模块权限，`comprehensive_integration.sql` 必须在它之后执行，以加入学生本人账号权限。
+数据库以 `schema.sql` 为基础，并通过学生档案、采集表、开放注册、CRM、综合评价和强基计划增量脚本补齐。`emergency_security_patch.sql` 负责收口原有模块权限，`comprehensive_integration.sql` 和 `strong_base_integration.sql` 必须在它之后依次执行，以复用收口后的学生访问关系。
 
 ## 为什么选 Supabase
 
@@ -30,6 +30,7 @@ https://qnspmqsrbjcgrgpqkzgl.supabase.co
 - `volunteer_exports`：导出 Excel/PDF/CSV 的操作记录。
 - `notes`：兼容当前 `app.js` 里已经写好的批注功能。
 - `audit_logs`：后续记录新增学生、保存志愿表、导出等关键操作。
+- `student_strong_base_records`：强基计划助手的学生画像、择校、进度和训练档案；通过 `student_id` 与主学生档案一一对应。
 
 ## 当前前端字段映射
 
@@ -80,9 +81,12 @@ supabase/open_signup_patch.sql
 supabase/crm_schema.sql
 supabase/emergency_security_patch.sql
 supabase/comprehensive_integration.sql
+supabase/strong_base_integration.sql
 ```
 
 `comprehensive_integration.sql` 会建立综合评价云端资料表和保存接口，并把核心字段回写 `students` 主档。综合评价不单独登录：它复用主系统登录状态与主系统当前选中的学生，因此邮箱、手机号只作为学生资料字段，不用于二次认证或自动绑定。
+
+`strong_base_integration.sql` 会建立强基助手云端档案和 `save_student_strong_base` 保存接口。接口只同步 `students.strong_base_status` 与 `students.intake_payload.strong_base`，不会用强基表单反向覆盖学生姓名、手机号、分数、位次等主档字段；保存操作会写入不含学生敏感内容的审计元数据。
 
 4. 在 Supabase Auth 里创建你的管理员账号。
 5. 找到这个账号的 user id，然后执行：
@@ -153,5 +157,5 @@ await fetch(`${SUPABASE_URL}/rest/v1/students`, {
 - 不要在业务表保存明文密码。
 - `anon key` 可以放前端，但必须启用 RLS。
 - 新注册账号固定为 `viewer/active`，只管理自己名下数据；内部岗位只能由管理员授权。
-- 如果以后重跑任何旧 schema 或增量 SQL，必须再次把 `emergency_security_patch.sql` 放在最后执行。
+- 如果以后重跑任何旧 schema、CRM 或采集表脚本，必须再次按 `emergency_security_patch.sql` → `comprehensive_integration.sql` → `strong_base_integration.sql` 收尾，不能让旧策略覆盖安全补丁。
 - 学生手机号、分数、位次属于敏感信息，后期如果用户规模上来，建议加脱敏展示和操作审计。
