@@ -46,7 +46,7 @@ copy_file beian-icon.png
 copy_glob 'style-claude-*.css'
 copy_glob 'data*.js'
 
-for dir in articles content students specialty comprehensive major-map strong-base; do
+for dir in articles content students specialty comprehensive major-map strong-base early-batch; do
   if [[ -d "$dir" ]]; then
     rsync -a --delete \
       --exclude='.DS_Store' \
@@ -113,6 +113,12 @@ required=(
   strong-base/data.js
   strong-base/rules-2026.js
   strong-base/app.js
+  early-batch/index.html
+  early-batch/styles.css
+  early-batch/data.js
+  early-batch/rules-2026.js
+  early-batch/groups-2026.js
+  early-batch/app.js
   articles/zhaoban-negotiation-strategy.html
 )
 

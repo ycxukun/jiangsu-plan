@@ -827,6 +827,7 @@
         <a href="#preview">工作台预览</a>
         <a href="./major-map/">专业地图</a>
         <a href="./strong-base/">强基计划</a>
+        <a href="./early-batch/">提前批</a>
         <a href="./content/index.html">升学资讯</a>
         <a href="./comprehensive/index.html">综合评价</a>
         <a href="./crm.html">CRM 工作台</a>
@@ -848,6 +849,7 @@
           <a class="btn btn-secondary" href="./content/index.html">进入升学资讯</a>
           <a class="btn btn-secondary" href="./major-map/">进入专业地图</a>
           <a class="btn btn-secondary" href="./strong-base/">进入强基计划助手</a>
+          <a class="btn btn-secondary" href="./early-batch/">进入提前批助手</a>
           <a class="btn btn-secondary" href="./comprehensive/index.html">进入综合评价系统</a>
         </div>
 
@@ -1112,7 +1114,7 @@
       const fallback = new URL('index.html', appRoot);
       const allowedPaths = new Set([
         'index.html', 'specialty/index.html', 'students/index.html',
-        'students/archive.html', 'content/index.html', 'strong-base/', 'crm.html', 'admin-console.html'
+        'students/archive.html', 'content/index.html', 'strong-base/', 'early-batch/', 'crm.html', 'admin-console.html'
       ].map(path => new URL(path, appRoot).pathname));
       try {
         const target = new URL(nextPath || 'index.html', appRoot);

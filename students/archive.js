@@ -14,6 +14,7 @@ const MAX_ARCHIVE_FILE_BYTES=100*1024*1024;
 const SECTIONS=[
   {id:'comprehensive_eval',label:'综合评价'},
   {id:'strong_base',label:'强基计划'},
+  {id:'early_batch',label:'提前批'},
   {id:'awards',label:'奖项证书'},
   {id:'specialties',label:'特长'},
   {id:'other',label:'其他'}

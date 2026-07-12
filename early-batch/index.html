@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="知行学录 2026 江苏高考提前批辅助系统：资格画像、决策地图、提前批相关专业组矩阵、体检政审与协议提醒。">
+  <title>2026 提前批助手｜知行学录</title>
+  <link rel="stylesheet" href="./styles.css?v=20260712-early-batch-r1">
+</head>
+<body>
+  <div id="authCover" class="auth-cover" hidden>
+    <iframe id="authFrame" title="知行学录登录" src="../login_landing.html?next=early-batch%2F"></iframe>
+  </div>
+
+  <div id="appShell" class="app-shell" hidden>
+    <header class="topbar">
+      <a class="brand" href="../login_landing.html" aria-label="返回知行学录首页">
+        <span class="brand-mark">知</span>
+        <span class="brand-copy"><strong>知行学录</strong><small>2026 提前批助手</small></span>
+      </a>
+      <div class="topbar-context">
+        <button id="studentPicker" class="student-picker" type="button" aria-haspopup="dialog">
+          <span id="studentAvatar" class="student-avatar">未</span>
+          <span><small>当前学生</small><b id="studentName">请选择学生</b></span><i>⌄</i>
+        </button>
+        <span id="saveState" class="save-state" data-state="idle">尚未保存</span>
+        <a class="top-link" href="../students/index.html">学生档案</a>
+        <a class="top-link" href="../index.html">志愿工作台</a>
+        <button id="logoutBtn" class="top-link top-button" type="button">退出</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="cycle-card">
+          <span class="eyebrow">2026 EARLY ADMISSION</span>
+          <strong>本科提前批</strong>
+          <p>先判资格，再比普通批基线；不把历史分数、就业或编制当成承诺。</p>
+          <div class="cycle-progress"><i id="cycleProgressBar"></i></div>
+          <small id="cycleProgressText">准备度 0%</small>
+        </div>
+        <nav class="side-nav" aria-label="提前批功能导航">
+          <button class="nav-item active" type="button" data-view="dashboard"><span>⌂</span><b>工作台</b><small>今日重点</small></button>
+          <button class="nav-item" type="button" data-view="profile"><span>◎</span><b>学生画像</b><small>资格底座</small></button>
+          <button class="nav-item" type="button" data-view="map"><span>⌘</span><b>决策地图</b><small>像导图一样展开</small></button>
+          <button class="nav-item" type="button" data-view="matrix"><span>组</span><b>专业组矩阵</b><small>499 组筛选</small></button>
+          <button class="nav-item" type="button" data-view="physical"><span>检</span><b>身体条件</b><small>体检门槛</small></button>
+          <button class="nav-item" type="button" data-view="precheck"><span>审</span><b>政审与前置</b><small>只存办理状态</small></button>
+          <button class="nav-item" type="button" data-view="agreement"><span>约</span><b>协议与代价</b><small>服务期与退出</small></button>
+          <button class="nav-item" type="button" data-view="timeline"><span>期</span><b>时间与材料</b><small>参考节点</small></button>
+          <button class="nav-item" type="button" data-view="career"><span>向</span><b>职业终点</b><small>不等于包分配</small></button>
+          <button class="nav-item" type="button" data-view="sources"><span>源</span><b>来源与冲突</b><small>逐条复核</small></button>
+        </nav>
+        <div class="sidebar-foot"><span><i></i>数据基线：2026-07-12</span><p>所有资格、日期和院校要求以 2026 江苏考试院及院校官方文件为最终依据。</p></div>
+      </aside>
+      <main id="appView" class="main" tabindex="-1" aria-live="polite"></main>
+    </div>
+  </div>
+
+  <div id="modalMask" class="modal-mask" hidden><section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></section></div>
+  <aside id="detailDrawer" class="drawer" aria-hidden="true">
+    <div class="drawer-head"><div><span class="eyebrow" id="drawerEyebrow">DETAIL</span><h2 id="drawerTitle">详情</h2></div><button id="closeDrawer" class="icon-button" type="button" aria-label="关闭详情">×</button></div>
+    <div id="drawerBody" class="drawer-body"></div>
+  </aside>
+  <div id="drawerScrim" class="drawer-scrim" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="./rules-2026.js?v=20260712-early-batch-r1"></script>
+  <script src="./data.js?v=20260712-early-batch-r1"></script>
+  <script src="./groups-2026.js?v=20260712-early-batch-r1"></script>
+  <script src="./app.js?v=20260712-early-batch-r2"></script>
+</body>
+</html>

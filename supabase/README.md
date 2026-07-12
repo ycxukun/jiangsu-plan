@@ -8,7 +8,7 @@
 https://qnspmqsrbjcgrgpqkzgl.supabase.co
 ```
 
-数据库以 `schema.sql` 为基础，并通过学生档案、采集表、开放注册、CRM、综合评价和强基计划增量脚本补齐。`emergency_security_patch.sql` 负责收口原有模块权限，`comprehensive_integration.sql` 和 `strong_base_integration.sql` 必须在它之后依次执行，以复用收口后的学生访问关系。
+数据库以 `schema.sql` 为基础，并通过学生档案、采集表、开放注册、CRM、综合评价、强基计划和提前批增量脚本补齐。`emergency_security_patch.sql` 负责收口原有模块权限，`comprehensive_integration.sql`、`strong_base_integration.sql` 和 `early_batch_integration.sql` 必须在它之后依次执行，以复用收口后的学生访问关系。
 
 ## 为什么选 Supabase
 
@@ -31,6 +31,7 @@ https://qnspmqsrbjcgrgpqkzgl.supabase.co
 - `notes`：兼容当前 `app.js` 里已经写好的批注功能。
 - `audit_logs`：后续记录新增学生、保存志愿表、导出等关键操作。
 - `student_strong_base_records`：强基计划助手的学生画像、择校、进度和训练档案；通过 `student_id` 与主学生档案一一对应。
+- `student_early_batch_records`：提前批助手的资格核对、决策路径、院校专业组清单和节点档案；通过 `student_id` 与主学生档案一一对应。
 
 ## 当前前端字段映射
 
@@ -82,11 +83,14 @@ supabase/crm_schema.sql
 supabase/emergency_security_patch.sql
 supabase/comprehensive_integration.sql
 supabase/strong_base_integration.sql
+supabase/early_batch_integration.sql
 ```
 
 `comprehensive_integration.sql` 会建立综合评价云端资料表和保存接口，并把核心字段回写 `students` 主档。综合评价不单独登录：它复用主系统登录状态与主系统当前选中的学生，因此邮箱、手机号只作为学生资料字段，不用于二次认证或自动绑定。
 
 `strong_base_integration.sql` 会建立强基助手云端档案和 `save_student_strong_base` 保存接口。接口只同步 `students.strong_base_status` 与 `students.intake_payload.strong_base`，不会用强基表单反向覆盖学生姓名、手机号、分数、位次等主档字段；保存操作会写入不含学生敏感内容的审计元数据。
+
+`early_batch_integration.sql` 会建立提前批助手云端档案和 `save_student_early_batch` 保存接口。接口只同步 `students.early_batch_status` 与 `students.intake_payload.early_batch`，不会用提前批表单反向覆盖姓名、手机号、分数、位次等主档字段；保存时按学生串行化并校验客户端读取到的更新时间，避免学生与规划师静默互相覆盖；审计日志只保留白名单状态、负载大小和受限格式的结构版本。
 
 4. 在 Supabase Auth 里创建你的管理员账号。
 5. 找到这个账号的 user id，然后执行：
@@ -157,5 +161,5 @@ await fetch(`${SUPABASE_URL}/rest/v1/students`, {
 - 不要在业务表保存明文密码。
 - `anon key` 可以放前端，但必须启用 RLS。
 - 新注册账号固定为 `viewer/active`，只管理自己名下数据；内部岗位只能由管理员授权。
-- 如果以后重跑任何旧 schema、CRM 或采集表脚本，必须再次按 `emergency_security_patch.sql` → `comprehensive_integration.sql` → `strong_base_integration.sql` 收尾，不能让旧策略覆盖安全补丁。
+- 如果以后重跑任何旧 schema、CRM 或采集表脚本，必须再次按 `emergency_security_patch.sql` → `comprehensive_integration.sql` → `strong_base_integration.sql` → `early_batch_integration.sql` 收尾，不能让旧策略覆盖安全补丁。
 - 学生手机号、分数、位次属于敏感信息，后期如果用户规模上来，建议加脱敏展示和操作审计。

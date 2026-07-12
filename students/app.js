@@ -16,6 +16,7 @@ const STUDENT_ARCHIVE_BUCKET='student-archives';
 const STUDENT_ARCHIVE_SECTIONS=[
   {id:'comprehensive_eval',label:'综合评价'},
   {id:'strong_base',label:'强基计划'},
+  {id:'early_batch',label:'提前批'},
   {id:'awards',label:'奖项证书'},
   {id:'specialties',label:'特长'},
   {id:'other',label:'其他'}
@@ -449,6 +450,7 @@ function studentCardHTML(s,savedForms){
       <button data-edit-student="${esc(s.id)}" type="button">编辑档案</button>
       <button data-intake-detail="${esc(s.id)}" type="button">采集详情</button>
       <button data-open-strong-base="${esc(s.id)}" type="button">强基计划</button>
+      <button data-open-early-batch="${esc(s.id)}" type="button">提前批</button>
       <a class="pill-btn" href="${esc(backUrlForStudent(s))}">去做志愿表</a>
     </div>
     ${formList}
@@ -479,6 +481,14 @@ function bindCardActions(){
     saveLocalStudentSubjectChoices(chosen.id,chosen.subject_choices);
     saveCurrentStudent(chosen);
     window.location.href='../strong-base/';
+  }));
+  $$('[data-open-early-batch]').forEach(btn=>btn.addEventListener('click',()=>{
+    const s=students.find(x=>x.id===btn.dataset.openEarlyBatch);
+    if(!s)return;
+    const chosen={...s,subject_choices:studentSubjectChoices(s)};
+    saveLocalStudentSubjectChoices(chosen.id,chosen.subject_choices);
+    saveCurrentStudent(chosen);
+    window.location.href='../early-batch/';
   }));
   $$('[data-open-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>openVolunteerFormForEdit(btn.dataset.openVolunteerForm)));
   $$('[data-delete-volunteer-form]').forEach(btn=>btn.addEventListener('click',()=>deleteVolunteerForm(btn.dataset.deleteVolunteerForm)));
