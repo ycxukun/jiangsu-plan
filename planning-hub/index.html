@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>升学规划资料导航｜知行学录</title>
+  <meta name="description" content="从想、选、查、排、核出发，汇集院校、专业、政策、就业与升学节点资料。">
+  <link rel="stylesheet" href="./styles.css?v=20260713-r1">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index.html" aria-label="返回志愿填报首页"><span>知</span><strong>知行学录</strong></a>
+    <nav aria-label="页面导航">
+      <a href="#path">决策路径</a><a href="#topics">专题图鉴</a><a href="#library">资料库</a>
+    </nav>
+    <a class="home-link" href="../index.html">返回填报系统</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">升学规划 · 资料导航</p>
+        <h1>资料很多，<br><em>先找到下一步。</em></h1>
+        <p class="lead">把散落的政策、院校、专业与就业资料，整理成一条可以顺着走的决策路径。先明确问题，再打开对应资料。</p>
+        <div class="hero-actions"><a class="button primary" href="#path">开始规划</a><a class="button ghost" href="#library">搜索资料</a></div>
+        <div class="hero-note"><span>2026 届适用</span><span>江苏考生视角</span><span>资料持续核验</span></div>
+      </div>
+      <aside class="today-card">
+        <p>今天先做一件事</p>
+        <strong id="todayTask">确定 3 个优先专业方向</strong>
+        <div class="progress"><i></i></div>
+        <small>规划不是一次选完，而是逐层排除、逐步确认。</small>
+        <button id="nextTask" type="button">换一个建议 →</button>
+      </aside>
+    </section>
+
+    <section class="section" id="path">
+      <div class="section-head"><div><p class="eyebrow">五步决策法</p><h2>想、选、查、排、核</h2></div><p>每一步只回答一个核心问题，减少信息过载。</p></div>
+      <div class="steps">
+        <article><b>01</b><span>想</span><h3>我真正看重什么？</h3><p>兴趣、能力、城市、费用、体制路径与家庭边界。</p><button data-filter="规划方法">查看方法</button></article>
+        <article><b>02</b><span>选</span><h3>哪些专业适合我？</h3><p>从学科门类到课程、就业，再看选科与身体限制。</p><a href="../major-map/index.html">打开专业地图</a></article>
+        <article><b>03</b><span>查</span><h3>学校和政策怎么比？</h3><p>平台层次、优势学科、转专业、中外合作与特殊招生。</p><button data-filter="院校政策">查看资料</button></article>
+        <article><b>04</b><span>排</span><h3>志愿顺序怎么定？</h3><p>结合招生计划、专业组、投档分与冲稳保梯度。</p><a href="../index.html">进入填报系统</a></article>
+        <article><b>05</b><span>核</span><h3>还有什么风险？</h3><p>逐项核对章程、单科、体检、学费和培养校区。</p><button data-filter="规则核验">打开清单</button></article>
+      </div>
+    </section>
+
+    <section class="section visual-section" id="topics">
+      <div class="section-head"><div><p class="eyebrow">四张图，建立全局感</p><h2>专题图鉴</h2></div><p>点击图片可放大；图中结论仅作线索，最终以当年官方政策为准。</p></div>
+      <div class="visual-grid">
+        <button class="visual-card wide" data-image="./assets/major-catalog.png" data-title="普通高等学校本科专业目录"><img src="./assets/major-catalog.png" alt="本科专业目录可视化"><span><small>专业全景</small><strong>13 个学科门类，从目录看专业</strong></span></button>
+        <button class="visual-card" data-image="./assets/985-highlights.jpg" data-title="2025 年 985 招生政策亮点"><img src="./assets/985-highlights.jpg" alt="2025年985招生政策亮点对比"><span><small>院校政策</small><strong>保志愿、大类分流与转专业</strong></span></button>
+        <button class="visual-card" data-image="./assets/jiangsu-cutoff.png" data-title="2025 年江苏高校最低投档分"><img src="./assets/jiangsu-cutoff.png" alt="2025年江苏高校最低投档分地图"><span><small>江苏院校</small><strong>按城市查看最低投档分</strong></span></button>
+        <button class="visual-card" data-image="./assets/hk-talent.png" data-title="香港高才通计划合资格大学名单"><img src="./assets/hk-talent.png" alt="香港高才通合资格大学名单"><span><small>长期路径</small><strong>从升学选择看未来城市机会</strong></span></button>
+      </div>
+    </section>
+
+    <section class="section" id="library">
+      <div class="section-head"><div><p class="eyebrow">来源索引</p><h2>规划资料库</h2></div><p><strong id="resultCount">0</strong> 项资料 · 原始文件保留，便于回到出处复核。</p></div>
+      <div class="library-tools">
+        <label class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="搜索专业、院校、就业、政策……"></label>
+        <div class="chips" id="categoryChips" aria-label="资料分类"></div>
+      </div>
+      <div class="resource-grid" id="resourceGrid"></div>
+      <div class="empty" id="emptyState" hidden>没有匹配资料，换一个关键词试试。</div>
+    </section>
+  </main>
+
+  <footer><strong>知行学录</strong><span>资料用于规划辅助，不替代江苏省教育考试院、高校招生章程及当年官方通知。</span><a href="#top">回到顶部 ↑</a></footer>
+
+  <dialog id="imageDialog"><button class="dialog-close" aria-label="关闭">×</button><h2 id="dialogTitle"></h2><div class="dialog-canvas"><img id="dialogImage" alt=""></div><p>可滚动查看原图细节；内容仅作初步参考。</p></dialog>
+  <script src="./app.js?v=20260713-r1"></script>
+</body>
+</html>
