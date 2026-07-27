@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#153f35">
+  <meta name="description" content="按院校查看江苏本科2026专业组变化、招生计划增减、投档线与2025专业分位次，并可整校打印。">
+  <meta property="og:title" content="江苏本科院校 2026 专业组变化卡">
+  <meta property="og:description" content="一校一页查看物理类与历史类专业组，黑灰绿红标出延续、删减、新增和结构异常。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ycxukun.cn/professional-group-cards/">
+  <meta property="og:image" content="https://ycxukun.cn/professional-group-cards/og.png">
+  <title>江苏本科院校 2026 专业组变化卡｜知行学录</title>
+  <link rel="stylesheet" href="./styles.css?v=20260727-r1">
+</head>
+<body>
+  <a class="skip-link" href="#schoolView">跳到院校专业组卡</a>
+
+  <header class="site-header">
+    <div class="header-main">
+      <div class="brand-block">
+        <a class="brand-home" href="../">知行学录</a>
+        <div>
+          <p class="eyebrow">江苏本科 · 2026 招生计划</p>
+          <h1>院校专业组变化卡</h1>
+          <p class="header-copy">一所学校一张完整卡，物理类与历史类集中展示；专业变化、计划增减和分数位次一页看清。</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="quiet-button" href="../">返回志愿填报首页</a>
+        <button id="printButton" class="primary-button" type="button" disabled>打印当前学校</button>
+      </div>
+    </div>
+
+    <div class="legend-bar" aria-label="专业变化颜色说明">
+      <span class="legend-title">专业标色</span>
+      <span class="legend-item retained"><i></i>黑色：延续</span>
+      <span class="legend-item deleted"><i></i>灰色：删减 / 转出</span>
+      <span class="legend-item added"><i></i>绿色：新增 / 转入</span>
+      <span class="legend-item anomaly"><i></i>红色：结构异常</span>
+      <span id="dataStamp" class="data-stamp">正在读取数据…</span>
+    </div>
+  </header>
+
+  <div class="mobile-school-bar">
+    <button id="directoryToggle" type="button" aria-expanded="false" aria-controls="schoolDirectory">选择院校</button>
+    <span id="mobileActiveSchool">尚未选择</span>
+  </div>
+
+  <main class="app-layout">
+    <aside id="schoolDirectory" class="school-directory" aria-label="院校目录">
+      <div class="directory-head">
+        <p class="section-kicker">院校目录</p>
+        <h2>选择一所学校</h2>
+        <label class="search-box" for="schoolSearch">
+          <span>搜索</span>
+          <input id="schoolSearch" type="search" autocomplete="off" placeholder="输入院校名称，如南京工业大学">
+        </label>
+        <select id="schoolScope" aria-label="院校范围">
+          <option value="current">2026 有招生的院校</option>
+          <option value="all">全部院校（含25年停设）</option>
+          <option value="old-only">仅看25年停设院校</option>
+        </select>
+        <div id="directoryMeta" class="directory-meta" aria-live="polite"></div>
+      </div>
+
+      <div class="quick-schools" aria-label="常用院校">
+        <button type="button" data-school-name="清华大学">清华大学</button>
+        <button type="button" data-school-name="北京大学">北京大学</button>
+        <button type="button" data-school-name="南京工业大学">南京工业大学</button>
+      </div>
+
+      <ol id="schoolList" class="school-list" aria-label="院校列表"></ol>
+    </aside>
+
+    <section id="schoolView" class="school-view" tabindex="-1" aria-live="polite">
+      <div class="welcome-card">
+        <p class="section-kicker">按学校查看 · 可直接打印</p>
+        <h2>从左侧选择一所院校</h2>
+        <p>页面会把该校今年所有物理类、历史类专业组放在一起。每个专业都保留变化颜色，并列出26计划、25计划、计划增减、26投档分位次和25专业分位次。</p>
+        <div class="welcome-grid">
+          <div><b id="welcomeSchools">—</b><span>院校</span></div>
+          <div><b id="welcomeGroups">—</b><span>2026专业组</span></div>
+          <div><b id="welcomePlanDelta">—</b><span>总计划增减</span></div>
+          <div><b id="welcomeChanges">—</b><span>新增与删减专业</span></div>
+        </div>
+        <p class="source-note">专业组不是按组号机械对应，而是综合院校、科类、选科要求和专业覆盖度匹配；拆分、合并或低重合组会单独提示。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>数据口径：26专业结构取专家版招生计划；26投档线取“专业组变化”；25专业分与位次取原专业组卡。招生计划以具体专业明细合计为准。</p>
+  </footer>
+
+  <noscript>本页面需要启用 JavaScript 才能搜索和查看院校专业组卡。</noscript>
+  <script src="./app.js?v=20260727-r1" defer></script>
+</body>
+</html>

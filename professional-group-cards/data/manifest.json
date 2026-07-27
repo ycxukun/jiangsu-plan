@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "totals": {
+    "schools": 1076,
+    "currentSchools": 1070,
+    "oldOnlySchools": 6,
+    "currentGroups": 5115,
+    "retiredGroups": 342,
+    "plan26": 233450,
+    "plan25": 224189,
+    "planDelta": 9261,
+    "status": {
+      "retained": 15107,
+      "deleted": 4533,
+      "added": 5184,
+      "anomaly": 166
+    }
+  },
+  "files": [
+    {
+      "file": "index.json",
+      "size": 306398,
+      "sha256": "579bae961cb184a237b45aa67fae59bbe0c336538564607fd104d43b124d4e3e"
+    },
+    {
+      "file": "chunks/00.json",
+      "size": 443961,
+      "sha256": "8c3f9251d14e582e77bfc9641344186bc3efaf67365406e58bcb2db64575b735"
+    },
+    {
+      "file": "chunks/01.json",
+      "size": 386295,
+      "sha256": "46d4981d3b63760733c599e69cc38bc722245890161399d6173b2f4bec98198a"
+    },
+    {
+      "file": "chunks/02.json",
+      "size": 371287,
+      "sha256": "b97d17232fac0fc416d0dfd76a037f599272808d1fe0439fbc17cce3cd3eb9ff"
+    },
+    {
+      "file": "chunks/03.json",
+      "size": 496804,
+      "sha256": "c9cfe0a9333dadf9f7ed61c19a94f8f9b4bb2702d6f7a45a9a9189446b620c3d"
+    },
+    {
+      "file": "chunks/04.json",
+      "size": 515627,
+      "sha256": "0e73dab615861fa201436d2ec06e84b44c015e4550e872a0472b9d80c49cd0f7"
+    },
+    {
+      "file": "chunks/05.json",
+      "size": 405368,
+      "sha256": "b18fc2e9fe01dc72c73b6334ebc2b40196ddc7d5737cddb3edeffbd529780ced"
+    },
+    {
+      "file": "chunks/06.json",
+      "size": 526903,
+      "sha256": "ab6685397e34625ae60b6876e2fc1faa237c82f80440ef0b56fdb158feaaa44e"
+    },
+    {
+      "file": "chunks/07.json",
+      "size": 459351,
+      "sha256": "3656446ff7a4d2ebe6b6df3155b9c8ad5292efd76f4543aa1ec4cf3448dfa82b"
+    },
+    {
+      "file": "chunks/08.json",
+      "size": 373884,
+      "sha256": "4fdf52fe5364084a27ad9313fe34d96cdf203467351c451f6d33f2277de9c655"
+    },
+    {
+      "file": "chunks/09.json",
+      "size": 509504,
+      "sha256": "7b0e97edd1d706752a80aacca1ffa731e6929d1c2139ad8a0053adab199ee7f4"
+    },
+    {
+      "file": "chunks/10.json",
+      "size": 473491,
+      "sha256": "b3574ede3ebd62ff57bf2f5e7b2b0e97d2b5fb53ff1e52dfdc94f11e5280ad2a"
+    },
+    {
+      "file": "chunks/11.json",
+      "size": 508233,
+      "sha256": "c913dd4c653d6063cf8246b6aa3f75516919a06d5edacd414e89e0dcf36213a9"
+    },
+    {
+      "file": "chunks/12.json",
+      "size": 446862,
+      "sha256": "1901d2d5d4822cccd5912fc8e7b898976da985fe363b92c596b2e6002fc14105"
+    },
+    {
+      "file": "chunks/13.json",
+      "size": 473848,
+      "sha256": "8faa4c737d5ee6463b89c2eb38f908966b3fe87a62d90a13f2e85c050dbbad95"
+    },
+    {
+      "file": "chunks/14.json",
+      "size": 558073,
+      "sha256": "8f57087c4b055f1083efaa617032249dc81f1c9006756565aca2eac22d8820f2"
+    },
+    {
+      "file": "chunks/15.json",
+      "size": 502285,
+      "sha256": "62fdec0afb67536f58e2d2a801987561cb93bb183f3c9ac25b31d92e8944b85b"
+    },
+    {
+      "file": "chunks/16.json",
+      "size": 622503,
+      "sha256": "60a327eed799cca56072935fd71540f3e01b4313d82df4d9ef20ff35b7d2d415"
+    },
+    {
+      "file": "chunks/17.json",
+      "size": 438572,
+      "sha256": "02fc9fad03b21ea40445543360e29b9af99b2fd26bdeb3548de74ab7ea64ab3f"
+    },
+    {
+      "file": "chunks/18.json",
+      "size": 453790,
+      "sha256": "1ba06a86d7ee17bb8e84666899a1e3d99e5ccd46206a103f2bdaf73490ac42c2"
+    },
+    {
+      "file": "chunks/19.json",
+      "size": 413559,
+      "sha256": "da7ff813b3e2f46fa2b59d546732dc3d75c8baffb0ecb7588dd7e40dc34d61fb"
+    },
+    {
+      "file": "chunks/20.json",
+      "size": 492852,
+      "sha256": "0b591d75258ec68d673b2634d5afa8287f70f7897aa74356b0682a064839cdf1"
+    },
+    {
+      "file": "chunks/21.json",
+      "size": 373968,
+      "sha256": "56db414bd9ba6be98d6e5dd37396a1505038a64e35a56555f3f1c0516b286d53"
+    },
+    {
+      "file": "chunks/22.json",
+      "size": 535521,
+      "sha256": "2fa2ff725e363e5817f5fe03af08a33ec8cc166f128d8954a72ccfb957db53ee"
+    },
+    {
+      "file": "chunks/23.json",
+      "size": 486290,
+      "sha256": "234b55a17f3fecec79f739d40b5cbaa1800ccb0f54848e4f90fb64167c540470"
+    },
+    {
+      "file": "chunks/24.json",
+      "size": 509922,
+      "sha256": "0d444f7d6014eca895c4b91128dfb417c468b258bf29cc94ee0a012e12ae1ef4"
+    },
+    {
+      "file": "chunks/25.json",
+      "size": 566727,
+      "sha256": "87d71e231f14bc05b1f81d8a1b7620b352ca93120c3c80ae715981980a000283"
+    },
+    {
+      "file": "chunks/26.json",
+      "size": 557958,
+      "sha256": "f29d4f49cdb493daf0bbcea4c7f145cc53386d06c4b509ba95f251113301afd4"
+    },
+    {
+      "file": "chunks/27.json",
+      "size": 477010,
+      "sha256": "62a08d4679a2375d2e766ca248d9e1ff2f8aae18ab9fcd74d0b657e6c8292fa3"
+    },
+    {
+      "file": "chunks/28.json",
+      "size": 406119,
+      "sha256": "07ce40dc4e072149a1ff6ffeaf24f2445c3722bee1be49028569a33752c35217"
+    },
+    {
+      "file": "chunks/29.json",
+      "size": 435984,
+      "sha256": "cc341b271ebde85bac27a839d435732ea7dcd652909aefce41d354c01134bb8d"
+    },
+    {
+      "file": "chunks/30.json",
+      "size": 344532,
+      "sha256": "9f3ecb68a3555728a0a3caf781562e50caca4a4e10b293757c999d44ce55485e"
+    },
+    {
+      "file": "chunks/31.json",
+      "size": 548940,
+      "sha256": "8bfc820f13680a5d583f670b66482b7b60ffaee5994c99828f7b9770a4519090"
+    }
+  ],
+  "totalBytes": 15422421
+}

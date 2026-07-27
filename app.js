@@ -1647,6 +1647,12 @@ function createLayout(){
       </div>
     </div>
   </div>`;
+  document
+    .querySelector('.top-actions .stage-switch')
+    ?.insertAdjacentHTML(
+      'afterend',
+      '<a id="groupCardsBtn" class="header-toggle content-toggle" href="./professional-group-cards/">2026专业组卡</a>',
+    );
 }
 function unique(arr){return Array.from(new Set(arr.filter(v=>v!==undefined&&v!==null&&String(v).trim()!=='')));}
 function fillSelect(sel,vals){const el=$(sel); if(!el)return; const first=el.options[0].outerHTML; el.innerHTML=first+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');}
