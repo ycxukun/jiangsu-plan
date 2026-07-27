@@ -120,6 +120,13 @@ let rankRefsBySubjectBatch=new Map();
 let predictionCache=new Map();
 let schoolFacetCache=new Map();
 let admissionPriorityCache=new Map();
+const INLINE_MAJOR_CHANGE_DATA_VERSION='20260727-inline-colors-r1';
+let inlineMajorChangeIndexPromise=null;
+let inlineMajorChangeDirectoryByName=null;
+const inlineMajorChangeChunkCache=new Map();
+const inlineMajorChangeChunkPromises=new Map();
+const inlineMajorChangeSchoolCache=new Map();
+const inlineMajorChangeSchoolPromises=new Map();
 const MANUAL_ADMISSION_PRIORITY_SCHOOL_HINTS=[
   {pattern:/中国地质大学/, severity:'high', rule:'人工重点提示：该校按专业志愿优先/专业优先类规则核对风险较高，专业顺序不能随意。最终以当年招生章程为准。'}
 ];
@@ -2682,6 +2689,187 @@ function majorSortByThreeYear(a,b){
   if(r25a!==r25b)return r25a-r25b;
   return String(a.code||'').localeCompare(String(b.code||''),'zh-Hans-CN');
 }
+function inlineMajorChangeEligibleSchool(s){
+  const batch=String(s?.batch||'');
+  return !/提前/.test(batch)&&/普通|本科/.test(batch);
+}
+function normalizeInlineMajorChangeSubject(value){
+  return String(value||'').trim().replace(/类$/,'');
+}
+function normalizeInlineMajorChangeName(value){
+  return String(value||'')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s\u00a0]+/g,'')
+    .replace(/[，,。；;、：:]/g,'');
+}
+function normalizeInlineMajorChangeClass(value){
+  return normalizeInlineMajorChangeName(value).replace(/类$/,'');
+}
+function inlineMajorChangeGroupCode(g){
+  const display=String(g?.displayCode||'').match(/\d{1,2}/);
+  if(display)return display[0].padStart(2,'0');
+  const raw=String(g?.groupCode||g?.groupName||'');
+  const suffix=raw.match(/(\d{1,2})(?:组)?$/);
+  return suffix?suffix[1].padStart(2,'0'):'';
+}
+async function inlineMajorChangeIndex(){
+  if(!inlineMajorChangeIndexPromise){
+    inlineMajorChangeIndexPromise=fetch(`./professional-group-cards/data/index.json?v=${INLINE_MAJOR_CHANGE_DATA_VERSION}`)
+      .then(response=>{
+        if(!response.ok)throw new Error(`专业变化目录加载失败（${response.status}）`);
+        return response.json();
+      })
+      .then(data=>{
+        inlineMajorChangeDirectoryByName=new Map((data.schools||[]).map(school=>[school.name,school]));
+        return data;
+      });
+  }
+  return inlineMajorChangeIndexPromise;
+}
+async function inlineMajorChangeChunk(bucket){
+  if(inlineMajorChangeChunkCache.has(bucket))return inlineMajorChangeChunkCache.get(bucket);
+  if(!inlineMajorChangeChunkPromises.has(bucket)){
+    const promise=fetch(`./professional-group-cards/data/chunks/${bucket}.json?v=${INLINE_MAJOR_CHANGE_DATA_VERSION}`)
+      .then(response=>{
+        if(!response.ok)throw new Error(`专业变化分块加载失败（${response.status}）`);
+        return response.json();
+      })
+      .then(data=>{
+        inlineMajorChangeChunkCache.set(bucket,data);
+        inlineMajorChangeChunkPromises.delete(bucket);
+        return data;
+      })
+      .catch(error=>{
+        inlineMajorChangeChunkPromises.delete(bucket);
+        throw error;
+      });
+    inlineMajorChangeChunkPromises.set(bucket,promise);
+  }
+  return inlineMajorChangeChunkPromises.get(bucket);
+}
+async function ensureInlineMajorChangeSchool(s){
+  const name=String(s?.name||'');
+  if(!name||!inlineMajorChangeEligibleSchool(s))return null;
+  if(inlineMajorChangeSchoolCache.has(name))return inlineMajorChangeSchoolCache.get(name);
+  if(inlineMajorChangeSchoolPromises.has(name))return inlineMajorChangeSchoolPromises.get(name);
+  const promise=(async()=>{
+    await inlineMajorChangeIndex();
+    const directory=inlineMajorChangeDirectoryByName?.get(name);
+    if(!directory){
+      inlineMajorChangeSchoolCache.set(name,null);
+      return null;
+    }
+    const chunk=await inlineMajorChangeChunk(directory.bucket);
+    const school=chunk?.schools?.[directory.id]||null;
+    inlineMajorChangeSchoolCache.set(name,school);
+    return school;
+  })()
+    .catch(error=>{
+      inlineMajorChangeSchoolCache.set(name,null);
+      console.warn(`未能加载 ${name} 的专业变化标色`,error);
+      return null;
+    })
+    .finally(()=>inlineMajorChangeSchoolPromises.delete(name));
+  inlineMajorChangeSchoolPromises.set(name,promise);
+  return promise;
+}
+function inlineMajorChangeGroup(s,g){
+  if(!inlineMajorChangeEligibleSchool(s))return null;
+  const school=inlineMajorChangeSchoolCache.get(s.name);
+  if(!school)return null;
+  const subject=normalizeInlineMajorChangeSubject(s.subject||g.subject);
+  const code=inlineMajorChangeGroupCode(g);
+  const section=(school.subjects||[]).find(item=>normalizeInlineMajorChangeSubject(item.subject)===subject);
+  return (section?.groups||[]).find(item=>!item.retired&&String(item.group26||'').padStart(2,'0')===code)||
+    {rows:[],inlineFallback:true};
+}
+function claimInlineMajorChangeRow(available,m,shortName=false){
+  const target=normalizeInlineMajorChangeName(shortName?(m.baseName||m.name):m.name);
+  if(!target)return null;
+  let candidates=available.filter(row=>
+    normalizeInlineMajorChangeName(shortName?row.shortName26:row.name26)===target
+  );
+  if(!candidates.length)return null;
+  const plan=num(m.plan26);
+  if(plan!==null){
+    const samePlan=candidates.filter(row=>num(row.plan26)===plan);
+    if(samePlan.length)candidates=samePlan;
+  }
+  const majorClass=normalizeInlineMajorChangeClass(m.majorClass);
+  if(candidates.length>1&&majorClass){
+    const sameClass=candidates.filter(row=>normalizeInlineMajorChangeClass(row.category)===majorClass);
+    if(sameClass.length)candidates=sameClass;
+  }
+  if(shortName&&candidates.length!==1)return null;
+  const row=candidates[0]||null;
+  if(row)available.splice(available.indexOf(row),1);
+  return row;
+}
+function matchInlineMajorChangeRows(majors,cardGroup){
+  const available=(cardGroup?.rows||[]).filter(row=>row.statusKind!=='deleted'&&row.name26);
+  const matches=new Map();
+  for(const m of majors){
+    const row=claimInlineMajorChangeRow(available,m,false);
+    if(row)matches.set(m,row);
+  }
+  for(const m of majors){
+    if(matches.has(m))continue;
+    const row=claimInlineMajorChangeRow(available,m,true);
+    if(row)matches.set(m,row);
+  }
+  return matches;
+}
+function inlineMajorHas25Evidence(m){
+  return [m?.score25,m?.rank25,m?.plan25,m?.admit25,m?.max25].some(value=>num(value)!==null);
+}
+function inlineMajorChangeClass(m,row,cardGroup){
+  if(!cardGroup)return '';
+  if(row?.statusKind==='anomaly')return 'major-change-anomaly';
+  if(inlineMajorHas25Evidence(m))return 'major-change-retained';
+  if(row?.statusKind==='added'||(!row&&/新增/.test(String(m?.isNew||''))))return 'major-change-added';
+  return 'major-change-retained';
+}
+function inlineMajorChangeRenameCandidate(m,row,deletedRows){
+  if(!inlineMajorHas25Evidence(m))return null;
+  if(row&&row.statusKind!=='added')return null;
+  if(row&&num(row.score25)!==null)return null;
+  const plan25=num(m.plan25);
+  const score25=num(m.score25);
+  const majorClass=normalizeInlineMajorChangeClass(m.majorClass);
+  if(plan25===null||score25===null)return null;
+  const candidates=deletedRows.filter(deleted=>
+    num(deleted.plan25)===plan25&&
+    num(deleted.score25)===score25&&
+    (!majorClass||!deleted.category||normalizeInlineMajorChangeClass(deleted.category)===majorClass)
+  );
+  return candidates.length===1?candidates[0]:null;
+}
+function inlineMajorChangeDeletedRows(majors,matches,cardGroup){
+  const currentNames=new Set(majors.map(m=>normalizeInlineMajorChangeName(m.name)).filter(Boolean));
+  const deduped=[];
+  const seen=new Set();
+  for(const row of cardGroup?.rows||[]){
+    if(row.statusKind!=='deleted')continue;
+    const name=normalizeInlineMajorChangeName(row.name25||row.name);
+    if(!name||currentNames.has(name))continue;
+    const key=`${name}|${row.plan25??''}|${row.score25??''}`;
+    if(seen.has(key))continue;
+    seen.add(key);
+    deduped.push(row);
+  }
+  const renamed=new Set();
+  for(const m of majors){
+    const deleted=inlineMajorChangeRenameCandidate(m,matches.get(m),deduped.filter(row=>!renamed.has(row)));
+    if(deleted)renamed.add(deleted);
+  }
+  return deduped.filter(row=>!renamed.has(row));
+}
+function inlineMajorDeletedRowHTML(row){
+  const plan25=num(row.plan25);
+  const planDelta=plan25===null?'—':`−${Math.abs(plan25)}`;
+  return `<tr class="major-change-deleted"><td class="major-select-cell"></td><td>—</td><td class="major-name"><div class="major-title-line"><span class="major-name-text">${esc(row.name25||row.name||'—')}</span></div></td><td class="major-class-stack">${esc(row.category||'其他')}</td><td class="major-score-cell">— / ${planDelta}</td><td class="major-score-cell">${fmtNum(row.score25)} / ${fmtNum(row.rank25)}</td><td class="major-score-cell major-avg-cell">— / —</td></tr>`;
+}
 function render(){renderSidebar(); if(state.mode==='groups')renderGroupMode(); else renderSchoolMode();}
 function renderSidebar(){
   const totalGroups=state.filtered.reduce((a,s)=>a+s.visibleGroups.length,0);
@@ -2698,7 +2886,19 @@ function renderSidebar(){
   bindNoteHoverAndContext();
 }
 function getActiveSchool(){return state.filtered.find(s=>schoolMatchesActiveId(s,state.activeSchoolId))||state.filtered[0]||null;}
-function renderSchoolMode(){const s=getActiveSchool(); if(!s){$('#main').innerHTML='<div class="empty">没有匹配数据，请调整筛选条件。</div>';return;} $('#main').innerHTML=schoolHTML(s,s.visibleGroups,true); bindDynamic();}
+function renderSchoolMode(){
+  const s=getActiveSchool();
+  if(!s){$('#main').innerHTML='<div class="empty">没有匹配数据，请调整筛选条件。</div>';return;}
+  $('#main').innerHTML=schoolHTML(s,s.visibleGroups,true);
+  bindDynamic();
+  if(inlineMajorChangeEligibleSchool(s)&&!inlineMajorChangeSchoolCache.has(s.name)){
+    const activeKey=keySchool(s);
+    ensureInlineMajorChangeSchool(s).then(school=>{
+      const active=getActiveSchool();
+      if(school&&state.mode==='schools'&&active&&keySchool(active)===activeKey)renderSchoolMode();
+    });
+  }
+}
 function renderGroupMode(){
   const groups=[]; state.filtered.forEach(s=>s.visibleGroups.forEach(g=>groups.push([s,g])));
   const limit=120; const shown=groups.slice(0,limit);
@@ -2711,7 +2911,7 @@ function schoolHTML(s,groups,withCards){
   const plan25=groups.reduce((a,g)=>a+(g.plan25||0),0);
   const planDiff=plan26-plan25;
   const bandSummary=admissionBandSummaryForGroups(s,groups);
-  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)} ${admissionPriorityBadge(s)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(displayRegionLabel(s))}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span><span class="badge band-summary" title="当前院校显示专业组的冲稳保分布">${esc(admissionBandSummaryText(bandSummary,'组'))}</span></div>${foreignCoopSchoolAlertHTML(groups)}${admissionPriorityAlertHTML(s)}<div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g)).join('')}`;
+  return `<section class="school-header" data-note-scope="schools" data-note-key="${esc(keySchool(s))}"><div class="school-title"><div class="school-title-main"><h2>${esc(s.name)} ${admissionPriorityBadge(s)}</h2><button class="school-info-link" type="button" data-school-info="${esc(keySchool(s))}">院校基础信息 ▾</button></div>${noteBadge('schools',keySchool(s))}<button class="anno-btn" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="schools" data-annotation-key="${esc(keySchool(s))}" data-annotation-title="${esc(s.name)}｜院校批注">新增批注</button></div><div class="badges"><span class="badge">${esc(displayRegionLabel(s))}</span><span class="badge">${esc(s.subject)}</span><span class="badge">${esc(s.batch)}</span><span class="badge green">当前显示 ${groups.length} 组</span><span class="badge band-summary" title="当前院校显示专业组的冲稳保分布">${esc(admissionBandSummaryText(bandSummary,'组'))}</span></div>${foreignCoopSchoolAlertHTML(groups)}${admissionPriorityAlertHTML(s)}<div class="summary-grid"><div class="metric"><b>${fmtNum(s.weightedScore)}</b><span>院校加权平均分</span></div><div class="metric"><b>${fmtNum(s.weightedRank)}</b><span>加权平均位次</span></div><div class="metric"><b>${plan26}</b><span>2026 显示计划</span></div><div class="metric"><b class="${signedClass(planDiff)}">${formatSigned(planDiff)}</b><span>较 2025 计划变化</span></div></div></section>${withCards?`<div class="group-cards">${groups.map(g=>groupCardHTML(s,g)).join('')}</div>`:''}${groups.map(g=>groupSectionHTML(s,g,true)).join('')}`;
 }
 function groupCardHTML(s,g){
   const planDiff=(g.plan26||0)-(g.plan25||0);
@@ -2721,14 +2921,19 @@ function groupCardHTML(s,g){
   const risk=groupRiskState(s,g);
   return `<article class="group-card group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，${risk.riskText}${risk.probabilityText}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3><div class="group-card-status">${groupRiskHeroHTML(s,g,true)}${groupChangeButtonHTML(s,g,'card')}</div></div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,true)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
-function groupSectionHTML(s,g){
+function groupSectionHTML(s,g,inlineChanges=false){
   const planDiff=(g.plan26||0)-(g.plan25||0);
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
   const risk=groupRiskState(s,g);
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(`${quality.title}；${risk.title}`)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,false)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div><div class="group-head-side">${groupRiskHeroHTML(s,g)}${groupChangeButtonHTML(s,g,'section')}</div></div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${[...g.majors].sort(majorSortByThreeYear).map(m=>majorRowHTML(s,g,m)).join('')}</tbody></table></div></section>`;
+  const majors=[...g.majors].sort(majorSortByThreeYear);
+  const cardGroup=inlineChanges?inlineMajorChangeGroup(s,g):null;
+  const matches=cardGroup?matchInlineMajorChangeRows(majors,cardGroup):new Map();
+  const currentRows=majors.map(m=>majorRowHTML(s,g,m,inlineMajorChangeClass(m,matches.get(m),cardGroup))).join('');
+  const deletedRows=cardGroup?inlineMajorChangeDeletedRows(majors,matches,cardGroup).map(inlineMajorDeletedRowHTML).join(''):'';
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(`${quality.title}；${risk.title}`)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,false)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div><div class="group-head-side">${groupRiskHeroHTML(s,g)}${groupChangeButtonHTML(s,g,'section')}</div></div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${currentRows}${deletedRows}</tbody></table></div></section>`;
 }
-function majorRowHTML(s,g,m){
+function majorRowHTML(s,g,m,changeClass=''){
   const avgYears=m.avgYears&&m.avgYears<3?` <span class="muted avg-years-inline">${m.avgYears}年均值</span>`:'';
   const groupKey=keyGroup(s,g);
   const order=selectedMajorIndex(groupKey,m.key);
@@ -2746,7 +2951,7 @@ function majorRowHTML(s,g,m){
   const actionButtons=majorActionButtonsHTML(s,g,m,coopDetail,groupKey);
   const metaBadges=majorMetaBadgesHTML(m,'四');
   const majorNameButton=`<button class="major-name-link" type="button" data-major-detail="${esc(keyMajor(m))}" data-detail-mode="major-base" data-school-key="${esc(keySchool(s))}" data-group-key="${esc(groupKey)}" title="查看${esc(m.name)}专业详情">${esc(m.name)}</button>`;
-  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||qualificationBlocked?'当前学生档案不满足该专业组选科/报考资格要求，禁止选择':physical.blocked?'体检风险提醒：可勾选，但需核对招生章程':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
+  return `<tr class="${riskMeta.risk?'risk-row':''} ${riskToneClass} ${physical.blocked?'physical-blocked-row':''} ${subjectBlock?'subject-blocked-row':''} ${qualificationBlocked?'qualification-blocked-row':''} ${checked?'major-selected-row':''} ${changeClass}" title="${esc(subjectBlock||physicalTitle||qualificationTitle||riskMeta.reason||'')}" data-note-scope="majors" data-note-key="${esc(keyMajor(m))}"><td class="major-select-cell"><label class="major-select-box" title="${esc(subjectBlock||qualificationBlocked?'当前学生档案不满足该专业组选科/报考资格要求，禁止选择':physical.blocked?'体检风险提醒：可勾选，但需核对招生章程':'勾选后会自动加入该专业组，并按勾选顺序生成专业 1-6')}"><input type="checkbox" data-main-major-check="${esc(groupKey)}" value="${esc(m.key)}" ${checked?'checked':''}${disabled}>${checked?`<span class="major-order-badge">${order+1}</span>`:'<span class="major-order-placeholder"></span>'}</label></td><td>${esc(m.code)}</td><td class="major-name"><div class="major-title-line">${majorNameButton}${metaBadges}${medicalRestrictionLabelHTML(physical)}${subjectBlock?'<span class="risk-label">选科不符</span>':''}${qualificationRiskLabelHTML(qualification)}${majorRiskLabelHTML(riskMeta)}${noteBadge('majors',keyMajor(m))}${actionButtons}</div></td><td class="major-class-stack">${esc(m.majorClass||'其他')}</td><td class="major-score-cell">${fmt(m.plan26)} / ${planChangeInline(m.planChange)}</td><td class="major-score-cell">${fmtNum(m.score25)} / ${fmtNum(m.rank25)}</td><td class="major-score-cell major-avg-cell">${fmtNum(m.avgScore3)} / ${fmtNum(m.avgRank3)}${avgYears}</td></tr>`;
 }
 function bindDynamic(){
   $$('[data-scroll]').forEach(el=>el.addEventListener('click',()=>document.getElementById(el.dataset.scroll)?.scrollIntoView({behavior:'smooth',block:'start'})));

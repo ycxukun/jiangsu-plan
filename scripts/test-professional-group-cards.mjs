@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -242,6 +243,11 @@ const html = await fs.readFile(path.join(moduleDir, "index.html"), "utf8");
 const css = await fs.readFile(path.join(moduleDir, "styles.css"), "utf8");
 const app = await fs.readFile(path.join(moduleDir, "app.js"), "utf8");
 const rootApp = await fs.readFile(path.join(root, "app.js"), "utf8");
+const rootCss = await fs.readFile(
+  path.join(root, "style-claude-clean.css"),
+  "utf8",
+);
+const rootHtml = await fs.readFile(path.join(root, "index.html"), "utf8");
 for (const reference of ["./styles.css", "./app.js", "./data/index.json"]) {
   const fileReference =
     reference === "./data/index.json"
@@ -268,6 +274,229 @@ assert(
   rootApp.includes('href="./professional-group-cards/"'),
   "原站首页缺少2026专业组卡入口",
 );
+for (const token of [
+  "major-change-retained",
+  "major-change-added",
+  "major-change-anomaly",
+  "major-change-deleted",
+]) {
+  assert(rootApp.includes(token), `原站内嵌专业标色缺少 ${token}`);
+  assert(rootCss.includes(token), `原站内嵌专业颜色样式缺少 ${token}`);
+}
+assert(
+  rootHtml.includes("20260727-inline-colors-r1"),
+  "原站没有刷新专业标色资源版本",
+);
+
+const inlineContext = {
+  console,
+  fetch: async () => {
+    throw new Error("测试不应发起网络请求");
+  },
+  localStorage: {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  },
+  sessionStorage: {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  },
+  document: {
+    readyState: "loading",
+    addEventListener: () => {},
+  },
+  navigator: {},
+  location: {},
+  alert: () => {},
+  confirm: () => true,
+  setTimeout,
+  clearTimeout,
+  URL,
+};
+inlineContext.window = inlineContext;
+inlineContext.DB_PARTS = [];
+vm.createContext(inlineContext);
+for (let part = 1; part <= 4; part += 1) {
+  const file = `data-db-part-${String(part).padStart(2, "0")}.js`;
+  vm.runInContext(
+    await fs.readFile(path.join(root, file), "utf8"),
+    inlineContext,
+    { filename: file },
+  );
+}
+inlineContext.DB = inlineContext.DB_PARTS.flat();
+const inlineExport =
+  "\nwindow.__INLINE_MAJOR_CHANGE_TEST__={" +
+  [
+    "inlineMajorChangeSchoolCache",
+    "inlineMajorChangeGroup",
+    "matchInlineMajorChangeRows",
+    "inlineMajorChangeClass",
+    "inlineMajorChangeDeletedRows",
+    "inlineMajorDeletedRowHTML",
+  ].join(",") +
+  "};\n})();";
+const instrumentedRootApp = rootApp.replace(/\n\}\)\(\);\s*$/, inlineExport);
+assert(instrumentedRootApp !== rootApp, "无法挂接原站内嵌标色测试");
+vm.runInContext(instrumentedRootApp, inlineContext, {
+  filename: "app.js",
+});
+const inlineTest = inlineContext.__INLINE_MAJOR_CHANGE_TEST__;
+inlineTest.inlineMajorChangeSchoolCache.set("南京工业大学", nanjing);
+const rootNanjingSchools = inlineContext.DB.filter(
+  (school) =>
+    school.name === "南京工业大学" && school.batch === "本科批",
+);
+assert(rootNanjingSchools.length === 2, "原站南京工业大学普通本科科类不完整");
+const inlineNanjingStatus = {
+  retained: 0,
+  added: 0,
+  anomaly: 0,
+  deleted: 0,
+};
+let inlineNanjingCurrent = 0;
+let inlineNanjingMatched = 0;
+let movedMajorTone = "";
+for (const school of rootNanjingSchools) {
+  for (const group of school.groups) {
+    const cardGroup = inlineTest.inlineMajorChangeGroup(school, group);
+    assert(cardGroup, `南京工业大学 ${school.subject}${group.displayCode} 未匹配`);
+    const majors = [...group.majors];
+    const matches = inlineTest.matchInlineMajorChangeRows(majors, cardGroup);
+    inlineNanjingCurrent += majors.length;
+    inlineNanjingMatched += matches.size;
+    for (const major of majors) {
+      const tone = inlineTest
+        .inlineMajorChangeClass(major, matches.get(major), cardGroup)
+        .replace("major-change-", "");
+      inlineNanjingStatus[tone] += 1;
+      if (
+        major.name.startsWith(
+          "建筑电气与智能化(与上海德衡数据科技有限公司联合培养)",
+        )
+      ) {
+        movedMajorTone = tone;
+      }
+    }
+    const deletedRows = inlineTest.inlineMajorChangeDeletedRows(
+      majors,
+      matches,
+      cardGroup,
+    );
+    inlineNanjingStatus.deleted += deletedRows.length;
+    for (const row of deletedRows) {
+      const deletedHtml = inlineTest.inlineMajorDeletedRowHTML(row);
+      assert(!/checkbox|data-main-major-check/.test(deletedHtml), "灰色行可以被勾选");
+      assert(
+        !/新增|延续|删减|转出/.test(deletedHtml),
+        "灰色行出现了多余状态文字",
+      );
+    }
+  }
+}
+assert(inlineNanjingCurrent === 87, "南京工业大学当前专业数量不一致");
+assert(inlineNanjingMatched === 87, "南京工业大学当前专业没有全部匹配");
+assert(
+  JSON.stringify(inlineNanjingStatus) ===
+    JSON.stringify({
+      retained: 79,
+      added: 4,
+      anomaly: 4,
+      deleted: 6,
+    }),
+  `南京工业大学原站标色不一致：${JSON.stringify(inlineNanjingStatus)}`,
+);
+assert(
+  movedMajorTone === "retained",
+  "带25年参考分的转组专业被误标为新增",
+);
+const wuhanCard = schoolsByName.get("武汉理工大学");
+const wuhanRoot = inlineContext.DB.find(
+  (school) =>
+    school.name === "武汉理工大学" &&
+    school.subject === "物理" &&
+    school.batch === "本科批",
+);
+assert(wuhanCard && wuhanRoot, "武汉理工大学回退标色样本缺失");
+inlineTest.inlineMajorChangeSchoolCache.set("武汉理工大学", wuhanCard);
+const wuhanNewGroup = wuhanRoot.groups.find(
+  (group) => group.displayCode === "15",
+);
+const wuhanNewCardGroup = inlineTest.inlineMajorChangeGroup(
+  wuhanRoot,
+  wuhanNewGroup,
+);
+const wuhanNewMatches = inlineTest.matchInlineMajorChangeRows(
+  wuhanNewGroup.majors,
+  wuhanNewCardGroup,
+);
+assert(
+  inlineTest.inlineMajorChangeClass(
+    wuhanNewGroup.majors[0],
+    wuhanNewMatches.get(wuhanNewGroup.majors[0]),
+    wuhanNewCardGroup,
+  ) === "major-change-added",
+  "目录遗漏组没有使用原站新增依据回退标绿",
+);
+for (const [name, school] of schoolsByName) {
+  inlineTest.inlineMajorChangeSchoolCache.set(name, school);
+}
+const inlineCoverage = {
+  schoolRows: 0,
+  groups: 0,
+  matchedGroups: 0,
+  currentMajors: 0,
+  matchedMajors: 0,
+  retained: 0,
+  added: 0,
+  anomaly: 0,
+  deleted: 0,
+};
+for (const school of inlineContext.DB.filter(
+  (row) => row.batch === "本科批",
+)) {
+  inlineCoverage.schoolRows += 1;
+  for (const group of school.groups) {
+    inlineCoverage.groups += 1;
+    inlineCoverage.currentMajors += group.majors.length;
+    const cardGroup = inlineTest.inlineMajorChangeGroup(school, group);
+    assert(cardGroup, `${school.name} ${school.subject}${group.displayCode} 无标色回退`);
+    if (!cardGroup.inlineFallback) inlineCoverage.matchedGroups += 1;
+    const matches = inlineTest.matchInlineMajorChangeRows(
+      group.majors,
+      cardGroup,
+    );
+    inlineCoverage.matchedMajors += matches.size;
+    for (const major of group.majors) {
+      const tone = inlineTest
+        .inlineMajorChangeClass(major, matches.get(major), cardGroup)
+        .replace("major-change-", "");
+      inlineCoverage[tone] += 1;
+    }
+    inlineCoverage.deleted += inlineTest.inlineMajorChangeDeletedRows(
+      group.majors,
+      matches,
+      cardGroup,
+    ).length;
+  }
+}
+assert(
+  JSON.stringify(inlineCoverage) ===
+    JSON.stringify({
+      schoolRows: 1900,
+      groups: 5118,
+      matchedGroups: 5115,
+      currentMajors: 20460,
+      matchedMajors: 20457,
+      retained: 16925,
+      added: 3369,
+      anomaly: 166,
+      deleted: 3865,
+    }),
+  `原站全量内嵌覆盖不一致：${JSON.stringify(inlineCoverage)}`,
+);
 
 console.log(
   JSON.stringify(
@@ -283,8 +512,10 @@ console.log(
       nanjing: {
         groups: `${nanjing.summary.physicsGroupCount}+${nanjing.summary.historyGroupCount}`,
         status: nanjing.summary.status,
+        inlineStatus: inlineNanjingStatus,
         planDelta: nanjing.summary.planDelta,
       },
+      inlineCoverage,
     },
     null,
     2,

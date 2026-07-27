@@ -1575,3 +1575,41 @@ body.compact-mode .volunteer-panel .volunteer-table-row{
   .volunteer-structure-bar{grid-template-columns:1fr!important;}
   .volunteer-structure-actions{justify-content:flex-start!important;}
 }
+
+/* 25-26专业变化：只改变专业颜色，原页面结构与交互保持不变 */
+.table-wrap tr.major-change-retained .major-name-link,
+.table-wrap tr.major-change-retained .major-name-text{
+  color:#17130f!important;
+}
+.table-wrap tr.major-change-added .major-name-link,
+.table-wrap tr.major-change-added .major-name-text{
+  color:#0a7c42!important;
+}
+.table-wrap tr.major-change-anomaly .major-name-link,
+.table-wrap tr.major-change-anomaly .major-name-text{
+  color:#b42318!important;
+}
+.table-wrap tr.major-change-deleted td{
+  color:#716c66!important;
+  background:#f1efec!important;
+}
+.table-wrap tr.major-change-deleted td.major-name,
+.table-wrap tr.major-change-deleted .major-name-link,
+.table-wrap tr.major-change-deleted .major-name-text{
+  color:#716c66!important;
+}
+.table-wrap tr.major-change-deleted:hover td{
+  background:#e9e6e1!important;
+}
+@media print{
+  .table-wrap tr.major-change-retained .major-name-link,
+  .table-wrap tr.major-change-retained .major-name-text,
+  .table-wrap tr.major-change-added .major-name-link,
+  .table-wrap tr.major-change-added .major-name-text,
+  .table-wrap tr.major-change-anomaly .major-name-link,
+  .table-wrap tr.major-change-anomaly .major-name-text,
+  .table-wrap tr.major-change-deleted td{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+}
