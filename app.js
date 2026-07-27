@@ -120,7 +120,7 @@ let rankRefsBySubjectBatch=new Map();
 let predictionCache=new Map();
 let schoolFacetCache=new Map();
 let admissionPriorityCache=new Map();
-const INLINE_MAJOR_CHANGE_DATA_VERSION='20260727-inline-colors-r1';
+const INLINE_MAJOR_CHANGE_DATA_VERSION='20260727-inline-cutoff26-r1';
 let inlineMajorChangeIndexPromise=null;
 let inlineMajorChangeDirectoryByName=null;
 const inlineMajorChangeChunkCache=new Map();
@@ -2865,6 +2865,12 @@ function inlineMajorChangeDeletedRows(majors,matches,cardGroup){
   }
   return deduped.filter(row=>!renamed.has(row));
 }
+function inlineMajorCutoff26HTML(cardGroup){
+  const score=num(cardGroup?.cutoff26?.score);
+  const rank=num(cardGroup?.cutoff26?.rank);
+  if(score===null)return '';
+  return `<span class="group-cutoff26-inline">26投档线 ${fmtNum(score)}分${rank===null?'':`（${fmtNum(rank)}位）`}</span>`;
+}
 function inlineMajorDeletedRowHTML(row){
   const plan25=num(row.plan25);
   const planDelta=plan25===null?'—':`−${Math.abs(plan25)}`;
@@ -2931,7 +2937,8 @@ function groupSectionHTML(s,g,inlineChanges=false){
   const matches=cardGroup?matchInlineMajorChangeRows(majors,cardGroup):new Map();
   const currentRows=majors.map(m=>majorRowHTML(s,g,m,inlineMajorChangeClass(m,matches.get(m),cardGroup))).join('');
   const deletedRows=cardGroup?inlineMajorChangeDeletedRows(majors,matches,cardGroup).map(inlineMajorDeletedRowHTML).join(''):'';
-  return `<section id="${g.id}" class="group-section group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(`${quality.title}；${risk.title}`)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,false)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div><div class="group-head-side">${groupRiskHeroHTML(s,g)}${groupChangeButtonHTML(s,g,'section')}</div></div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${currentRows}${deletedRows}</tbody></table></div></section>`;
+  const cutoff26=inlineMajorCutoff26HTML(cardGroup);
+  return `<section id="${g.id}" class="group-section group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" title="${esc(`${quality.title}；${risk.title}`)}"><div class="group-head"><div class="group-head-main"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g)}${noteBadge('groups',keyGroup(s,g))}</h3><p>${esc(s.name)}｜再选：${esc(g.requirement||'—')}｜${cutoff26?`${cutoff26}｜`:''}${groupScoreLineHTML(s,g)}｜26计划 ${fmt(g.plan26)}｜较25年 ${formatSigned(planDiff)} ${planDiff===0?'':`<span class="${signedClass(planDiff)}">(${formatSigned(planDiff)})</span>`}</p><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,false)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></div><div class="group-head-side">${groupRiskHeroHTML(s,g)}${groupChangeButtonHTML(s,g,'section')}</div></div><div class="table-wrap"><table><thead><tr><th>专业志愿</th><th>代码</th><th>专业名称</th><th>专业类</th><th>26计划/变化</th><th>25分/位次</th><th>三年均分/位次</th></tr></thead><tbody>${currentRows}${deletedRows}</tbody></table></div></section>`;
 }
 function majorRowHTML(s,g,m,changeClass=''){
   const avgYears=m.avgYears&&m.avgYears<3?` <span class="muted avg-years-inline">${m.avgYears}年均值</span>`:'';

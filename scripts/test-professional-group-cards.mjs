@@ -284,8 +284,13 @@ for (const token of [
   assert(rootCss.includes(token), `原站内嵌专业颜色样式缺少 ${token}`);
 }
 assert(
-  rootHtml.includes("20260727-inline-colors-r1"),
-  "原站没有刷新专业标色资源版本",
+  rootHtml.includes("20260727-inline-cutoff26-r1"),
+  "原站没有刷新专业标色与26投档线资源版本",
+);
+assert(
+  (rootApp.match(/const cutoff26=inlineMajorCutoff26HTML\(cardGroup\);/g) || [])
+    .length === 1,
+  "26投档线没有限定为专业组标题信息区一处",
 );
 
 const inlineContext = {
@@ -336,6 +341,7 @@ const inlineExport =
     "inlineMajorChangeClass",
     "inlineMajorChangeDeletedRows",
     "inlineMajorDeletedRowHTML",
+    "inlineMajorCutoff26HTML",
   ].join(",") +
   "};\n})();";
 const instrumentedRootApp = rootApp.replace(/\n\}\)\(\);\s*$/, inlineExport);
@@ -345,6 +351,15 @@ vm.runInContext(instrumentedRootApp, inlineContext, {
 });
 const inlineTest = inlineContext.__INLINE_MAJOR_CHANGE_TEST__;
 inlineTest.inlineMajorChangeSchoolCache.set("南京工业大学", nanjing);
+const nanjingPhysics06 = nanjing.subjects
+  .find((section) => section.subject === "物理")
+  ?.groups.find((group) => group.group26 === "06");
+assert(nanjingPhysics06, "南京工业大学物理06专业组缺失");
+assert(
+  inlineTest.inlineMajorCutoff26HTML(nanjingPhysics06) ===
+    '<span class="group-cutoff26-inline">26投档线 602分（33651位）</span>',
+  "南京工业大学物理06的26投档线显示不正确",
+);
 const rootNanjingSchools = inlineContext.DB.filter(
   (school) =>
     school.name === "南京工业大学" && school.batch === "本科批",

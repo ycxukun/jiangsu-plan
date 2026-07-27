@@ -1601,7 +1601,12 @@ body.compact-mode .volunteer-panel .volunteer-table-row{
 .table-wrap tr.major-change-deleted:hover td{
   background:#e9e6e1!important;
 }
+.group-cutoff26-inline{
+  color:#0a7c42!important;
+  font-weight:900!important;
+}
 @media print{
+  .group-cutoff26-inline,
   .table-wrap tr.major-change-retained .major-name-link,
   .table-wrap tr.major-change-retained .major-name-text,
   .table-wrap tr.major-change-added .major-name-link,
