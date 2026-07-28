@@ -1628,3 +1628,308 @@ body.compact-mode .volunteer-panel .volunteer-table-row{
     print-color-adjust:exact!important;
   }
 }
+
+/* V1.1.71 专业组卡片总览：屏幕只展开当前组，打印保留整校全部专业组。 */
+.group-overview{
+  margin:0 0 16px!important;
+  padding:16px!important;
+  border:1px solid #dfd2c1!important;
+  border-radius:22px!important;
+  background:#fffdf8!important;
+  box-shadow:0 10px 28px rgba(35,24,14,.06)!important;
+}
+.group-overview-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:16px!important;
+  margin:0 0 14px!important;
+}
+.group-overview-head h3{
+  margin:0!important;
+  color:#211b16!important;
+  font-size:18px!important;
+  line-height:1.25!important;
+}
+.group-overview-head p{
+  margin:5px 0 0!important;
+  color:#756a60!important;
+  font-size:12px!important;
+  line-height:1.55!important;
+}
+.school-print-btn{
+  flex:0 0 auto!important;
+  min-height:44px!important;
+  padding:0 16px!important;
+  border:1px solid #17130f!important;
+  border-radius:999px!important;
+  background:#17130f!important;
+  color:#fff!important;
+  font-size:13px!important;
+  font-weight:900!important;
+  box-shadow:0 8px 18px rgba(23,19,15,.12)!important;
+}
+.school-print-btn:hover{
+  background:#342a22!important;
+}
+.school-print-btn:focus-visible{
+  outline:3px solid rgba(182,90,63,.28)!important;
+  outline-offset:3px!important;
+}
+.group-overview .group-cards,
+body.compact-mode .group-overview .group-cards{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:14px!important;
+  margin:0!important;
+}
+.group-card-selector,
+body.compact-mode .group-card-selector{
+  display:flex!important;
+  flex-direction:column!important;
+  min-width:0!important;
+  min-height:224px!important;
+  padding:15px!important;
+  border-width:1px!important;
+  border-radius:17px!important;
+  background:#fff!important;
+  cursor:pointer!important;
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease!important;
+}
+.group-card-selector:hover{
+  border-color:#c49a78!important;
+  background:#fffdf9!important;
+  box-shadow:0 12px 28px rgba(35,24,14,.09)!important;
+}
+.group-card-selector:focus-visible{
+  outline:3px solid rgba(182,90,63,.25)!important;
+  outline-offset:2px!important;
+}
+.group-card-selector.is-active{
+  border-color:#17130f!important;
+  background:linear-gradient(180deg,#fffdf9,#fbf5eb)!important;
+  box-shadow:inset 0 0 0 1px #17130f,0 12px 30px rgba(35,24,14,.10)!important;
+}
+.group-card-selector .group-card-head{
+  align-items:flex-start!important;
+}
+.group-card-selector .group-card-state{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:24px!important;
+  padding:3px 8px!important;
+  border:1px solid #ded2c3!important;
+  border-radius:999px!important;
+  background:#fffaf2!important;
+  color:#756a60!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  white-space:nowrap!important;
+}
+.group-card-selector.is-active .group-card-state{
+  border-color:#17130f!important;
+  background:#17130f!important;
+  color:#fff!important;
+}
+.group-card-selector .group-card-open{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+  min-height:42px!important;
+  margin-top:auto!important;
+  padding:10px 1px 0!important;
+  border-top:1px solid #eadfD2!important;
+  color:#51463d!important;
+  font-size:12px!important;
+  font-weight:900!important;
+}
+.group-card-selector .group-card-open b{
+  display:grid!important;
+  place-items:center!important;
+  width:28px!important;
+  height:28px!important;
+  border-radius:50%!important;
+  background:#f2e8da!important;
+  color:#5f493a!important;
+  font-size:15px!important;
+}
+.group-card-selector.is-active .group-card-open{
+  color:#17130f!important;
+}
+.group-card-selector.is-active .group-card-open b{
+  background:#17130f!important;
+  color:#fff!important;
+}
+.group-detail-heading{
+  display:flex!important;
+  align-items:baseline!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  margin:2px 2px 10px!important;
+  color:#211b16!important;
+}
+.group-detail-heading span{
+  font-size:15px!important;
+  font-weight:950!important;
+}
+.group-detail-heading small{
+  color:#7b7066!important;
+  font-size:11px!important;
+  line-height:1.45!important;
+  text-align:right!important;
+}
+.school-group-detail{
+  scroll-margin-top:118px!important;
+}
+.school-group-detail.is-collapsed{
+  display:none!important;
+}
+
+@media (min-width:2100px){
+  .group-overview .group-cards,
+  body.compact-mode .group-overview .group-cards{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:1380px){
+  .group-overview .group-cards,
+  body.compact-mode .group-overview .group-cards{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:760px){
+  .group-overview{
+    padding:12px!important;
+    border-radius:17px!important;
+  }
+  .group-overview-head{
+    align-items:stretch!important;
+    flex-direction:column!important;
+  }
+  .school-print-btn{
+    width:100%!important;
+  }
+  .group-overview .group-cards,
+  body.compact-mode .group-overview .group-cards{
+    grid-template-columns:1fr!important;
+  }
+  .group-card-selector,
+  body.compact-mode .group-card-selector{
+    min-height:210px!important;
+  }
+  .group-detail-heading{
+    align-items:flex-start!important;
+    flex-direction:column!important;
+  }
+  .group-detail-heading small{
+    text-align:left!important;
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  .group-card-selector{
+    transition:none!important;
+  }
+}
+
+@media print{
+  @page{
+    size:A4 landscape;
+    margin:9mm;
+  }
+  html,
+  body{
+    width:auto!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+    color:#17130f!important;
+  }
+  body,
+  body.compact-mode{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+  .topbar,
+  .sidebar,
+  .screen-only,
+  .footer,
+  .volunteer-toggle,
+  .back-top,
+  .panel,
+  .annotation-drawer,
+  .note-panel,
+  .modal-mask,
+  .admin-dock{
+    display:none!important;
+  }
+  .app-shell,
+  .layout,
+  body.compact-mode .layout,
+  .main{
+    display:block!important;
+    width:auto!important;
+    max-width:none!important;
+    min-width:0!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+  }
+  .school-header,
+  body.compact-mode .school-header{
+    margin:0 0 7mm!important;
+    padding:5mm!important;
+    border:1px solid #cfc5b8!important;
+    border-radius:12px!important;
+    background:#fff!important;
+    box-shadow:none!important;
+    break-after:avoid-page!important;
+  }
+  .school-group-detail,
+  .school-group-detail.is-active,
+  .school-group-detail.is-collapsed{
+    display:block!important;
+    margin:0 0 6mm!important;
+    border:1px solid #cfc5b8!important;
+    border-radius:10px!important;
+    box-shadow:none!important;
+    break-inside:avoid-page!important;
+  }
+  .school-group-detail .group-head,
+  body.compact-mode .school-group-detail .group-head{
+    padding:4mm!important;
+    break-after:avoid-page!important;
+  }
+  .school-group-detail .anno-actions,
+  .school-group-detail .change-btn{
+    display:none!important;
+  }
+  .school-group-detail .table-wrap{
+    overflow:visible!important;
+  }
+  .school-group-detail .table-wrap table,
+  body.compact-mode .school-group-detail .table-wrap table{
+    width:100%!important;
+    min-width:0!important;
+    table-layout:fixed!important;
+  }
+  .school-group-detail thead{
+    display:table-header-group!important;
+  }
+  .school-group-detail th{
+    position:static!important;
+  }
+  .school-group-detail tr{
+    break-inside:avoid!important;
+  }
+  .school-group-detail th,
+  .school-group-detail td,
+  body.compact-mode .school-group-detail th,
+  body.compact-mode .school-group-detail td{
+    padding:2.2mm 2.4mm!important;
+    font-size:9pt!important;
+    line-height:1.35!important;
+  }
+}

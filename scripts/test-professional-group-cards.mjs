@@ -287,8 +287,8 @@ for (const token of [
   assert(rootCss.includes(token), `原站内嵌专业颜色样式缺少 ${token}`);
 }
 assert(
-  rootHtml.includes("20260728-cutoff26-cards-r1"),
-  "原站没有刷新专业标色与26投档线资源版本",
+  rootHtml.includes("20260728-group-focus-r1"),
+  "原站没有刷新专业组单组展开资源版本",
 );
 assert(
   (rootApp.match(/const cutoff26=inlineMajorCutoff26HTML\(cardGroup\);/g) || [])
@@ -345,6 +345,9 @@ const inlineExport =
     "inlineMajorChangeDeletedRows",
     "inlineMajorDeletedRowHTML",
     "inlineMajorCutoff26HTML",
+    "keyGroup",
+    "activeGroupKeyForSchool",
+    "schoolHTML",
     "groupCardHTML",
     "groupSectionHTML",
   ].join(",") +
@@ -390,6 +393,7 @@ assert(
 const threeGorges03CardHtml = inlineTest.groupCardHTML(
   rootThreeGorges,
   rootThreeGorges03,
+  inlineTest.keyGroup(rootThreeGorges, rootThreeGorges03),
 );
 const threeGorges03SectionHtml = inlineTest.groupSectionHTML(
   rootThreeGorges,
@@ -411,6 +415,74 @@ assert(
   threeGorges03CardHtml.includes("<span>25分</span>") &&
     threeGorges03CardHtml.includes("<span>25位次</span>"),
   "加入26投档线后覆盖了原有25分与25位次",
+);
+assert(
+  threeGorges03CardHtml.includes('class="group-card group-card-selector') &&
+    threeGorges03CardHtml.includes('role="button"') &&
+    threeGorges03CardHtml.includes('tabindex="0"') &&
+    threeGorges03CardHtml.includes('aria-pressed="true"'),
+  "专业组总览卡缺少整卡点选或键盘语义",
+);
+for (const repeatedAction of [
+  "data-volunteer-key",
+  "data-change-key",
+  "data-clear-major-group",
+  "data-annotation-scope",
+  "data-batch-guide",
+]) {
+  assert(
+    !threeGorges03CardHtml.includes(repeatedAction),
+    `专业组总览卡仍保留重复操作 ${repeatedAction}`,
+  );
+}
+const threeGorgesSchoolHtml = inlineTest.schoolHTML(
+  rootThreeGorges,
+  rootThreeGorges.groups,
+  true,
+);
+assert(
+  (threeGorgesSchoolHtml.match(/group-card-selector/g) || []).length ===
+    rootThreeGorges.groups.length,
+  "专业组总览卡数量与当前学校专业组数量不一致",
+);
+assert(
+  (threeGorgesSchoolHtml.match(/school-group-detail/g) || []).length ===
+    rootThreeGorges.groups.length,
+  "专业组明细DOM没有保留当前学校全部专业组",
+);
+assert(
+  (threeGorgesSchoolHtml.match(/group-card-selector[^>]*is-active/g) || [])
+    .length === 1 &&
+    (threeGorgesSchoolHtml.match(/school-group-detail is-active/g) || [])
+      .length === 1 &&
+    (threeGorgesSchoolHtml.match(/school-group-detail is-collapsed/g) || [])
+      .length === rootThreeGorges.groups.length - 1,
+  "屏幕初始状态没有严格保持只展开一个专业组",
+);
+assert(
+  (threeGorgesSchoolHtml.match(/data-print-school/g) || []).length === 1,
+  "当前学校缺少唯一的整校打印入口",
+);
+for (const token of [
+  ".group-card-selector",
+  ".school-group-detail.is-collapsed",
+  ".school-print-btn",
+  "@media print",
+  "size:A4 landscape",
+]) {
+  assert(rootCss.includes(token), `原站专业组总览或打印样式缺少 ${token}`);
+}
+assert(
+  /@media print[\s\S]*?\.school-group-detail,[\s\S]*?\.school-group-detail\.is-collapsed\{[\s\S]*?display:block!important/.test(
+    rootCss,
+  ),
+  "打印样式没有强制展开全部专业组",
+);
+assert(
+  rootApp.includes(
+    "activeGroupKeyBySchool.set(keySchool(rec.s),keyGroup(rec.s,rec.g));",
+  ),
+  "从志愿表定位专业组时没有同步展开目标组",
 );
 const rootNanjingSchools = inlineContext.DB.filter(
   (school) =>
