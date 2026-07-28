@@ -279,18 +279,21 @@ for (const token of [
   "major-change-added",
   "major-change-anomaly",
   "major-change-deleted",
+  "group-card-cutoff26",
 ]) {
-  assert(rootApp.includes(token), `原站内嵌专业标色缺少 ${token}`);
+  if (token !== "group-card-cutoff26") {
+    assert(rootApp.includes(token), `原站内嵌专业标色缺少 ${token}`);
+  }
   assert(rootCss.includes(token), `原站内嵌专业颜色样式缺少 ${token}`);
 }
 assert(
-  rootHtml.includes("20260727-inline-cutoff26-r1"),
+  rootHtml.includes("20260728-cutoff26-cards-r1"),
   "原站没有刷新专业标色与26投档线资源版本",
 );
 assert(
   (rootApp.match(/const cutoff26=inlineMajorCutoff26HTML\(cardGroup\);/g) || [])
-    .length === 1,
-  "26投档线没有限定为专业组标题信息区一处",
+    .length === 2,
+  "26投档线没有同时限定在专业组小卡片和展开标题信息区",
 );
 
 const inlineContext = {
@@ -342,6 +345,8 @@ const inlineExport =
     "inlineMajorChangeDeletedRows",
     "inlineMajorDeletedRowHTML",
     "inlineMajorCutoff26HTML",
+    "groupCardHTML",
+    "groupSectionHTML",
   ].join(",") +
   "};\n})();";
 const instrumentedRootApp = rootApp.replace(/\n\}\)\(\);\s*$/, inlineExport);
@@ -359,6 +364,53 @@ assert(
   inlineTest.inlineMajorCutoff26HTML(nanjingPhysics06) ===
     '<span class="group-cutoff26-inline">26投档线 602分（33651位）</span>',
   "南京工业大学物理06的26投档线显示不正确",
+);
+const threeGorgesCard = schoolsByName.get("三峡大学");
+const rootThreeGorges = inlineContext.DB.find(
+  (school) =>
+    school.name === "三峡大学" &&
+    school.subject === "物理" &&
+    school.batch === "本科批",
+);
+assert(threeGorgesCard && rootThreeGorges, "三峡大学投档线显示样本缺失");
+inlineTest.inlineMajorChangeSchoolCache.set("三峡大学", threeGorgesCard);
+const rootThreeGorges03 = rootThreeGorges.groups.find(
+  (group) => group.displayCode === "03",
+);
+assert(rootThreeGorges03, "三峡大学物理03专业组缺失");
+const threeGorges03 = inlineTest.inlineMajorChangeGroup(
+  rootThreeGorges,
+  rootThreeGorges03,
+);
+assert(
+  inlineTest.inlineMajorCutoff26HTML(threeGorges03) ===
+    '<span class="group-cutoff26-inline">26投档线 581分（54115位）</span>',
+  "三峡大学物理03的真实26投档线显示不正确",
+);
+const threeGorges03CardHtml = inlineTest.groupCardHTML(
+  rootThreeGorges,
+  rootThreeGorges03,
+);
+const threeGorges03SectionHtml = inlineTest.groupSectionHTML(
+  rootThreeGorges,
+  rootThreeGorges03,
+  true,
+);
+assert(
+  threeGorges03CardHtml.includes(
+    '<div class="group-card-cutoff26"><span class="group-cutoff26-inline">26投档线 581分（54115位）</span></div>',
+  ),
+  "三峡大学物理03的小卡片没有显示真实26投档线",
+);
+assert(
+  (threeGorges03CardHtml.match(/26投档线/g) || []).length === 1 &&
+    (threeGorges03SectionHtml.match(/26投档线/g) || []).length === 1,
+  "三峡大学物理03的两个指定位置存在投档线缺失或重复",
+);
+assert(
+  threeGorges03CardHtml.includes("<span>25分</span>") &&
+    threeGorges03CardHtml.includes("<span>25位次</span>"),
+  "加入26投档线后覆盖了原有25分与25位次",
 );
 const rootNanjingSchools = inlineContext.DB.filter(
   (school) =>

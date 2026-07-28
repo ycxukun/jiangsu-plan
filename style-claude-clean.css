@@ -1605,7 +1605,17 @@ body.compact-mode .volunteer-panel .volunteer-table-row{
   color:#0a7c42!important;
   font-weight:900!important;
 }
+.group-card-cutoff26{
+  margin:0 0 8px!important;
+  padding:6px 9px!important;
+  border:1px solid #bde6cd!important;
+  border-radius:10px!important;
+  background:#effaf3!important;
+  font-size:12px!important;
+  line-height:1.4!important;
+}
 @media print{
+  .group-card-cutoff26,
   .group-cutoff26-inline,
   .table-wrap tr.major-change-retained .major-name-link,
   .table-wrap tr.major-change-retained .major-name-text,

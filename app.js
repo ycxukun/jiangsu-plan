@@ -120,7 +120,7 @@ let rankRefsBySubjectBatch=new Map();
 let predictionCache=new Map();
 let schoolFacetCache=new Map();
 let admissionPriorityCache=new Map();
-const INLINE_MAJOR_CHANGE_DATA_VERSION='20260727-inline-cutoff26-r1';
+const INLINE_MAJOR_CHANGE_DATA_VERSION='20260728-cutoff26-cards-r1';
 let inlineMajorChangeIndexPromise=null;
 let inlineMajorChangeDirectoryByName=null;
 const inlineMajorChangeChunkCache=new Map();
@@ -2925,7 +2925,9 @@ function groupCardHTML(s,g){
   const quality=groupQuality(s,g);
   const title=groupDisplayTitleText(s,g);
   const risk=groupRiskState(s,g);
-  return `<article class="group-card group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，${risk.riskText}${risk.probabilityText}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3><div class="group-card-status">${groupRiskHeroHTML(s,g,true)}${groupChangeButtonHTML(s,g,'card')}</div></div><div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,true)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
+  const cardGroup=inlineMajorChangeGroup(s,g);
+  const cutoff26=inlineMajorCutoff26HTML(cardGroup);
+  return `<article class="group-card group-quality-${quality.tone} group-risk-${risk.riskLevel} ${risk.selected?'selected-volunteer-group':''}" data-scroll="${g.id}" data-note-scope="groups" data-note-key="${esc(keyGroup(s,g))}" aria-label="${esc(`${title}，${risk.riskText}${risk.probabilityText}，组内专业 ${g.majors.length} 个`)}"><div class="group-card-head"><h3>${groupTitleHTML(s,g)}${batchGuideBadgeHTML(s,g,true)}${noteBadge('groups',keyGroup(s,g))}</h3><div class="group-card-status">${groupRiskHeroHTML(s,g,true)}${groupChangeButtonHTML(s,g,'card')}</div></div>${cutoff26?`<div class="group-card-cutoff26">${cutoff26}</div>`:''}<div class="grid">${groupScoreMiniHTML(s,g)}<div class="mini"><b>${g.majors.length}</b><span>专业数</span></div></div><div class="tag-row">${groupCleanTagsHTML(s,g,planDiff,quality,true)}</div><div class="anno-actions">${volunteerButtonHTML(s,g)}${batchGuideButtonsHTML(s,g,true)}${clearMajorButtonHTML(s,g)}<button class="anno-btn" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">查看批注</button><button class="anno-btn primary" data-annotation-scope="groups" data-annotation-key="${esc(keyGroup(s,g))}" data-annotation-title="${esc(s.name)} ${esc(title)}｜专业组批注">新增批注</button></div></article>`;
 }
 function groupSectionHTML(s,g,inlineChanges=false){
   const planDiff=(g.plan26||0)-(g.plan25||0);
