@@ -544,6 +544,27 @@ function assassinMajorMeta(m){
   for(const k of keys){if(ASSASSIN_MAJOR_RISKS[k])return normalizeAssassinRisk(ASSASSIN_MAJOR_RISKS[k],'major');}
   return null;
 }
+// ===== 专业组结构标签 v1.0（2026-10-24）=====
+// 新规则：方向归类 + 热度档 + 先看主体再查坑；经2023-2025三年录取数据检验。
+// 切换口径：localStorage.groupLabelMode = 'new' | 'old'；默认有新数据时用新口径。
+function groupLabelMode(){try{const v=localStorage.getItem('groupLabelMode');if(v==='old'||v==='new')return v;}catch(e){}return window.GROUP_LABELS?'new':'old';}
+function newGroupLabel(g){
+  if(groupLabelMode()!=='new'||!window.GROUP_LABELS)return null;
+  return window.GROUP_LABELS[String(g?.groupCode||'')]||null;
+}
+function newMajorLabelKey(g,m){return m?.identityKey||`${m?.groupCode||g?.groupCode||''}+${m?.code||''}`;}
+function newMajorLabel(g,m){
+  if(!newGroupLabel(g)||!window.MAJOR_LABELS)return null;
+  const x=window.MAJOR_LABELS[newMajorLabelKey(g,m)];
+  if(!x)return {risk:false,label:'',type:'group-label',tone:'green',reason:'专业组结构标签 v1.0：本专业不算坑'};
+  return {risk:true,label:x[1],type:'strict-assassin',tone:x[0],reason:x[2]};
+}
+function newGroupQuality(g){
+  const ng=newGroupLabel(g); if(!ng)return null;
+  const red=(g.majors||[]).filter(m=>window.MAJOR_LABELS?.[newMajorLabelKey(g,m)]?.[0]==='red').length;
+  const label=(ng[4]==='有坑'||ng[4]==='高危')&&red?`${ng[1]}·${red}个刺客`:ng[1];
+  return {tone:ng[0],label,title:`${ng[2]}（${window.GROUP_LABELS_VERSION||'专业组结构标签'}）`};
+}
 function isRiskTone(t){return ['red','orange','yellow','blue','gray'].includes(String(t||''));}
 function riskToneRank(t){return ({green:0,gray:1,blue:2,yellow:3,orange:4,red:5})[String(t||'green')]??0;}
 function strongerRisk(a,b){
@@ -692,6 +713,7 @@ function groupHotColdProfile(g){
   return {hotPlan,coldPlan,totalPlan,hotCount,coldCount,total:(g.majors||[]).length,hasHotCore};
 }
 function majorRiskMeta(s,g,m){
+  const nl=newMajorLabel(g,m); if(nl)return nl;
   const meta=assassinMajorMeta(m);
   let base=null;
   if(meta){
@@ -726,6 +748,7 @@ function majorRiskLabelHTML(meta){
   return `<span class="${cls}" title="${esc(meta.reason||meta.label)}">${esc(meta.label||'风险')}</span>`;
 }
 function groupQuality(s,g){
+  const nq=newGroupQuality(g); if(nq)return nq;
   const mapped=assassinGroupMeta(s,g);
   const majors=g.majors||[];
   const riskMetas=majors.map(m=>majorRiskMeta(s,g,m)).filter(x=>x.risk);
@@ -4750,7 +4773,8 @@ function switchAccountFromProfile(){
   showAccountModal('login');
 }
 function updateAuthGate(){
-  const locked=!(auth.accessToken&&auth.user&&authProfileVerified);
+  const localPreview=Boolean(window.LOCAL_PREVIEW);
+  const locked=!localPreview&&!(auth.accessToken&&auth.user&&authProfileVerified);
   document.body.classList.toggle('auth-locked',locked);
   const cover=$('#authCover');
   if(cover)cover.hidden=!locked;
