@@ -15,7 +15,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const klName=t=>t==='history'?'历史':'物理';
 const klCode=n=>n==='历史'?'history':'physics';
-let META=null, STU=[], PLANS={}, cur=null, curPlan=null, saveT=0, view='bench', stageView='4', benchQ='', benchStage='';
+let META=null, STU=[], PLANS={}, benchLoaded=false, cur=null, curPlan=null, saveT=0, view='bench', stageView='4', benchQ='', benchStage='';
 
 /* ---------- 登录（与旧版共用 localStorage 里的登录状态） ---------- */
 function readAuth(){try{const a=JSON.parse(localStorage.getItem(AUTH_KEY)||'{}');return a&&a.accessToken&&a.user?a:null}catch(e){return null}}
@@ -60,12 +60,12 @@ function showLogin(msg){
 }
 
 /* ---------- 数据 ---------- */
-async function loadMeta(){if(META)return META;try{META=await (await fetch('../huaxian/meta.json?v=20261114-v2-r1')).json()}catch(e){META={dirs:[],medCodes:{},provs:[]}}return META}
+async function loadMeta(){if(META)return META;try{META=await (await fetch('../huaxian/meta.json?v=20261114-v2-r2')).json()}catch(e){META={dirs:[],medCodes:{},provs:[]}}return META}
 async function loadBench(){
   const [s,p]=await Promise.all([
-    api('students?select=id,name,student_no,subject_type,subject_choices,score,rank,phone,updated_at,stage&archived=eq.false&order=updated_at.desc&limit=500'),
+    api('students?select=id,name,student_no,subject_type,subject_choices,score,rank,phone,updated_at,stage,medical_codes,target_cities&archived=eq.false&order=updated_at.desc&limit=500'),
     api('volunteer_forms?select=id,student_id,snapshot,updated_at&title=eq.'+encodeURIComponent(PLAN_TITLE)+'&limit=1000')]);
-  STU=s||[];PLANS={};(p||[]).forEach(r=>{PLANS[r.student_id]=r});
+  STU=s||[];PLANS={};(p||[]).forEach(r=>{PLANS[r.student_id]=r});benchLoaded=true;
 }
 const snapOf=sid=>PLANS[sid]?.snapshot||{};
 function stageOf(s){const sn=snapOf(s.id);if(sn.stage)return String(sn.stage);return s.score?'4':'1'}
@@ -162,7 +162,7 @@ function stage2(){
    <div class="card"><h3>不学的方向</h3>${famChips('avoid','danger')}</div>
    <div class="card"><h3>能接受的地区 <span class="cnt">不选＝全国</span></h3><div class="chips">${(META.provs||[]).map(p=>`<label class="chip"><input type="checkbox" data-k="pv" value="${esc(p)}" ${(st.pv||[]).includes(p)?'checked':''}>${esc(p)}</label>`).join('')}</div></div>
    <div class="card"><h3>学校层次 <span class="cnt">满足任一即可</span></h3><div class="chips">${LEVELS.map(([v,n])=>`<label class="chip"><input type="checkbox" data-k="lv" value="${v}" ${(st.lv||[]).includes(v)?'checked':''}>${n}</label>`).join('')}</div></div>
-   <div class="card"><h3>参考资料</h3><div class="links"><a class="btn sm" href="../major-map/" target="_blank" rel="noopener">专业地图</a><a class="btn sm" href="../huaxian/" target="_blank" rel="noopener">各省本地高校与产业（在划线看组的“按省份看”）</a></div></div></section>`;
+   <div class="card"><h3>参考资料</h3><div class="links"><a class="btn sm" href="#/t/majormap">专业地图</a><a class="btn sm" href="../huaxian/" target="_blank" rel="noopener">各省本地高校与产业（在划线看组的“按省份看”）</a></div></div></section>`;
   bindSetCur('2');
   $('#stagebox section').addEventListener('change',e=>{const i=e.target;if(!i.dataset||!i.dataset.k)return;const k=i.dataset.k;const set=new Set(st[k]||[]);i.checked?set.add(i.value):set.delete(i.value);st[k]=[...set];
     if(i.checked&&k==='dirs'&&(st.avoid||[]).includes(i.value)){st.avoid=st.avoid.filter(x=>x!==i.value);stage2()}
@@ -174,9 +174,9 @@ function stage2(){
 /* ③ 专项通道 */
 function stage3(){
   const sp=curPlan.snapshot.sp,opts=['未评估','不报','评估中','已报名','已入围','已出结果'];
-  const card=(k,t,href,desc)=>`<div class="card"><h3>${t}</h3><p class="cnt">${desc}</p><div class="row2"><label class="f"><span>状态</span><select data-sp="${k}">${opts.map(o=>`<option ${sp[k]===o?'selected':''}>${o}</option>`).join('')}</select></label><label class="f"><span>报考学校 / 备注</span><input data-spn="${k}" value="${esc(sp[k+'_n']||'')}"></label></div><a class="btn sm" href="${href}" target="_blank" rel="noopener">打开${t}工具</a></div>`;
+  const card=(k,t,href,desc)=>`<div class="card"><h3>${t}</h3><p class="cnt">${desc}</p><div class="row2"><label class="f"><span>状态</span><select data-sp="${k}">${opts.map(o=>`<option ${sp[k]===o?'selected':''}>${o}</option>`).join('')}</select></label><label class="f"><span>报考学校 / 备注</span><input data-spn="${k}" value="${esc(sp[k+'_n']||'')}"></label></div><a class="btn sm" href="${href}">打开${t}工具</a></div>`;
   $('#stagebox').innerHTML=`<section class="stage">${stageHead('3','专项通道','强基计划、综合评价、提前批的报考决定和进度。详细操作在各自的工具里。')}
-   <div class="grid3">${card('qj','强基计划','../strong-base/','高三上学期至 4 月报名，6 月校测。')}${card('zp','综合评价','../comprehensive/index.html','高三上学期至 5 月报名，出分后校测。')}${card('tq','提前批','../early-batch/','军警、公费师范、定向医学等，出分后与本科批一起填。')}</div></section>`;
+   <div class="grid3">${card('qj','强基计划','#/t/qiangji','高三上学期至 4 月报名，6 月校测。')}${card('zp','综合评价','#/t/zongping','高三上学期至 5 月报名，出分后校测。')}${card('tq','提前批','#/t/early','军警、公费师范、定向医学等，出分后与本科批一起填。')}</div></section>`;
   bindSetCur('3');
   document.querySelectorAll('[data-sp]').forEach(x=>x.addEventListener('change',()=>{sp[x.dataset.sp]=x.value;queueSave()}));
   document.querySelectorAll('[data-spn]').forEach(x=>x.addEventListener('input',()=>{sp[x.dataset.spn+'_n']=x.value;queueSave()}));
@@ -186,8 +186,8 @@ let hxFrame=null;
 function stage4(){
   const sn=curPlan.snapshot,c=sn.counts||{};
   $('#stagebox').innerHTML=`<div class="fill-bar"><b>④ 出分填报</b><span class="cnt" id="volsum">${sn.n?`志愿表 <b>${sn.n}</b>/40 · <span class="c-chong">冲${c['冲']||0}</span> <span class="c-wen">稳${c['稳']||0}</span> <span class="c-bao">保${c['保']||0}</span>`:'还没有志愿表'}</span><span class="grow"></span>
-    <span class="cnt">条件来自①②，在这里改了也会存回档案</span><a class="btn sm" href="../early-batch/" target="_blank" rel="noopener">提前批</a><a class="btn sm" href="../specialty/index.html" target="_blank" rel="noopener">专科批</a>${String(sn.stage)==='4'?'':'<button type="button" class="btn sm" id="setcur">设为当前阶段</button>'}</div>
-   <iframe class="hx" id="hxf" title="划线看组" src="../huaxian/?embed=1&v=20261114-v2-r1"></iframe>`;
+    <span class="cnt">条件来自①②，在这里改了也会存回档案</span><a class="btn sm" href="#/kb/bk?sid=${esc(cur.id)}">在院校库里查</a><a class="btn sm" href="#/t/early">提前批</a><a class="btn sm" href="#/kb/zk?sid=${esc(cur.id)}">专科批</a>${String(sn.stage)==='4'?'':'<button type="button" class="btn sm" id="setcur">设为当前阶段</button>'}</div>
+   <iframe class="hx" id="hxf" title="划线看组" src="../huaxian/?embed=1&v=20261114-v2-r2"></iframe>`;
   bindSetCur('4');hxFrame=$('#hxf');
 }
 function hxInit(){
@@ -227,28 +227,69 @@ function queueStudent(p){Object.assign(stuPatch,p);clearTimeout(stuT);saved('正
 async function saveStudent(){const p=stuPatch;stuPatch={};if(!Object.keys(p).length)return;
   try{await api('students?id=eq.'+cur.id,{method:'PATCH',body:JSON.stringify(p)});saved('已保存')}catch(e){saved('保存失败：'+e.message,true);Object.assign(stuPatch,p)}}
 function queueSave(now){clearTimeout(saveT);saved('正在保存……');saveT=setTimeout(savePlan,now?10:800)}
+async function savePlanFor(stu,plan){
+  const sn=plan.snapshot,a=readAuth();
+  if(plan.id){await api('volunteer_forms?id=eq.'+plan.id,{method:'PATCH',body:JSON.stringify({snapshot:sn})})}
+  else{const r=await api('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:stu.id,owner_id:a.user.id,title:PLAN_TITLE,stage:'undergraduate',status:'draft',source_version:'v2-huaxian',snapshot:sn})});plan.id=r[0].id}
+  PLANS[stu.id]={...(PLANS[stu.id]||{}),id:plan.id,student_id:stu.id,snapshot:sn,updated_at:new Date().toISOString()};
+  if(cur&&cur.id===stu.id&&curPlan!==plan){curPlan=null}
+}
 async function savePlan(){
-  const sn=curPlan.snapshot,a=readAuth();
-  try{
-    if(curPlan.id){await api('volunteer_forms?id=eq.'+curPlan.id,{method:'PATCH',body:JSON.stringify({snapshot:sn})})}
-    else{const r=await api('volunteer_forms',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:cur.id,owner_id:a.user.id,title:PLAN_TITLE,stage:'undergraduate',status:'draft',source_version:'v2-huaxian',snapshot:sn})});curPlan.id=r[0].id}
-    PLANS[cur.id]={...(PLANS[cur.id]||{}),id:curPlan.id,student_id:cur.id,snapshot:sn,updated_at:new Date().toISOString()};
-    saved('已保存');
-  }catch(e){saved('保存失败：'+e.message,true)}
+  try{await savePlanFor(cur,curPlan);saved('已保存')}catch(e){saved('保存失败：'+e.message,true)}
 }
 window.addEventListener('beforeunload',e=>{if(Object.keys(stuPatch).length){saveStudent()}});
+
+/* ---------- 导航、专题与工具 ---------- */
+const TOOLS={
+  'early':['提前批助手','../early-batch/','军校、公安、航海、专项计划、定向医学生等提前批的政策与核对。'],
+  'qiangji':['强基计划助手','../strong-base/','强基计划的院校、专业与流程。'],
+  'zongping':['综合评价','../comprehensive/index.html','综合评价报名系统。'],
+  'qjzp':['强基综评流程','../foundation-comprehensive-preview/index.html','强基与综评的报名、校测、录取流程。'],
+  'tijian':['体检限报查询','../medical-restriction-preview/index.html','按体检代码查哪些专业不能报。'],
+  'rules':['高考规则讲解','../gaokao-rules-preview/index.html','江苏新高考投档、录取规则。'],
+  'majormap':['专业地图','../major-map/','本科专业的门类、专业类和具体专业。'],
+  'cards':['2026 专业组卡','../professional-group-cards/','每所学校每个专业组的变化卡，可打印。'],
+  'guide':['升学规划资料导航','../planning-hub/index.html','各类资料的入口。'],
+  'news':['升学资讯','../content/index.html','文章与资讯，可以写文章。'],
+  'crm':['CRM 工作台','../crm.html','服务进度、分配、跟进（旧版）。'],
+  'archive':['学生档案库（旧版）','../students/archive.html','旧版学生档案与采集表记录。'],
+  'admin':['管理员后台','../admin-console.html','账号审核与权限。']
+};
+const TOOL_GROUPS=[['填报相关',['early','qiangji','zongping','qjzp','tijian']],['讲解与资料',['rules','majormap','cards','guide','news']],['管理',['crm','archive','admin']]];
+function toolsView(){
+  $('#view').innerHTML=`<section class="bench"><div class="bench-h"><h1>专题与工具</h1></div>${TOOL_GROUPS.map(([t,ks])=>`<h2 class="tg-h">${esc(t)}</h2><div class="tools">${ks.map(k=>`<a class="tool-card" href="#/t/${k}"><b>${esc(TOOLS[k][0])}</b><span>${esc(TOOLS[k][2])}</span></a>`).join('')}</div>`).join('')}</section>`;
+}
+function setNav(k){document.querySelectorAll('#nav a').forEach(a=>a.toggleAttribute('aria-current',a.dataset.nav===k))}
+const loaded={};
+function loadScript(f){return loaded[f]||(loaded[f]=new Promise((ok,no)=>{const s=document.createElement('script');s.src=f+'?v=20261114-v2-r2';s.onload=ok;s.onerror=()=>{delete loaded[f];no(new Error(f+' 没有载入'))};document.head.appendChild(s)}))}
+window.ZX={V:'20261114-v2-r2',esc,api,students:()=>STU,planOf:sid=>PLANS[sid],defaultSnap,savePlanFor};
 
 /* ---------- 路由 ---------- */
 async function route(){
   if(!readAuth())return showLogin();
   const a=readAuth();$('#who').textContent=a.user.email||'';$('#logout').hidden=false;
-  const m=location.hash.match(/^#\/s\/([0-9a-f-]{36})/);
+  const h=location.hash;
+  const m=h.match(/^#\/s\/([0-9a-f-]{36})/),kb=h.match(/^#\/kb(?:\/(bk|zk))?(?:\?(.*))?$/),tl=h.match(/^#\/t\/([a-z-]+)$/);
+  setNav(m||!h||h==='#/'?'stu':kb?'kb':h.startsWith('#/hx')?'hx':tl||h.startsWith('#/tools')?'tools':'stu');
+  document.body.classList.toggle('full',!!(h.startsWith('#/hx')||tl));
   try{
     if(m){await openStudent(m[1])}
+    else if(kb){view='kb';cur=null;curPlan=null;hxFrame=null;$('#crumb').innerHTML='';
+      if(!benchLoaded){$('#view').innerHTML='<p class="loading">正在载入……</p>';await loadBench()}
+      await loadScript('kb.js');const q=new URLSearchParams(kb[2]||'');
+      await window.KB.mount($('#view'),kb[1]||'bk',{sid:q.has('sid')?q.get('sid'):null});
+    }
+    else if(h.startsWith('#/hx')){view='hx';cur=null;curPlan=null;hxFrame=null;$('#crumb').innerHTML='';
+      $('#view').innerHTML=`<iframe class="hx full" title="划线看组" src="../huaxian/?v=20261114-v2-r2"></iframe>`}
+    else if(tl&&TOOLS[tl[1]]){view='tool';cur=null;curPlan=null;hxFrame=null;const t=TOOLS[tl[1]];
+      $('#crumb').innerHTML=`<a href="#/tools">专题与工具</a> › <b>${esc(t[0])}</b>`;
+      $('#view').innerHTML=`<div class="tool-bar"><span class="cnt">${esc(t[2])}</span><a class="btn sm" href="${t[1]}" target="_blank" rel="noopener">在新窗口打开</a></div><iframe class="hx full tool" title="${esc(t[0])}" src="${t[1]}"></iframe>`}
+    else if(h.startsWith('#/tools')){view='tools';cur=null;curPlan=null;hxFrame=null;$('#crumb').innerHTML='';toolsView()}
     else{cur=null;curPlan=null;hxFrame=null;$('#view').innerHTML='<p class="loading">正在载入学生……</p>';await loadBench();benchView()}
   }catch(e){if(e.code==='auth')return showLogin(e.message);$('#view').innerHTML=`<p class="empty">载入失败：${esc(e.message)}　<a href="#/">重试</a></p>`}
 }
 window.addEventListener('hashchange',()=>{clearTimeout(saveT);if(curPlan&&view==='student')savePlan();route()});
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-nav="stu"]');if(a&&view!=='bench'){benchLoaded=false}});
 $('#logout').addEventListener('click',()=>{try{localStorage.removeItem(AUTH_KEY)}catch(e){}cur=null;showLogin()});
 $('#newform').addEventListener('submit',createStudent);
 $('#newform').addEventListener('click',e=>{const b=e.target.closest('[data-seg="kl"] button');if(b){b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))}});

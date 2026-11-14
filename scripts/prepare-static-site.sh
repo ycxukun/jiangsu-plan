@@ -46,7 +46,7 @@ copy_file beian-icon.png
 copy_glob 'style-claude-*.css'
 copy_glob 'data*.js'
 
-for dir in articles content students specialty comprehensive major-map strong-base early-batch professional-group-cards huaxian v2; do
+for dir in articles content students specialty comprehensive major-map strong-base early-batch professional-group-cards huaxian v2 foundation-comprehensive-preview gaokao-rules-preview medical-restriction-preview major-visualizer-preview planning-hub; do
   if [[ -d "$dir" ]]; then
     rsync -a --delete \
       --exclude='.DS_Store' \
@@ -137,6 +137,11 @@ required=(
   v2/index.html
   v2/app.js
   v2/style.css
+  v2/kb.js
+  v2/data/bk/index.json
+  v2/data/bk/search.json
+  v2/data/zk/index.json
+  v2/data/zk/search.json
 )
 
 for file in "${required[@]}"; do

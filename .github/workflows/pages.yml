@@ -114,7 +114,7 @@ jobs:
                 missing.push(`${file} -> ${ref} (${target})`);
                 continue;
               }
-              if (url.hash && url.hash !== '#' && target.endsWith('.html')) {
+              if (url.hash && url.hash !== '#' && !url.hash.startsWith('#/') && url.hash !== '#top' && target.endsWith('.html')) {
                 const anchor = decodeURIComponent(url.hash.slice(1));
                 if (!idsFor(target).has(anchor)) missingAnchors.push(`${file} -> ${ref}`);
               }
