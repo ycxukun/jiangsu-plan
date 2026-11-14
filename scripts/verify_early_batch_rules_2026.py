@@ -214,10 +214,10 @@ def main() -> int:
             fail(f"SQL concurrency contract is incomplete: {required}")
 
     cache_contracts = {
-        ROOT / "index.html": "app.js?v=20261114-huaxian-r1",
-        ROOT / "students" / "index.html": "app.js?v=20260712-early-batch-r1",
-        ROOT / "students" / "archive.html": "archive.js?v=20260712-early-batch-r1",
-        ROOT / "early-batch" / "index.html": "app.js?v=20260712-early-batch-r2",
+        ROOT / "index.html": "app.js?v=20261114-sbapi-r1",
+        ROOT / "students" / "index.html": "app.js?v=20261114-sbapi-r1",
+        ROOT / "students" / "archive.html": "archive.js?v=20261114-sbapi-r1",
+        ROOT / "early-batch" / "index.html": "app.js?v=20261114-sbapi-r1",
     }
     for path, token in cache_contracts.items():
         if token not in path.read_text(encoding="utf-8"):
