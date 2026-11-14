@@ -27,10 +27,10 @@ jobs:
           set -uo pipefail
           code=$(curl -sS -o body.txt -w '%{http_code}' --max-time 60 \
             -H "apikey: $SUPABASE_KEY" \
-            "$SUPABASE_URL/rest/v1/notes?select=id&limit=1")
+            "$SUPABASE_URL/rest/v1/volunteer_forms?select=id&limit=1")
           echo "HTTP $code"
           head -c 300 body.txt; echo
-          if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
+          if [ "$code" = "000" ] || [ "$code" -ge 500 ] || [ "$code" = "404" ]; then
             echo "::error::Supabase 没有响应（HTTP $code）。项目可能已被暂停：请登录 supabase.com 控制台，打开项目后点 Restore project。"
             exit 1
           fi
