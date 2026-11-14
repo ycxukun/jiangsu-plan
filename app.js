@@ -1682,7 +1682,7 @@ function createLayout(){
     .querySelector('.top-actions .stage-switch')
     ?.insertAdjacentHTML(
       'afterend',
-      '<a id="groupCardsBtn" class="header-toggle content-toggle" href="./professional-group-cards/">2026专业组卡</a>',
+      '<a id="groupCardsBtn" class="header-toggle content-toggle" href="./professional-group-cards/">2026专业组卡</a><a id="huaxianBtn" class="header-toggle content-toggle" href="./huaxian/">划线看组</a>',
     );
 }
 function unique(arr){return Array.from(new Set(arr.filter(v=>v!==undefined&&v!==null&&String(v).trim()!=='')));}

@@ -1,0 +1,1285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>全国院校划线看组</title>
+<style>
+/* 划线看组：顶部标题带 → 吸顶条件面板（三行字段）→ 结论条 → 偏好 → 筷子图（左：学校|组号|备注，右：分数轴）→ 冲稳保清单 → 右侧志愿表抽屉 */
+:root{
+  --bg:#F3F4F6; --surface:#FFFFFF; --raised:#FAFBFC; --sunk:#EDF0F3; --ink:#15202B; --ink2:#3A4652; --muted:#66727E; --line:#DDE2E7; --line2:#EBEEF1; --grid:#E8EBEE;
+  --accent:#1D5C76; --accent-2:#2C7A99; --accent-soft:#E2EEF3; --on-accent:#FFFFFF; --band:rgba(29,92,118,.08); --mark:#1D5C76;
+  --chong:#6E45A8; --wen:#1C7350; --bao:#36679C; --new:#7A4BB3;
+  --v-gaowei:#B42318; --v-youkeng:#E46B6D; --v-zhuyi:#E3B23C; --v-jiben:#8FB6D0; --v-ganjing:#5BA27C; --v-ruo:#B9BFC6; --v-buping:#D9DDE1; --v-dai:#C9A27E;
+  --warn-bg:#FCEDEC; --warn-ink:#8A1C14; --note-bg:#FFF5DB; --note-ink:#5B4300; --good-bg:#E4F2E9; --good-ink:#1C5A38;
+  --shadow-1:0 1px 2px rgba(16,24,32,.06),0 1px 1px rgba(16,24,32,.04);
+  --shadow-2:0 10px 30px rgba(16,24,32,.16);
+  --r-s:6px; --r-m:10px; --r-l:14px;
+  --f-display:"Noto Serif SC","Songti SC","STSong",serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101519; --surface:#182027; --raised:#1C252D; --sunk:#212B34; --ink:#E7ECF0; --ink2:#C5CDD4; --muted:#97A2AC; --line:#2B353E; --line2:#232D36; --grid:#242E37;
+  --accent:#7DB6CF; --accent-2:#9BC9DC; --accent-soft:#1C3340; --on-accent:#0D1A20; --band:rgba(125,182,207,.12); --mark:#7DB6CF;
+  --chong:#B48BE6; --wen:#5CC294; --bao:#7FA9D6; --new:#B48BE6;
+  --v-gaowei:#E5534B; --v-youkeng:#C9595B; --v-zhuyi:#C99B33; --v-jiben:#4F7F9E; --v-ganjing:#3F8A61; --v-ruo:#58616B; --v-buping:#3A434C; --v-dai:#8E6E52;
+  --warn-bg:#3A1D1C; --warn-ink:#F5B5AE; --note-bg:#3A311A; --note-ink:#F1DDA0; --good-bg:#183326; --good-ink:#9FDDB8;
+  --shadow-1:0 1px 2px rgba(0,0,0,.3); --shadow-2:0 10px 30px rgba(0,0,0,.45); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101519; --surface:#182027; --raised:#1C252D; --sunk:#212B34; --ink:#E7ECF0; --ink2:#C5CDD4; --muted:#97A2AC; --line:#2B353E; --line2:#232D36; --grid:#242E37;
+  --accent:#7DB6CF; --accent-2:#9BC9DC; --accent-soft:#1C3340; --on-accent:#0D1A20; --band:rgba(125,182,207,.12); --mark:#7DB6CF;
+  --chong:#B48BE6; --wen:#5CC294; --bao:#7FA9D6; --new:#B48BE6;
+  --v-gaowei:#E5534B; --v-youkeng:#C9595B; --v-zhuyi:#C99B33; --v-jiben:#4F7F9E; --v-ganjing:#3F8A61; --v-ruo:#58616B; --v-buping:#3A434C; --v-dai:#8E6E52;
+  --warn-bg:#3A1D1C; --warn-ink:#F5B5AE; --note-bg:#3A311A; --note-ink:#F1DDA0; --good-bg:#183326; --good-ink:#9FDDB8;
+  --shadow-1:0 1px 2px rgba(0,0,0,.3); --shadow-2:0 10px 30px rgba(0,0,0,.45); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.6;margin:0;font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--surface)}
+.wrap{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,.hit:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* 标题带 */
+.masthead{background:var(--surface);border-bottom:1px solid var(--line)}
+.masthead .wrap{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;padding-block:18px 14px}
+.masthead h1{font-family:var(--f-display);font-size:24px;line-height:1.25;margin:0;letter-spacing:.02em;text-wrap:balance}
+.masthead p{margin:4px 0 0;color:var(--muted);max-width:78ch;font-size:13.5px}
+.srcnote{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px;white-space:nowrap;background:var(--raised)}
+
+/* 条件面板 */
+.controls{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:saturate(1.2) blur(6px);border-bottom:1px solid var(--line);box-shadow:var(--shadow-1)}
+.controls .wrap{display:flex;flex-direction:column;gap:8px;padding-block:10px}
+.crow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px}
+.field{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.field>.k{font-size:12px;color:var(--muted);letter-spacing:.06em;white-space:nowrap}
+.field.grow{flex:1 1 360px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:3px 11px;cursor:pointer;font-size:13px;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.seg button:hover:not([aria-pressed="true"]){background:var(--sunk)}
+.chips{display:inline-flex;flex-wrap:wrap;gap:4px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:1px 10px;cursor:pointer;font-size:12.5px;user-select:none;background:var(--surface);white-space:nowrap}
+.chip input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.chip:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:1px}
+.chip small{color:var(--muted);font-size:11px}
+.chip.danger:has(input:checked){border-color:var(--v-youkeng);background:var(--warn-bg);color:var(--warn-ink)}
+.num{font:inherit;font-family:var(--f-mono);font-size:14px;width:5.6em;border:1px solid var(--line);border-radius:var(--r-s);padding:3px 8px;background:var(--surface);color:var(--ink)}
+.num.sm{width:4.2em}
+input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.hintk{font-size:11.5px;color:var(--muted)}
+.pop{position:relative}
+.pop>summary{list-style:none;cursor:pointer;font-size:13px;border:1px solid var(--line);border-radius:var(--r-s);padding:3px 10px;background:var(--surface);white-space:nowrap;max-width:24em;overflow:hidden;text-overflow:ellipsis}
+.pop>summary::-webkit-details-marker{display:none}
+.pop>summary::after{content:"";display:inline-block;width:6px;height:6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg);margin-left:8px;vertical-align:2px}
+.pop[open]>summary{border-color:var(--accent)}
+.pop.on>summary{border-color:var(--accent);background:var(--accent-soft)}
+.panelpop{position:absolute;z-index:35;top:calc(100% + 6px);left:0;width:min(600px,calc(100vw - 40px));max-height:min(70vh,560px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);padding:12px 14px;box-shadow:var(--shadow-2);display:flex;flex-direction:column;gap:10px}
+.panelpop .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.panelpop .sub{font-size:12px;color:var(--muted)}
+.qbtn{font-size:12.5px;border:1px solid var(--accent);color:var(--accent);background:var(--surface);border-radius:999px;padding:1px 10px;cursor:pointer}
+.medlist{display:flex;flex-direction:column;gap:4px}
+.medlist label{display:grid;grid-template-columns:auto 2.2em 1fr;gap:6px;align-items:start;font-size:12.5px;cursor:pointer;padding:3px 4px;border-radius:4px}
+.medlist label:hover{background:var(--sunk)}
+.medlist b{font-family:var(--f-mono)}
+.medlist input{accent-color:var(--v-youkeng);margin-top:4px}
+
+/* 主体 */
+main.wrap{display:flex;flex-direction:column;gap:14px;padding-block:14px 60px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--shadow-1)}
+.card .hd{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;padding:14px 18px 0}
+.card .hd h2{font-family:var(--f-display);font-size:17px;margin:0}
+.card .bd{padding:10px 18px 16px}
+.lead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 24px;align-items:center;padding:14px 18px}
+.lead .big{font-size:16px;line-height:1.55;max-width:90ch}
+.lead .big b{font-family:var(--f-mono);font-weight:600}
+.stats{display:flex;flex-wrap:wrap;gap:6px 8px}
+.stat{display:flex;flex-direction:column;align-items:flex-start;border:1px solid var(--line2);background:var(--raised);border-radius:var(--r-m);padding:6px 12px;min-width:6.5em}
+.stat b{font-family:var(--f-mono);font-size:18px;line-height:1.2}
+.stat span{font-size:11.5px;color:var(--muted)}
+@media (max-width:900px){.lead{grid-template-columns:1fr}}
+.hint{font-size:12.5px;color:var(--muted);margin:0;max-width:110ch}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:50%;display:inline-block}
+.ti{width:10px;height:10px;border-radius:50%;border:1px solid var(--ink);background:var(--surface);display:inline-block}
+.ti.p{background:var(--v-youkeng);border-color:var(--v-youkeng)} .ti.m{background:var(--v-zhuyi);border-color:var(--v-zhuyi)} .ti.f{background:var(--accent);border-color:var(--accent)} .ti.e{border-style:dashed}
+.stk{width:26px;height:7px;border-radius:4px;background:var(--v-jiben);opacity:.7;display:inline-block}
+.stk.n{background:repeating-linear-gradient(90deg,var(--v-jiben) 0 6px,transparent 6px 9px)}
+.hist{display:inline-block;width:10px;height:8px;background:var(--muted);clip-path:polygon(0 0,100% 0,50% 100%)}
+.hist.o{background:none;border:0;position:relative}
+.hist.o::before{content:"";position:absolute;inset:0;background:var(--muted);clip-path:polygon(0 0,100% 0,50% 100%)}
+.hist.o::after{content:"";position:absolute;inset:1.5px 2.5px 2.5px;background:var(--surface);clip-path:polygon(0 0,100% 0,50% 100%)}
+.dirs{display:flex;flex-direction:column;gap:6px}
+.dirs .row{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.fam{font-size:12px;color:var(--muted);min-width:8em}
+.kw{font:inherit;border:1px solid var(--line);border-radius:var(--r-s);padding:3px 10px;background:var(--surface);color:var(--ink);width:16em;max-width:100%}
+.linkbtn{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:12.5px}
+details.fold>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary h2::after{content:" ▾";font-family:var(--f-body);font-size:12px;color:var(--muted)}
+details.fold:not([open])>summary h2::after{content:" ▸"}
+
+/* 图 */
+.chartwrap{overflow-x:auto;margin-top:10px;border-top:1px solid var(--line2)}
+svg.chart{display:block}
+svg text{fill:var(--muted);font-family:var(--f-body);font-size:12px}
+svg .sname{fill:var(--ink);font-size:12.5px;font-weight:500}
+svg .pvt{fill:var(--muted);font-size:11px;font-weight:400}
+svg .gname2{fill:var(--ink2);font-size:11.5px;font-family:var(--f-mono)}
+svg .gnote{fill:var(--muted);font-size:11.5px}
+svg .gnote .np{fill:var(--warn-ink);font-weight:500} svg .gnote .nm{fill:var(--note-ink)} svg .gnote .nb{fill:var(--accent)}
+svg .tick{font-family:var(--f-mono);font-size:11px} svg .tick.sm{font-size:10px;opacity:.7}
+svg .gridl{stroke:var(--grid);stroke-width:1} svg .gridl.minor{stroke-dasharray:1 3}
+svg .sep{stroke:var(--line);stroke-width:1}
+svg .band{fill:var(--band)}
+svg .me{stroke:var(--mark);stroke-width:2}
+svg .metext{fill:var(--mark);font-family:var(--f-mono);font-size:12px;font-weight:600}
+svg .rowbg{fill:var(--accent-soft);opacity:0}
+svg .rowbg.on{opacity:1}
+svg .stick{stroke-linecap:round;opacity:.55}
+svg .stick.new{stroke-dasharray:6 3;opacity:.7}
+svg .stick.est{stroke-dasharray:2 3;opacity:.5}
+svg .esttag{fill:var(--muted);font-size:10px}
+svg .tk{stroke:var(--ink);stroke-width:1;fill:var(--surface)}
+svg .tk.pit{fill:var(--v-youkeng);stroke:var(--v-youkeng)} svg .tk.meh{fill:var(--v-zhuyi);stroke:var(--v-zhuyi)} svg .tk.pref{fill:var(--accent);stroke:var(--accent)} svg .tk.est{stroke-dasharray:2 1.5}
+svg .tk.blk{fill:var(--surface);stroke:var(--muted);stroke-dasharray:1 1.5;opacity:.6}
+svg .hy{fill:var(--muted);opacity:.85}
+svg .hy.y23{fill:var(--surface);stroke:var(--muted);stroke-width:1.2}
+svg .clip{fill:var(--muted)}
+svg .hit{fill:transparent;cursor:pointer}
+svg .hl{fill:none;stroke:var(--ink);stroke-width:2;pointer-events:none}
+.chartfoot{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;margin-top:10px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-s);padding:5px 14px;cursor:pointer;font-size:13px}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-2);color:var(--on-accent)}
+.btn.sm{padding:2px 10px;font-size:12.5px}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{color:var(--warn-ink)}
+.nopos{font-size:12.5px;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r-m);padding:8px 12px}
+
+/* 悬浮 */
+.tip{position:fixed;z-index:50;width:min(340px,calc(100vw - 32px));max-height:calc(100vh - 24px);overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);padding:10px 12px;box-shadow:var(--shadow-2);pointer-events:none;font-size:12.5px;display:flex;flex-direction:column;gap:3px}
+.tip b{font-size:13.5px}
+.tip .ln{display:flex;justify-content:space-between;gap:10px;border-top:1px dashed var(--line2);padding-top:2px}
+.tip .ln span:last-child{font-family:var(--f-mono);color:var(--muted);white-space:nowrap}
+.tip .ln.me{border-top:2px solid var(--mark);color:var(--mark);font-weight:700}
+.tip .ln.pf span:first-child{color:var(--accent);font-weight:700}
+.tip .ln.pt span:first-child{color:var(--warn-ink)}
+.tip .ln.hov{background:var(--accent-soft);border-radius:4px}
+.tip .say2{background:var(--sunk);border-radius:6px;padding:4px 8px}
+.mtip{position:fixed;z-index:51;pointer-events:none;background:var(--ink);color:var(--surface);border-radius:6px;padding:3px 8px;font-size:12.5px;line-height:1.5;white-space:nowrap;box-shadow:0 4px 12px rgba(15,25,35,.25);max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis}
+.mtip .mk{display:inline-block;font-size:11px;border-radius:3px;padding:0 4px;margin-left:4px;background:var(--surface);color:var(--ink)}
+.mtip .mk.x{background:var(--v-youkeng);color:#fff} .mtip .mk.w{background:var(--v-zhuyi);color:#15202B} .mtip .mk.f{background:var(--accent);color:var(--on-accent)}
+
+/* 清单 */
+.tabsbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-m);padding:5px 14px;cursor:pointer;display:inline-flex;gap:8px;align-items:baseline}
+.tab b{font-family:var(--f-mono);font-size:17px}
+.tab[aria-pressed="true"]{border-color:currentColor;box-shadow:inset 0 0 0 1px currentColor;background:var(--raised)}
+.t-chong{color:var(--chong)} .t-wen{color:var(--wen)} .t-bao{color:var(--bao)}
+.list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.item{border:1px solid var(--line);border-radius:var(--r-m);min-width:0;background:var(--surface)}
+.item.open{border-color:var(--muted);box-shadow:var(--shadow-1)}
+.item.flash{box-shadow:0 0 0 3px var(--band)}
+.head{all:unset;box-sizing:border-box;display:grid;grid-template-columns:1fr auto;gap:3px 12px;width:100%;padding:10px 14px;cursor:pointer;border-radius:var(--r-m)}
+.head:hover{background:var(--raised)}
+.head:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.h1{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;min-width:0}
+.sch{font-family:var(--f-display);font-size:16px}
+.tag{font-size:11px;font-weight:500;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:0 6px}
+.gname{font-size:13px;color:var(--muted)}
+.h2{grid-column:1;font-size:12.5px;color:var(--muted);min-width:0;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.h2 .mono{font-family:var(--f-mono);color:var(--ink2)}
+.chev{grid-column:2;grid-row:1/3;align-self:center;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
+.item.open .chev{transform:rotate(-135deg)}
+.pill{display:inline-block;font-size:11.5px;border-radius:4px;padding:0 7px;white-space:nowrap;color:var(--ink);font-weight:500}
+.pill.strong{color:#fff}
+.chg{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 6px;color:var(--muted);white-space:nowrap}
+.chg.n{border-color:var(--new);color:var(--new)}
+.risk{font-size:11.5px;border-radius:4px;padding:0 6px;white-space:nowrap;font-weight:500}
+.r-hi{background:var(--warn-bg);color:var(--warn-ink)} .r-mid{background:var(--note-bg);color:var(--note-ink)} .r-lo{background:var(--good-bg);color:var(--good-ink)}
+.strong-chip{font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:0 6px;color:var(--ink2)}
+.volchip{font-size:11.5px;border-radius:4px;padding:0 6px;background:var(--accent);color:var(--on-accent);white-space:nowrap}
+.trend{font-family:var(--f-mono);font-size:12px;color:var(--ink2);white-space:nowrap}
+.up{color:var(--warn-ink)} .down{color:var(--good-ink)}
+.body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.actbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.say{background:var(--sunk);border-radius:var(--r-s);padding:8px 12px;font-size:13.5px;max-width:100ch}
+.say.hi{background:var(--warn-bg);color:var(--warn-ink)} .say.good{background:var(--good-bg);color:var(--good-ink)} .say.new{background:color-mix(in srgb,var(--new) 10%,var(--surface));color:var(--ink)}
+.tblwrap{overflow-x:auto}
+table.mt{width:100%;border-collapse:collapse;font-size:13px;min-width:860px}
+.mt th{text-align:left;font-weight:500;color:var(--muted);border-bottom:1px solid var(--line);padding:5px 6px;white-space:nowrap;font-size:12px;background:var(--raised)}
+.mt td{border-bottom:1px solid var(--line2);padding:6px;vertical-align:top}
+.mt td.n{font-family:var(--f-mono);white-space:nowrap;text-align:right}
+.mt .mname{font-weight:500}
+.mt .sub{display:block;color:var(--muted);font-size:11.5px;font-family:var(--f-body)}
+.mt tr.pf td:first-child .mname{color:var(--accent)}
+.mt tr.me td{border-top:2px solid var(--mark)}
+.mt tr.blk td{opacity:.55}
+.mt input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+.reach{font-size:11.5px;border-radius:3px;padding:0 5px;white-space:nowrap}
+.re-ok{background:var(--good-bg);color:var(--good-ink)} .re-edge{background:var(--note-bg);color:var(--note-ink)} .re-no{background:var(--sunk);color:var(--muted)}
+.rk-x{background:var(--v-youkeng);color:#fff;font-size:11.5px;border-radius:3px;padding:0 5px;white-space:nowrap}
+.rk-w{background:var(--v-zhuyi);color:#15202B;font-size:11.5px;border-radius:3px;padding:0 5px;white-space:nowrap}
+.medb{font-size:11px;border:1px solid var(--v-youkeng);color:var(--warn-ink);border-radius:3px;padding:0 4px;white-space:nowrap}
+.nwb{font-size:11px;border:1px solid var(--new);color:var(--new);border-radius:3px;padding:0 4px}
+.floor{font-size:11px;border:1px dashed var(--muted);border-radius:3px;padding:0 5px;white-space:nowrap;color:var(--muted)}
+.kvgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.kv{background:var(--raised);border:1px solid var(--line2);border-radius:var(--r-s);padding:6px 10px;min-width:0}
+.kv .k{font-size:11.5px;color:var(--muted)}
+.kv .v{font-size:13.5px;font-weight:500;overflow-wrap:anywhere}
+.kv .v small{font-weight:400;color:var(--muted);font-size:12px}
+.subhd{font-size:12.5px;font-weight:700;color:var(--ink2);margin:2px 0 -2px}
+.gap{font-size:12.5px;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r-s);padding:6px 10px}
+.empty{color:var(--muted);padding:16px 4px}
+.foot{font-size:12px;color:var(--muted);max-width:110ch}
+
+/* 浮动按钮 + 志愿表抽屉 */
+.fab{position:fixed;z-index:45;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;box-shadow:var(--shadow-2);font-size:13px}
+.fab button:hover{border-color:var(--accent);color:var(--accent)}
+.fab .vol{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:500}
+.fab .vol:hover{background:var(--accent-2);color:var(--on-accent)}
+.drawer{position:fixed;z-index:60;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow-2);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.drawer .dh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.drawer .dh h2{font-family:var(--f-display);font-size:17px;margin:0}
+.drawer .db{flex:1;overflow:auto;padding:10px 16px;display:flex;flex-direction:column;gap:8px}
+.drawer .df{border-top:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.vrow{display:grid;grid-template-columns:2em 1fr auto;gap:2px 10px;border:1px solid var(--line2);border-radius:var(--r-s);padding:8px 10px;background:var(--raised)}
+.vrow .no{font-family:var(--f-mono);font-weight:700;color:var(--accent);font-size:15px;grid-row:1/3}
+.vrow .vt{font-weight:500;min-width:0}
+.vrow .vm{grid-column:2/4;font-size:12.5px;color:var(--ink2)}
+.vrow .vm .mn{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 5px;margin:0 4px 3px 0;background:var(--surface)}
+.vrow .ops{display:flex;gap:2px}
+.vrow .ops button{border:1px solid var(--line);background:var(--surface);border-radius:4px;width:26px;height:24px;cursor:pointer;font-size:12px;padding:0}
+.vrow .ops button:hover{border-color:var(--accent);color:var(--accent)}
+.scrim{position:fixed;inset:0;z-index:55;background:rgba(10,15,20,.28)}
+@media (max-width:760px){
+  .controls{position:static}
+  .crow{gap:8px 14px}
+  .seg{flex-wrap:wrap}
+  .field.grow{flex-basis:100%}
+  .masthead h1{font-size:21px}
+  .card .hd,.card .bd,.lead{padding-left:14px;padding-right:14px}
+}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
+
+/* ===== v3：四问式条件栏、压缩布局、学校视图、AI ===== */
+:root{--ctlh:120px}
+.masthead .wrap{padding-block:12px 10px;align-items:center}
+.masthead h1{font-size:21px}
+.mh-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.controls .wrap{gap:6px;padding-block:8px}
+.qrow{display:grid;grid-template-columns:4.6em minmax(0,1fr);gap:6px 10px;align-items:center}
+.qlabel{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.04em;white-space:nowrap}
+.qlabel i{font-style:normal;display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--accent);color:var(--on-accent);font-size:11px;margin-right:4px}
+.qbody{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;min-width:0}
+.vsep{width:1px;height:18px;background:var(--line)}
+.chip.big{font-size:13px;padding:2px 12px}
+.chip.region{border-style:solid}
+.pop>summary.big{font-size:13px;font-weight:500;padding:3px 12px}
+.panelpop.right{left:auto;right:0}
+.pp-sec{display:flex;flex-direction:column;gap:6px}
+.pp-sec h4{margin:0;font-size:12.5px;color:var(--ink2)}
+.famrow{display:flex;flex-wrap:wrap;gap:4px 5px;align-items:center}
+.famtag{font-size:11px;color:var(--muted);margin:0 2px 0 6px}
+.famtag:first-child{margin-left:0}
+.lead{padding:10px 18px}
+.lead .big{font-size:15px}
+.stat{padding:4px 10px;min-width:5.5em}
+.stat b{font-size:16px}
+.card .hd{padding:12px 18px 0}
+.card .bd{padding:8px 18px 14px}
+.howto{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:13px}
+.howto:hover{border-color:var(--accent);color:var(--accent)}
+.aibtn{border:1px solid var(--chong);color:var(--chong);background:var(--surface);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:13px;font-weight:500}
+.aibtn:hover{background:color-mix(in srgb,var(--chong) 8%,var(--surface))}
+svg .pick{fill:var(--surface);stroke:var(--muted);stroke-width:1.2;cursor:pointer}
+svg .pick.on{fill:var(--accent);stroke:var(--accent)}
+svg .pickmark{fill:none;stroke:var(--on-accent);stroke-width:1.8;pointer-events:none}
+svg .sname{cursor:pointer}
+svg .sname:hover{fill:var(--accent);text-decoration:underline}
+svg .gtag{fill:var(--chong);font-size:10.5px}
+svg .gtag.zw{fill:var(--bao)}
+.item.open>.head{position:sticky;top:var(--ctlh);z-index:5;background:var(--surface);border-bottom:1px solid var(--line2);border-radius:var(--r-m) var(--r-m) 0 0}
+.mt thead th{position:sticky;top:0;z-index:2}
+.mt tr.sec td{background:var(--sunk);font-size:12px;font-weight:700;color:var(--ink2);padding:3px 6px}
+.mt tr.sec td .cnt{font-weight:400;color:var(--muted);margin-left:6px}
+.gtags{display:inline-flex;flex-wrap:wrap;gap:3px}
+.gtg{font-size:11px;border-radius:4px;padding:0 5px;background:color-mix(in srgb,var(--chong) 10%,var(--surface));color:var(--chong);white-space:nowrap}
+.gtg.zw{background:color-mix(in srgb,var(--bao) 12%,var(--surface));color:var(--bao)}
+.gtg.fee{background:var(--note-bg);color:var(--note-ink)}
+.rulechip{font-size:11.5px;border-radius:4px;padding:0 6px;background:var(--warn-bg);color:var(--warn-ink);white-space:nowrap}
+.schlink{border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer;text-decoration:underline dotted var(--muted);text-underline-offset:3px}
+.schlink:hover{color:var(--accent)}
+.overlay{position:fixed;z-index:65;inset:0 0 0 auto;width:min(1180px,100vw);background:var(--bg);box-shadow:var(--shadow-2);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.ov-head{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;flex-direction:column;gap:8px}
+.ov-head .t{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;justify-content:space-between}
+.ov-head h2{font-family:var(--f-display);font-size:20px;margin:0}
+.ov-body{flex:1;overflow:auto;padding:12px 20px 40px;display:flex;flex-direction:column;gap:8px;--ctlh:0px}
+.policy{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.policy .kv .v{font-size:12.5px;font-weight:400;line-height:1.5}
+.policy .kv.hl{border-color:var(--warn-ink);background:var(--warn-bg)}
+.modal{position:fixed;z-index:70;inset:0;display:grid;place-items:center;padding:16px}
+.modal .box{background:var(--surface);border-radius:var(--r-l);box-shadow:var(--shadow-2);width:min(760px,100%);max-height:calc(100vh - 32px);overflow:auto;display:flex;flex-direction:column}
+.modal .mh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface)}
+.modal .mh h2{font-family:var(--f-display);font-size:18px;margin:0}
+.modal .mb{padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+.legrid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:center;font-size:13px}
+.legrid .sym{display:flex;justify-content:center}
+.ai textarea{width:100%;min-height:9em;font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;background:var(--surface);color:var(--ink);resize:vertical}
+.ai .out{background:var(--sunk);border-radius:var(--r-s);padding:10px 12px;font-size:13px;white-space:pre-wrap}
+.ai .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.vrow .why{grid-column:2/4;font-size:12px;color:var(--chong)}
+/* v3：预估范围＝虚线空心框 */
+svg .pband{fill:none;stroke-width:1.3;stroke-dasharray:3 2.5;opacity:.85}
+svg .tk.est{fill:var(--surface);stroke-dasharray:2 1.6}
+.tab.t-new b{color:var(--muted)}
+.sub.up{color:var(--warn-ink)} .sub.down{color:var(--good-ink)}
+@media (max-width:760px){.qrow{grid-template-columns:1fr;gap:4px}.qrow .vsep{display:none}.qlabel{align-self:start}}
+/* 组线标记与谱系图 */
+svg .gl{stroke:var(--ink);stroke-width:3;opacity:.9;stroke-linecap:round}
+svg .prel{fill:var(--surface);stroke:var(--ink);stroke-width:1.2;opacity:.8}
+.linbox{margin:4px 0 14px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--surface)}
+.linbox summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink)}
+.linwrap{overflow-x:auto;margin-top:8px}
+svg.lin{display:block;max-width:100%;height:auto}
+svg.lin .lh{font-size:11.5px;fill:var(--muted);font-weight:600}
+svg.lin rect{fill:var(--surface);stroke:var(--line);stroke-width:1.2}
+svg.lin .rb rect{stroke-width:2}
+svg.lin .rb{cursor:pointer}
+svg.lin .rb.on rect{fill:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+svg.lin .l1{font-size:12.5px;fill:var(--ink);font-weight:600}
+svg.lin .num{font-family:var(--f-mono)}
+svg.lin .l2{font-size:11px;fill:var(--muted);font-weight:400}
+svg.lin .le{fill:none;stroke:var(--accent);opacity:.28;transition:opacity .15s}
+svg.lin .le.on{opacity:.75}
+svg.lin.hov .le{opacity:.08} svg.lin.hov .le.hl{opacity:.8}
+.tip svg.lin{margin-top:6px}
+.tip:has(svg.lin){width:min(460px,calc(100vw - 32px))}
+.glk{display:inline-block;width:2px;height:12px;background:var(--ink);opacity:.75;vertical-align:-2px}
+.prk{display:inline-block;width:7px;height:7px;border:1.2px solid var(--ink);transform:rotate(45deg);vertical-align:0;margin:0 2px}
+/* 本地视角 & 省份专题 */
+.loc{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:8px 12px}
+.loc summary{cursor:pointer;font-size:13px;font-weight:600}
+.locitem{border-top:1px dashed var(--line);margin-top:8px;padding-top:8px;font-size:13px;line-height:1.6}
+.locitem:first-of-type{border-top:0}
+.loct{font-size:12.5px;color:var(--ink);margin:2px 0}
+.locitem ul,.pvrow ul{margin:4px 0;padding-left:1.2em}
+.locitem li,.pvrow li{margin:2px 0}
+.pvchips{max-height:96px;overflow:auto}
+.chip.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#pvtabs{align-self:flex-start}
+.pvk{font-size:15px;margin:10px 0 2px}
+.pvtier{position:sticky;top:-12px;z-index:2;background:var(--bg);padding:6px 0;font-size:12.5px;font-weight:600;color:var(--accent);border-bottom:1px solid var(--line)}
+.pvrow{display:grid;grid-template-columns:22px 28px minmax(0,1fr);gap:4px 8px;align-items:start;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.pvi{font-family:var(--f-mono);color:var(--muted);font-size:12px;padding-top:2px}
+.pvck{padding-top:2px}
+.pvl{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12px;margin-top:2px}
+.pvjs{font-family:var(--f-mono);color:var(--ink)} .pvno{color:var(--muted)}
+.pvv{display:inline-flex;align-items:center;gap:3px;color:var(--muted)}
+.pvrow details summary{cursor:pointer;font-size:12px;color:var(--accent);margin-top:2px}
+.linkbtn.strong{font-weight:700;font-size:13.5px}
+.pvch{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:8px 14px}
+.pvch summary{cursor:pointer;font-weight:700;font-size:14px}
+.pvch p{font-size:13px;line-height:1.65;margin:6px 0}
+.pvsub h4{font-size:13px;margin:12px 0 4px;color:var(--accent)}
+table.pvt{border-collapse:collapse;font-size:12.5px;width:100%}
+table.pvt th,table.pvt td{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+table.pvt th{background:var(--bg);font-weight:600;white-space:nowrap}
+#onlychip b{margin-left:4px}
+.plrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13px}
+.plrow.on{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+#planbtn .dot{color:var(--warn-ink);font-size:10px}
+#planm textarea{width:100%;font:inherit;font-size:13px;margin:6px 0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink)}
+#planm .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#planm #plname{flex:1;min-width:200px}
+/* 选中状态：实底深色 + 勾 */
+.chip:has(input:checked),.chip[aria-pressed="true"],.chip.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.chip:has(input:checked)::before,.chip[aria-pressed="true"]::before{content:"✓";font-size:11px;margin-right:1px}
+.chip:has(input:checked) small,.chip[aria-pressed="true"] small{color:inherit;opacity:.8}
+.chip.danger:has(input:checked){background:var(--v-youkeng);border-color:var(--v-youkeng);color:#fff}
+.chip:hover:not(:has(input:checked)):not([aria-pressed="true"]){border-color:var(--accent)}
+button.chip{font:inherit;font-size:13px;color:var(--ink)}
+.pop.on>summary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.pop.on>summary::after{border-color:var(--on-accent)}
+.medlist label:has(input:checked){background:var(--warn-bg);color:var(--warn-ink);font-weight:600}
+.seg button[aria-pressed="true"]{font-weight:600}
+.kwbox{position:relative;display:inline-block}
+.kwbox .kw{width:min(380px,80vw)}
+.kwsug{position:absolute;left:0;top:calc(100% + 4px);z-index:40;width:min(460px,92vw);max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-2);padding:6px}
+.sghd{font-size:12px;color:var(--muted);padding:4px 6px}
+.sgrow{display:flex;align-items:center;gap:8px;padding:3px 4px;border-radius:6px}
+.sgrow:hover{background:var(--sunk)}
+.sgadd{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:2px 10px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+.sgadd.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.sgk{font-size:11px;color:var(--muted);border:1px solid var(--line2);border-radius:4px;padding:0 4px}
+.sgn{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.sgdr{margin-left:auto;border:0;background:none;color:var(--accent);cursor:pointer;font:inherit;font-size:12.5px}
+/* 志愿表：多表、计数、检查 */
+.drawer{width:min(560px,100vw)}
+.dtop{padding:8px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.dtop .row{display:flex;gap:6px;align-items:center;font-size:12.5px}
+.dtop #voltabname{flex:1;max-width:220px;padding:2px 8px}
+.volstat{display:flex;align-items:center;gap:10px;font-size:13px;flex-wrap:wrap}
+.vc b{font-family:var(--f-mono);font-size:15px}
+.vc.chong{color:var(--v-youkeng)} .vc.wen{color:var(--accent)} .vc.bao{color:var(--v-ganjing)}
+.vcbar{flex:1;min-width:120px;height:6px;border-radius:3px;background:var(--sunk);display:flex;overflow:hidden}
+.vcbar i{display:block;height:100%} .vcbar i.chong{background:var(--v-youkeng)} .vcbar i.wen{background:var(--accent)} .vcbar i.bao{background:var(--v-ganjing)}
+.volcheck details{border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--bg);max-height:34vh;overflow:auto}
+.volcheck summary{cursor:pointer;font-size:13px}
+.volcheck ul{margin:6px 0;padding-left:1.1em;font-size:12.5px;line-height:1.55}
+.ck.hi{color:var(--warn-ink);font-weight:600} .ck.ok{color:var(--muted)}
+.vb{display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 4px;color:#fff;background:var(--muted)}
+.vb.chong{background:var(--v-youkeng)} .vb.wen{background:var(--accent)} .vb.bao{background:var(--v-ganjing)}
+</style>
+</head>
+<body>
+
+<header class="masthead"><div class="wrap">
+  <div><h1>全国院校划线看组</h1><p>在2026年在江苏招生的全国本科院校上划一条分数线：看会落进哪些专业组、组里能选到哪些专业、会不会被调剂，并把看中的组直接排进志愿表。</p></div>
+  <div class="mh-actions"><button type="button" class="aibtn" id="aiopen" hidden>AI 读沟通记录</button><button type="button" class="aibtn" id="planbtn">学生方案</button><button type="button" class="howto" id="clearall">一键清空</button><button type="button" class="aibtn" id="provopen">按省份看</button><button type="button" class="howto" id="howto">怎么看这张图</button><span class="srcnote">26年真实投档线 · 26年组 · 专业分为25年折合</span></div>
+</div></header>
+
+<div class="controls" id="controls"><div class="wrap">
+  <div class="qrow"><span class="qlabel"><i>1</i>成绩</span><div class="qbody">
+    <span class="seg" id="kl"><button type="button" data-v="物理" aria-pressed="true">物理</button><button type="button" data-v="历史" aria-pressed="false">历史</button></span>
+    <span class="field grow"><input type="range" id="range" min="480" max="690" step="1" value="600" aria-label="拖动选择分数"><input class="num" id="score" type="number" inputmode="numeric" value="600" min="400" max="720" aria-label="分数"><span class="k">或位次</span><input class="num" id="rank" type="number" inputmode="numeric" min="1" aria-label="按26年一分一段换算的位次"></span>
+    <span class="field"><span class="k">上浮</span><input class="num sm" id="fu" type="number" inputmode="numeric" value="10" min="0" max="40" aria-label="向上浮动分数"><span class="k">下浮</span><input class="num sm" id="fd" type="number" inputmode="numeric" value="10" min="0" max="60" aria-label="向下浮动分数"></span>
+    <span class="field"><span class="k">再选</span><span class="chips" id="subs"><label class="chip"><input type="checkbox" value="化学">化学</label><label class="chip"><input type="checkbox" value="生物">生物</label><label class="chip"><input type="checkbox" value="政治">政治</label><label class="chip"><input type="checkbox" value="地理">地理</label></span></span>
+    <span class="field"><span class="k">体检</span><details class="pop" id="medbox"><summary id="medsum">无限报</summary><div class="panelpop"><div class="sub">勾选学生的体检受限情况：受限专业标“体检限报”，不算能选的专业；整组都受限的组直接隐藏。规则与知识库网站一致。</div><div class="medlist" id="medlist"></div><div class="row"><button type="button" class="linkbtn" id="medclear">清空体检条件</button></div></div></details></span>
+  </div></div>
+  <div class="qrow" id="provrow"><span class="qlabel"><i>2</i>地区</span><div class="qbody">
+    <span class="chips" id="regions" title="可多选，再点一次取消"></span>
+    <details class="pop" id="provbox"><summary class="big" id="provsum">按省份选</summary><div class="panelpop"><div class="row" id="provs"></div></div></details>
+  </div></div>
+  <div class="qrow"><span class="qlabel"><i>3</i>学校</span><div class="qbody">
+    <span class="chips" id="lv" title="可多选，满足其中任一即显示"><label class="chip big"><input type="checkbox" value="985">985</label><label class="chip big"><input type="checkbox" value="211">211</label><label class="chip big"><input type="checkbox" value="双一流">双一流</label><label class="chip big"><input type="checkbox" value="国重点">国重点</label><label class="chip big"><input type="checkbox" value="省重点">省重点</label><label class="chip big"><input type="checkbox" value="保研">有保研资格</label><label class="chip big"><input type="checkbox" value="其他">其他</label></span>
+    <span class="vsep"></span>
+    <span class="seg" id="gt"><button type="button" data-v="" aria-pressed="true">全部组</button><button type="button" data-v="新增" aria-pressed="false">26新增</button><button type="button" data-v="拆并" aria-pressed="false">拆分/合并</button></span>
+    <span class="seg" id="zw" title="中外合作办学"><button type="button" data-v="" aria-pressed="true">中外不限</button><button type="button" data-v="only" aria-pressed="false">只看中外</button><button type="button" data-v="no" aria-pressed="false">不含中外</button></span>
+    <label class="chip"><input type="checkbox" id="mb">含民办</label>
+  </div></div>
+  <div class="qrow"><span class="qlabel"><i>4</i>专业</span><div class="qbody">
+    <details class="pop" id="wantbox"><summary class="big" id="wantsum">想学的方向</summary><div class="panelpop"><div class="pp-sec"><h4>想学（只显示含这些方向的组，横棒上标蓝点）</h4><div class="famrow" id="dirs"></div></div><div class="row"><button type="button" class="linkbtn" id="clearwant">清空</button></div></div></details>
+    <details class="pop" id="avoidbox"><summary class="big" id="avoidsum">不学的方向</summary><div class="panelpop"><div class="pp-sec"><h4>不学（这些专业不算能选，组里有它就标出来）</h4><div class="famrow" id="avoid"></div></div><label class="chip"><input type="checkbox" id="dropavoid">直接隐藏含不学方向的组</label><div class="row"><button type="button" class="linkbtn" id="clearavoid">清空</button></div></div></details>
+    <span class="kwbox"><input class="kw" id="kw" type="search" autocomplete="off" placeholder="找专业：门类、专业类或具体专业，如 工学 / 电子信息类 / 通信工程" aria-label="找专业"><div class="kwsug" id="kwsug" hidden></div></span><span class="chips" id="mjchips"></span><button type="button" class="chip big on" id="onlychip" hidden></button>
+  </div></div>
+</div></div>
+
+<main class="wrap">
+  <section class="card lead" id="lead" aria-live="polite"><div class="big">正在载入院校数据，请稍候……</div></section>
+
+  <section class="card" aria-labelledby="ch-t">
+    <div class="hd"><h2 id="ch-t">这条线穿过哪些专业组</h2><div class="legend" id="legend"></div></div>
+    <div class="bd">
+      <p class="hint">左侧方框打勾＝放进志愿表初选（也可以在棒子上点右键）；点学校名看这所学校的全部专业组；点棒子看这个组的详情。</p>
+      <div class="chartwrap" id="chartwrap"></div>
+      <div class="chartfoot"><button type="button" class="btn" id="chartmore" hidden>再画120个组</button></div>
+      <div id="nopos"></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="ls-t">
+    <div class="hd"><h2 id="ls-t">按组线分档</h2>
+      <span class="field"><span class="k">冲稳保口径</span><span class="seg" id="bandmode"><button type="button" data-v="line" aria-pressed="true">25年组线±浮动</button><button type="button" data-v="3y" aria-pressed="false">近三年够没够到</button></span></span></div>
+    <div class="bd">
+      <div class="tabsbar"><div class="tabs" id="tabs"></div></div>
+      <p class="hint" id="tabhint" style="margin-top:6px"></p>
+      <div class="list" id="list"></div>
+      <div class="chartfoot"><button type="button" class="btn" id="more" hidden>再显示15个</button></div>
+    </div>
+  </section>
+
+  <p class="foot">数据说明：冲稳保按2026年江苏本科批真实投档线判断，位次按26年各组投档线的分数位次还原。26年专业录取分大多未公布，组内各专业用2025年真实最低分，按位次折合到26年分数尺度（悬停和详情里同时给出原始分）。25→26组别变化图左右两侧都是真实投档线，连线按招生计划里的专业名自动匹配。27年专业组以明年招生计划为准。专业组结论来自专业组结构分析（先看主体、再查坑）；录取规则、转专业、体检规则、中外合作和宿舍信息来自江苏省招生计划变化知识库；“保专业、报几保几”等以学校招生章程为准。</p>
+</main>
+
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<div class="mtip" id="mtip" role="tooltip" hidden></div>
+<div class="fab" id="fab"><button type="button" class="vol" id="volbtn">志愿表 0/40</button><button type="button" id="toChart" hidden>回到划线图</button><button type="button" id="toTop" hidden>↑ 返回顶部</button></div>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-labelledby="dr-t">
+  <div class="dh"><h2 id="dr-t">志愿表</h2><button type="button" class="btn sm" id="drclose">关闭</button></div>
+  <div class="dtop"><div class="chips" id="voltabs"></div><div class="row"><span class="k">表名</span><input class="kw" id="voltabname" maxlength="20" aria-label="这张志愿表的名字"><button type="button" class="linkbtn" id="tabdel">删除这张表</button></div><div class="volstat" id="volstat"></div><div class="volcheck" id="volcheck"></div></div>
+  <div class="db" id="volbody"></div>
+  <div class="df"><button type="button" class="btn primary" id="volxlsx" hidden>导出 Excel</button><button type="button" class="btn" id="volcopy">复制为文字</button><button type="button" class="btn danger" id="volclear">清空</button><span class="hintk" id="volmsg"></span></div>
+</aside>
+<section class="overlay" id="provv" hidden aria-labelledby="pv-t"><div class="ov-head"><div class="t"><h2 id="pv-t">按省份看：本地高校与产业</h2><span><button type="button" class="btn primary sm" id="pvpick" disabled>先勾选学校</button> <button type="button" class="btn sm" id="pvclose">关闭</button></span></div><div class="chips pvchips" id="pvchips"></div><div class="seg" id="pvtabs"></div></div><div class="ov-body" id="pvbody"></div></section>
+<section class="overlay" id="school" hidden aria-labelledby="sv-t"><div class="ov-head" id="svhead"></div><div class="ov-body" id="svbody"></div></section>
+<div class="modal" id="planm" hidden role="dialog" aria-labelledby="pl-t"><div class="box"><div class="mh"><h2 id="pl-t">学生方案</h2><button type="button" class="btn sm" data-close="planm">关闭</button></div><div class="mb">
+  <p class="hint">一个学生存一份：分数、科目、地区、层次、想学/不学、体检条件、只看的学校，以及志愿表（含每组勾的专业和顺序）都会一起保存。</p>
+  <div class="row"><input class="kw" id="plname" placeholder="学生称呼，如：张同学 物理605"><button type="button" class="btn primary" id="plsave">保存当前方案</button><button type="button" class="btn" id="plnew">清空，开始新学生</button></div>
+  <textarea id="plnote" placeholder="备注（可选）：家长意向、沟通要点等" style="min-height:4em"></textarea>
+  <div class="hintk" id="plwhere"></div><div class="hintk" id="plmsg" role="status"></div>
+  <div class="subhd">已保存的学生</div><div id="pllist"></div>
+</div></div></div>
+<div class="modal" id="helpm" hidden role="dialog" aria-labelledby="hm-t"><div class="box"><div class="mh"><h2 id="hm-t">怎么看这张图</h2><button type="button" class="btn sm" data-close="helpm">关闭</button></div><div class="mb" id="helpbody"></div></div></div>
+<div class="modal ai" id="aim" hidden role="dialog" aria-labelledby="ai-t"><div class="box"><div class="mh"><h2 id="ai-t">AI 读沟通记录</h2><button type="button" class="btn sm" data-close="aim">关闭</button></div><div class="mb">
+  <p class="hint">把和学生、家长沟通的文字稿贴进来（分数、科目、想去的地方、想学和不想学的专业、身体情况、家庭预算等都可以）。AI 会读出筛选条件并自动勾好，你再检查调整。</p>
+  <textarea id="aitext" placeholder="例：孩子物理类，化学生物，估分605左右。家里希望留在江苏或者上海，最远到浙江。孩子喜欢电子、计算机，不想学土木和化工，轻度色弱。不考虑中外合作，学费别太高。"></textarea>
+  <div class="row"><button type="button" class="btn primary" id="aigo">读出条件并勾选</button><button type="button" class="btn" id="aipick" disabled>按这些条件让 AI 挑组放进志愿表</button><button type="button" class="btn ghost" id="aistop" hidden>停止</button></div>
+  <div class="out" id="aiout" hidden></div>
+</div></div></div>
+<script src="jszip.min.js"></script>
+<script>window.PRESET={"key": "site-nat", "site": true, "home": "../index.html"};</script>
+<script>
+const PRESET=window.PRESET||{};
+let D=null; const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const RM=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
+const st={kl:'物理',S:600,Fu:10,Fd:10,mb:false,gt:'',zw:'',band:'line',tab:'稳',shown:15,rows:120,open:new Set(),sel:null,pin:new Set(),
+  only:new Set(),mj:new Set(),dirs:new Set(),avoid:new Set(),dropAvoid:false,kw:'',lv:new Set(),pv:new Set(PRESET.pv||[]),subs:new Set(),med:new Set()};
+const VC={'高危':['--v-gaowei',1],'有坑':['--v-youkeng',1],'需注意':['--v-zhuyi',0],'基本干净':['--v-jiben',0],'干净':['--v-ganjing',1],'主体偏弱':['--v-ruo',0],'不评（军警）':['--v-buping',0],'待人工（无法归类）':['--v-dai',0]};
+const VNAME={'主体偏弱':'主体偏冷','不评（军警）':'军警不评','待人工（无法归类）':'待人工核对'};
+const vn=v=>VNAME[v]||v;
+const SHORT={'经管-一般':'工商管理·物流等','经管-财会金融':'财会金融','医学-临床口腔':'临床口腔','医学-中医中药':'中医中药','医学-药学与相关':'药学护理医技等'};
+const dn=x=>SHORT[x]||x;
+const AB={'电子信息与计算机':'电信计算机','电气与自动化':'电气自动化','机械与装备':'机械','能源动力与核':'能动','土建与工程管理':'土建','化工材料轻纺':'化工材料','地学资源与安全':'地学','生物医工与食品':'生物食品','数学统计':'数学统计','物理天文':'物理','化学':'化学','交通运输与航海':'交通航海','医学-临床口腔':'临床口腔','医学-中医中药':'中医药','医学-药学与相关':'药护医技','经管-财会金融':'财会金融','经管-一般':'工商管理类','经济与贸易':'经贸','法学':'法学','政治社会':'政社','公安军事':'公安军事','中文新闻传媒':'中文新闻','外语':'外语','历史哲学':'历史哲学','教育心理体育':'教育心理','艺术设计':'艺术','农林':'农林','环境生态':'环境','待拆分/特殊':'试验班'};
+const ab=x=>AB[x]||x;
+const HOTD=new Set(['电子信息与计算机','电气与自动化','机械与装备','医学-临床口腔','经管-财会金融','法学','中文新闻传媒']);
+const GR=['A+','A','A-','B+','B','B-','C+','C','C-'];
+const CHGT={'拆分':'由25大组拆分','合并':'由25小组并入','调整':'25→26有调整','新增':'组号/结构有变'};
+const RISKT={hi:['r-hi','调剂风险高'],mid:['r-mid','调剂风险中'],lo:['r-lo','调剂风险低'],na:['r-mid','无去年线，风险未知']};
+const REGIONS=[['全部',''],['江苏','江苏'],['上海','上海'],['江浙沪皖','江苏,浙江,上海,安徽'],['京沪','北京,上海'],['京津','北京,天津'],['山东','山东'],['两湖','湖北,湖南'],['川渝陕','四川,重庆,陕西'],['粤闽','广东,福建'],['东北','辽宁,吉林,黑龙江']];
+function grade(ev){if(!ev)return null;const m5=ev.match(/五轮：([ABC][+-]?)/),m4=ev.match(/四轮：([ABC][+-]?)/);const g=(m5||m4)?.[1];return g?{g,r:m5?'五轮':'四轮'}:null}
+function pill(v){const c=VC[v]||['--v-ruo',0];return `<span class="pill${c[1]?' strong':''}" style="background:var(${c[0]})">${esc(vn(v))}</span>`}
+function r2s(kl,r){if(r==null)return null;const c=(D.conv26||D.conv)[kl];for(let s=c.hi;s>=c.lo;s--){if(c.rank[s-c.lo]>=r)return s}return c.lo}
+function s2r(kl,s){const c=(D.conv26||D.conv)[kl];s=Math.round(s);if(s>c.hi)return c.rank[c.hi-c.lo];if(s<c.lo)return c.rank[0];return c.rank[s-c.lo]}
+const uniq=arr=>[...new Set(arr.map(m=>m.n))];
+const GBY={};
+
+/* ---------- 预处理：只有25年真实分数参与判断；预估分只作虚线参考 ---------- */
+function prep(){
+  D.groups.forEach(g=>{
+    GBY[g.id]=g;
+    g.majors.forEach((m,i)=>{m.i=i;m.rk=m.rk||0;m.fee=m.fee||0;m.bo=m.bo||0;m.ma=m.ma||0;m.ev=m.ev||'';m.lv=m.lv||'';m.note=m.note||'';m.src=m.src||'';
+      m.sc=m.e26??null;                                  // 25年真实最低分按位次折算到26年分数尺度
+      m.pe=m.s25==null?r2s(g.kl,m.r):null;               // 表中预估，仅参考
+      m.medSet=new Set((m.med||'').split(',').filter(Boolean))});
+    const real=g.majors.map(m=>m.sc).filter(v=>v!=null), pred=g.majors.map(m=>m.pe).filter(v=>v!=null);
+    g.lo=real.length?Math.min(...real):null; g.hi=real.length?Math.max(...real):null;
+    const all=[...real,...pred]; g.alo=all.length?Math.min(...all):(g.estLo??null); g.ahi=all.length?Math.max(...all):(g.estHi??null);
+    g.bl=g.l25??null;                                    // 按26年组成回算的线（参考）
+    g.line=g.l26??null;                                  // 2026年真实投档线
+    g.isNew=!g.pre;                                      // 25→26 找不到前身组
+    g.y25=g.pre?(g.cmp?{t:'本组',c:g.pre.c,l:g.pre.l,e:g.pre.e,r:g.pre.r}:{t:'前身',c:g.pre.c,l:g.pre.l,e:g.pre.e,r:g.pre.r}):null;
+    g.h=[null,g.y25?.e??null,g.line];
+    g.palo=g.alo;g.pahi=g.ahi;
+    if(g.line!=null){g.alo=Math.min(g.alo??g.line,g.line);g.ahi=Math.max(g.ahi??g.line,g.line)}
+    g.dPlan=(g.p25!=null&&g.plan!=null&&g.chg==='延续')?g.plan-g.p25:null;
+    g.bigPlan=g.dPlan!=null&&Math.abs(g.dPlan)>=3&&Math.abs(g.dPlan)>=0.1*Math.max(g.plan,g.p25||0);
+    g.tg=g.tg||[];
+  });
+}
+/* ---------- 条件 ---------- */
+const avoided=m=>st.avoid.size>0&&st.avoid.has(m.dir);
+const medBlk=m=>st.med.size>0&&[...m.medSet].some(c=>st.med.has(c));
+const blocked=m=>medBlk(m)||avoided(m);
+const bnm=n=>String(n||'').replace(/[（(].*$/,'').trim();
+function tokHit(m,t){const k=t[0],v=t.slice(2);return k==='c'?m.mc===v:k==='k'?m.zl===v:k==='m'?bnm(m.n)===v:m.n.includes(v)}
+const isPref=m=>(st.dirs.size&&st.dirs.has(m.dir))||(st.mj.size>0&&[...st.mj].some(t=>tokHit(m,t)));
+const prefOn=()=>st.dirs.size>0||st.mj.size>0;
+function reqOK(r){if(!st.subs.size||!r||r==='不限')return true;return r.split('和').every(x=>st.subs.has(x))}
+function lvOK(s){if(!st.lv.size)return true;for(const t of st.lv){if(t==='其他'?!s.tags.length:s.tags.includes(t))return true}return false}
+function baseOK(g){const s=D.schools[g.s];if(g.kl!==st.kl)return false;if(st.only.size&&!st.only.has(g.s))return false;if(!st.mb&&s.own==='民办')return false;if(!lvOK(s))return false;if(st.pv.size&&!st.pv.has(s.prov))return false;
+  if(st.gt==='新增'&&!g.isNew)return false;if(st.gt==='拆并'&&g.chg!=='拆分'&&g.chg!=='合并')return false;if(st.zw==='only'&&!g.sp)return false;if(st.zw==='no'&&g.sp)return false;
+  if(!reqOK(g.sel))return false;if(st.med.size&&g.majors.every(medBlk))return false;if(st.dropAvoid&&g.majors.some(avoided))return false;if(prefOn()&&!g.majors.some(isPref))return false;return true}
+const lowB=()=>st.S-st.Fd, upB=()=>st.S+st.Fu, safeB=()=>st.S-st.Fd-Math.max(20,2*st.Fd);
+function cat(g){
+  if(g.line==null){const a=g.alo;return (a!=null&&a<=upB()&&a>=safeB())?'新':null}
+  const L=g.line,S=st.S;
+  if(st.band==='3y'){if(L>upB()||L<safeB())return null;const hs=g.h.filter(v=>v!=null);if(!hs.length)return L>S?'冲':L>=lowB()?'稳':'保';const k=hs.filter(v=>S>=v).length;return k===0?'冲':(hs.length>=2&&k===hs.length)?'保':'稳'}
+  if(L>S&&L<=upB())return'冲';if(L<=S&&L>=lowB())return'稳';if(L<lowB()&&L>=safeB())return'保';return null}
+function reachOf(m,S){if(blocked(m))return'no';if(m.sc==null)return'unk';if(m.sc<=S-2)return'ok';if(m.sc<=S+2)return'edge';return'no'}
+/* ---------- 组内分析（只用真实分数） ---------- */
+function analyze(g){
+  const S=st.S;
+  const ms=g.majors.map(m=>({...m,reach:reachOf(m,S),blk:blocked(m)}));
+  if(g.line==null&&g.bl==null){const nw=ms.filter(m=>m.sc==null).length;return {ms,fl:null,risk:'na',text:`这是2026年新增或改组的专业组，去年没有投档线${nw===ms.length?'，组里专业也都没有去年分数':''}。只能参考同校相近组和下面的往年数据判断，图上的虚线范围是表里的预估，不作为依据。`,okGood:[],pits:ms.filter(m=>m.rk>=2&&!m.blk),best:null}}
+  const live=ms.filter(m=>!m.blk&&m.sc!=null);
+  const fl=live.length?live.reduce((a,b)=>b.sc<a.sc?b:a,live[0]):null;
+  const good=m=>m.rk<=1&&!m.blk;
+  const okGood=ms.filter(m=>m.reach==='ok'&&good(m)),edgeGood=ms.filter(m=>m.reach==='edge'&&good(m));
+  const pits=ms.filter(m=>m.rk>=2&&!m.blk),reachPits=pits.filter(m=>m.reach==='ok'||m.reach==='edge');
+  const pitWord=arr=>arr.some(m=>m.rk===3)?'坑专业':'不太理想的专业';
+  const reach=live.filter(m=>m.sc<=S).sort((a,b)=>b.sc-a.sc);
+  const best=reach[0]||null;
+  let risk='lo',text='';const LL=g.line??g.bl;
+  if(LL>S){risk='hi';text=`你比这个组的${g.line!=null?'26年投档线':'回算线'}低${LL-S}分，进组本身要冒险；就算进了组也排在最后，往年卡线进组的人去的是${fl?.n||'组里最冷的专业'}${fl&&fl.rk>=2?'（'+pitWord([fl])+'）':''}。`}
+  else if(!pits.length){const opts=uniq([...okGood,...edgeGood]);text=`${opts.length?`能选的有：${opts.slice(0,4).join('、')}${opts.length>4?'等':''}${edgeGood.length&&!okGood.length?'（都在卡线）':''}。`:''}组里没有坑，就算被调剂，也还在同一个方向里。`}
+  else if(okGood.length>=2){const o=uniq(okGood);risk=o.length<3?'mid':'lo';text=`稳妥能选的有${o.length}个：${o.slice(0,4).join('、')}${o.length>4?'等':''}。把它们填进6个专业志愿，被调到${uniq(pits).slice(0,3).join('、')}的可能性不大。`}
+  else if(okGood.length+edgeGood.length>=1){risk='mid';const opts=[...okGood,...edgeGood];text=`能选的不多：${uniq(opts).map(n=>n+(opts.find(m=>m.n===n).reach==='edge'?'（卡线）':'')).join('、')}。这几个录满就会被调剂，组里剩下的${pitWord(pits)}有：${uniq(pits).slice(0,3).join('、')}。`}
+  else{risk='hi';const p=reachPits.length?reachPits:pits;text=`组里比你分数低的专业只剩${uniq(p).slice(0,3).join('、')}，都是${pitWord(p)}。按你的分数进这个组，几乎一定会落到这些专业。`}
+  const nw=ms.filter(m=>m.sc==null&&!m.blk);if(nw.length)text+=` 另有${uniq(nw).slice(0,3).join('、')}${nw.length>3?'等':''}是26年新增专业，去年没有分数，无法判断。`;
+  const bl=ms.filter(m=>m.blk);if(bl.length)text+=` ${uniq(bl).slice(0,3).join('、')}${bl.length>3?'等':''}按体检条件或你不学的方向排除，不算能选。`;
+  if(g.v==='主体偏弱')text+=` 这个组的主体是${dn(g.main)}，方向本身偏冷。`;
+  if(g.line==null)text=`【26年没有投档线，以上按组里专业的25年分数推算，仅供参考】`+text;
+  return {ms,fl,risk,text,okGood,pits,best};
+}
+function strong(g){const best=g.majors.map(m=>({m,gr:grade(m.ev)})).filter(x=>x.gr).sort((a,b)=>GR.indexOf(a.gr.g)-GR.indexOf(b.gr.g));return {top:best.filter(x=>GR.indexOf(x.gr.g)<=2)}}
+function trend(g){const y=g.y25;if(!y||g.line==null)return '';
+  const k=1.075,ratio=g.r26/(y.r*k);const cls=ratio<0.9?'up':ratio>1.1?'down':'';
+  return `<span class="trend" title="25年线按位次折合到26年分数尺度后比较；已扣除全省位次整体约7.5%的上浮">25年${y.t==='前身'?`前身${y.c}组`:''}${y.l} → 26年${g.line}${cls?` <span class="${cls}">${cls==='up'?'变难':'变易'}（位次${y.r.toLocaleString()}→${g.r26.toLocaleString()}）</span>`:''}</span>`}
+function planTxt(g){if(g.dPlan==null)return `计划${g.plan}`;if(g.dPlan===0)return `计划${g.plan}（与25年持平）`;return `计划${g.plan}（${g.dPlan>0?'扩招+':'缩招'}${Math.abs(g.dPlan)}）`}
+function tagsHTML(g){const t=[...(g.isNew?['26新增']:[]),...g.tg];return t.length?`<span class="gtags">${t.map(x=>`<span class="gtg${x==='中外'||x==='学分互认'||x==='联合培养'?' zw':x==='高学费'?' fee':''}">${esc(x)}</span>`).join('')}</span>`:''}
+function ruleShort(s){const r=s.rule||'';if(!r||/^分数优先。?$/.test(r))return '';if(/专业优先|专业志愿清|顺序志愿|第一专业/.test(r))return '专业优先/有专业级差';if(/满足.*第一/.test(r))return '承诺满足第一专业';return r.length>14?r.slice(0,14)+'…':r}
+/* ---------- 一句话备注 ---------- */
+function gnote(g){
+  const main=ab(g.ref||g.main);
+  const comp={};g.majors.forEach(m=>{comp[m.dir]=(comp[m.dir]||0)+(m.p||0)});
+  const others=Object.entries(comp).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).filter(d=>d!==(g.ref||g.main)&&d!=='待拆分/特殊');
+  const pits=[...new Map(g.majors.filter(m=>m.rk>=2).sort((a,b)=>b.rk-a.rk||b.p-a.p).map(m=>[m.n,m])).values()];
+  const pn=m=>{let n=m.n;if(/试验班|类$/.test(n)&&m.src)n=m.src.split('→')[0];return (n.length>7?n.slice(0,7):n)+m.p+'人'};
+  const pl=g.bigPlan?(g.dPlan>0?`·扩招${g.dPlan}`:`·缩招${-g.dPlan}`):'';
+  if(g.v==='不评（军警）')return ['军警院校，不评','',''];
+  if(g.v==='待人工（无法归类）')return ['试验班，具体专业待核对','',''];
+  if(g.v==='干净')return ['全是'+main+pl,'',''];
+  if(g.v==='基本干净')return [main+'为主'+(others.length?'，另有'+others.slice(0,2).map(ab).join('、'):'')+pl,'',''];
+  if(g.v==='主体偏弱'){const hot=others.filter(d=>HOTD.has(d));return ['主体'+ab(g.main)+'，偏冷'+pl,hot.length?'夹带'+hot.slice(0,2).map(ab).join('、'):'','bait']}
+  const x3=pits.filter(m=>m.rk===3),x2=pits.filter(m=>m.rk===2);
+  const p=x3.length?'坑：'+x3.slice(0,2).map(pn).join('、')+(x3.length>2?'等':''):'注意：'+x2.slice(0,2).map(pn).join('、')+(x2.length>2?'等':'');
+  return [main+'为主'+pl,p,x3.length?'pit':'meh'];
+}
+/* ---------- 结论条 ---------- */
+function lead(){
+  const S=st.S,R=s2r(st.kl,S);const gs=D.groups.filter(g=>baseOK(g)&&g.line!=null);
+  const cross=gs.filter(g=>g.lo!=null&&g.lo<=S&&g.hi>=S);
+  const wen=gs.filter(g=>cat(g)==='稳');const schools=[...new Set(wen.map(g=>g.s))];
+  const hi=wen.filter(g=>analyze(g).risk==='hi').length,clean=wen.filter(g=>g.v==='干净'||g.v==='基本干净').length,weak=wen.filter(g=>g.v==='主体偏弱').length;
+  const nw=D.groups.filter(g=>baseOK(g)&&cat(g)==='新').length;
+  const scope=[st.pv.size?[...st.pv].join('、'):'全国',st.lv.size?[...st.lv].join('/'):''].filter(Boolean).join(' · ');
+  $('lead').innerHTML=`<div class="big">${st.kl}类 <b>${S}</b> 分（约位次 <b>${R.toLocaleString()}</b>），在${esc(scope)}院校里：26年投档线在你分数以下${st.Fd}分内的“稳”组有 <b>${wen.length}</b> 个，分布在 <b>${schools.length}</b> 所学校；你的分数正好落在 <b>${cross.length}</b> 个组的专业分数范围之内。</div>
+  <div class="stats"><div class="stat"><b>${clean}</b><span>稳·干净</span></div><div class="stat"><b>${weak}</b><span>稳·主体偏冷</span></div><div class="stat"><b>${hi}</b><span>稳·调剂风险高</span></div><div class="stat"><b>${nw}</b><span>无26年线</span></div></div>`;
+}
+/* ---------- 筷子图 ---------- */
+let ROWS=[],CHART_TOTAL=0;
+function chart(){
+  const S=st.S,a0=lowB(),a1=upB();
+  const gs=D.groups.filter(g=>baseOK(g)&&g.alo!=null&&((g.line!=null?(g.line>=a0-10&&g.line<=a1):(g.ahi>=a0&&g.alo<=a1))||st.pin.has(g.id)));
+  let lo=a0-3,hi=a1+3;
+  if(gs.length){lo=Math.min(lo,Math.max(a0-22,Math.min(...gs.map(g=>g.alo))-2));hi=Math.max(hi,Math.min(a1+22,Math.max(...gs.map(g=>g.ahi))+2))}
+  const by={};gs.forEach(g=>{(by[g.s]=by[g.s]||[]).push(g)});
+  const key=g=>g.line??g.hi??g.ahi;
+  const schools=Object.keys(by).sort((a,b)=>Math.max(...by[b].map(key))-Math.max(...by[a].map(key)));
+  ROWS=[];let total=0;const pinned=[];
+  schools.forEach(s=>by[s].sort((a,b)=>(b.line==null)-(a.line==null)?((a.line==null)-(b.line==null)):(key(b)-key(a))).forEach(g=>{total++;if(ROWS.length<st.rows)ROWS.push({g,s});else if(st.pin.has(g.id))pinned.push({g,s})}));
+  ROWS.push(...pinned);CHART_TOTAL=total;
+  ROWS.forEach((r,i)=>{r.first=i===0||ROWS[i-1].s!==r.s});
+  const W=Math.max(820,Math.floor(($('chartwrap').clientWidth||1160)-2));
+  const C1=12,C2=196,C3=W>=1400?356:346,L=W>=1700?640:W>=1400?560:W>=1100?470:380,Rp=26,T=34,RH=22,GAP=8;
+  const NCH=Math.floor((L-C3-14)/11.5);
+  let y=T;const ys=[];ROWS.forEach((r,i)=>{if(r.first&&i>0)y+=GAP;ys.push(y+RH/2);y+=RH});
+  const H=y+30;
+  const x=s=>L+(Math.max(lo,Math.min(hi,s))-lo)/(hi-lo)*(W-L-Rp);
+  let o=`<svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:${W}px" role="img" aria-label="${S}分附近的专业组分数范围">`;
+  const ppt=(W-L-Rp)/(hi-lo),minor=ppt>=24?1:ppt>=10?2:5,lab=ppt>=40?1:ppt>=16?2:5;
+  for(let s=Math.ceil(lo/minor)*minor;s<=hi;s+=minor){const big=s%5===0;o+=`<line class="gridl${big?'':' minor'}" x1="${x(s)}" x2="${x(s)}" y1="${T-8}" y2="${H-22}"/>`;if(s%lab===0)o+=`<text class="tick${big?'':' sm'}" x="${x(s)}" y="${T-14}" text-anchor="middle">${s}</text>`}
+  o+=`<text class="tick" x="${C1}" y="${T-14}">学校</text><text class="tick" x="${C2+18}" y="${T-14}">组 · 特点</text><text class="tick" x="${C3}" y="${T-14}">一句话备注</text>`;
+  o+=`<rect class="band" x="${x(a0)}" y="${T-8}" width="${x(a1)-x(a0)}" height="${H-T-14}"/>`;
+  ROWS.forEach((r,i)=>{const g=r.g,cy=ys[i];r.cy=cy;r.ticks=[];const sel=st.sel===g.id,on=volIndex(g.id)>=0;
+    if(r.first&&i>0)o+=`<line class="sep" x1="8" x2="${W-Rp}" y1="${cy-RH/2-GAP/2}" y2="${cy-RH/2-GAP/2}"/>`;
+    o+=`<rect class="rowbg${sel?' on':''}" x="0" y="${cy-RH/2}" width="${W}" height="${RH}"/>`;
+    o+=`<rect class="pick${on?' on':''}" data-pick="${g.id}" x="${C2}" y="${cy-6}" width="12" height="12" rx="2.5"><title>${on?'从志愿表移出':'放进志愿表初选'}</title></rect>${on?`<path class="pickmark" d="M${C2+2.6} ${cy} l2.8 2.8 l4.4 -5.2"/>`:''}`;
+    if(r.first){const sc=D.schools[r.s];o+=`<text class="sname" data-school="${esc(r.s)}" x="${C1}" y="${cy+4}">${esc(r.s.length>9?r.s.slice(0,9)+'…':r.s)}<tspan class="pvt" dx="4">${esc(sc.prov==='江苏'?sc.city:sc.prov)}</tspan></text>`}
+    const TS={'拔尖/实验班':'拔尖','实验班':'实验','高学费':'高费','学分互认':'互认','联合培养':'联培','综合评价':'综评'};const tg=[...new Set([...(g.isNew?['新增']:!g.cmp?[g.chg==='拆分'?'拆分':g.chg==='合并'?'合并':'改组']:[]),...g.tg.map(t=>TS[t]||t)])].map(t=>t.length>3?t.slice(0,2):t).slice(0,3);
+    o+=`<text class="gname2" x="${C2+18}" y="${cy+4}">${esc(g.name.slice(0,2))}组${tg.map(t=>`<tspan class="gtag${/中外|互认|联培/.test(t)?' zw':''}" dx="4">${esc(t)}</tspan>`).join('')}</text>`;
+    {const [a,b,k]=gnote(g);let t1=a,t2=b?'｜'+b:'';if(t1.length+t2.length>NCH){if(t1.length>=NCH){t1=t1.slice(0,NCH-1)+'…';t2=''}else t2=t2.slice(0,Math.max(0,NCH-t1.length-1))+'…'}
+     o+=`<text class="gnote" x="${C3}" y="${cy+4}">${esc(t1)}${t2?`<tspan class="${k==='pit'?'np':k==='meh'?'nm':'nb'}">${esc(t2)}</tspan>`:''}</text>`}
+    const c=(VC[g.v]||['--v-ruo'])[0];
+    // 预估范围：虚线空心框；真实范围：实心棒
+    if(g.palo!=null&&(g.lo==null||g.palo<g.lo||g.pahi>g.hi)){const px1=x(g.palo),px2=Math.max(x(g.pahi),px1+4);o+=`<rect class="pband" x="${px1-4}" y="${cy-4.5}" width="${px2-px1+8}" height="9" rx="4.5" style="stroke:var(${c})"/>`}
+    if(g.lo!=null){const x1=x(g.lo),x2=Math.max(x(g.hi),x1+4);o+=`<line class="stick" x1="${x1}" x2="${x2}" y1="${cy}" y2="${cy}" style="stroke:var(${c});stroke-width:9"/>`}
+    if(g.lo==null&&g.palo!=null)o+=`<text class="esttag" x="${(x(g.palo)+x(g.pahi))/2}" y="${cy-7}" text-anchor="middle">无去年分·预估</text>`;
+    if(g.line!=null&&g.line>=lo&&g.line<=hi)o+=`<path class="gl" d="M${x(g.line)} ${cy-8} v16"><title>26年真实投档线 ${g.line}</title></path>`;
+
+    if(g.alo<lo)o+=`<path class="clip" d="M${L-2} ${cy} l6 -5 v10z"/>`;
+    if(g.ahi>hi)o+=`<path class="clip" d="M${W-Rp+2} ${cy} l-6 -5 v10z"/>`;
+    if(g.y25&&g.y25.e>=lo&&g.y25.e<=hi)o+=`<path class="hy${g.y25.t==='前身'?' y23':' y24'}" d="M${x(g.y25.e)} ${cy-5} l-3.5 -6 h7z"><title>${g.y25.t==='前身'?`前身25年${g.y25.c}组`:'25年'}投档线 ${g.y25.l}（折合26年约${g.y25.e}）</title></path>`;
+    g.majors.map(m=>({m,v:m.sc??m.pe})).filter(t=>t.v!=null&&t.v>=lo&&t.v<=hi).sort((a,b)=>(isPref(a.m)-isPref(b.m))||(a.m.rk-b.m.rk)).forEach(({m,v})=>{
+      const bk=blocked(m);const cls=bk?'blk':isPref(m)?'pref':m.rk===3?'pit':m.rk===2?'meh':'';
+      r.ticks.push({x:x(v),m,v});
+      o+=`<circle class="tk ${cls}${m.sc==null?' est':''}" cx="${x(v)}" cy="${cy}" r="${isPref(m)&&!bk?4.5:3.4}"/>`});
+    const hx1=Math.min(x(g.alo),L)-6;
+    o+=`<rect class="hit" tabindex="0" data-row="${i}" data-id="${g.id}" x="${C2+16}" y="${cy-RH/2}" width="${Math.max(x(g.ahi)+6,L)-(C2+16)}" height="${RH}" role="button" aria-label="${esc(r.s+' '+g.name)}"></rect>`;
+  });
+  o+=`<circle id="hl" class="hl" r="7" cx="-20" cy="-20"/><line class="me" x1="${x(S)}" x2="${x(S)}" y1="${T-8}" y2="${H-22}"/><text class="metext" x="${x(S)+6}" y="${H-8}">你 ${S}</text></svg>`;
+  $('chartwrap').innerHTML=ROWS.length?o:'<p class="empty">这个分数附近没有符合条件的专业组。可以调大浮动分数、放宽地区和层次，或少选几个方向。</p>';
+  $('chartmore').hidden=CHART_TOTAL<=st.rows;$('chartmore').textContent=`再画120个组（共${CHART_TOTAL}个，已画${Math.min(st.rows,CHART_TOTAL)}个）`;
+  const np=D.groups.filter(g=>g.alo==null&&baseOK(g));
+  $('nopos').innerHTML=st.gt==='新增'&&np.length?`<div class="nopos">另有 ${np.length} 个26新增组没有任何参考分数，图上无法摆放：${np.slice(0,12).map(g=>esc(g.s+g.name.slice(0,2)+'组')).join('、')}${np.length>12?' 等':''}。</div>`:'';
+}
+/* ---------- 详情 ---------- */
+function linOf(g){return D.lin&&D.lin[g.s+'|'+g.kl]}
+function chgNote(g){
+  const L=linOf(g),c=parseInt(g.name),pc=g.pre?.c;
+  const G25=c2=>L?.g25.find(x=>x.c===c2);
+  const inc=L?L.e.filter(e=>e[1]===c).sort((a,b)=>b[2]-a[2]):[];
+  const outs=pc!=null&&L?L.e.filter(e=>e[0]===pc).sort((a,b)=>b[2]-a[2]):[];
+  const src=inc.map(e=>{const q=G25(e[0]);return `25年${e[0]}组${q?`（${q.l}分）`:''}的${e[3].slice(0,4).join('、')}${e[3].length>4?'等':''}${e[2]?` ${e[2]}人`:''}`}).join('；');
+  const dst=outs.length>1?`前身25年${pc}组${g.pre.p?`共${g.pre.p}人`:''}，今年拆到了：${outs.map(e=>`${e[1]}组${e[2]?e[2]+'人':''}`).join('、')}。`:'';
+  const y=g.y25;let why='';
+  if(g.isNew)why='这是26年新出现的组，25年没有对应的组。';
+  else if(y&&g.line!=null&&!g.cmp){const d=g.line-y.e;why=`前身25年${y.c}组投档线 ${y.l}（折合26年约 ${y.e}），26年这个组实际是 ${g.line}，${d>=3?`高了 ${d} 分：拉低组线的冷门专业被拆走了，组线跟着热门专业走。`:d<=-3?`低了 ${-d} 分：组里装进了更冷的专业，线降了，但被调剂的风险也更大。`:'变化不大。'}`}
+  if(g.cmp&&!src&&!dst)return '';
+  if(g.cmp&&inc.length<=1&&outs.length<=1)return '';
+  return `<div class="say ${g.cmp?'':'new'}"><b>25→26 组别变化。</b>${why}${src?`今年这个组的专业来自：${esc(src)}。`:''}${dst?esc(dst):''}<button type="button" class="linkbtn" data-sv="${esc(g.s)}">看全校组别变化图</button></div>`;
+}
+/* ---------- 组别谱系图 ---------- */
+function linSVG(s,kl,W,focus){
+  const L=D.lin&&D.lin[s+'|'+kl];if(!L||!L.g25.length)return '';
+  const g25=L.g25,i25={};g25.forEach((q,i)=>i25[q.c]=i);
+  const g26=L.g26.map(q=>{const es=L.e.filter(e=>e[1]===q.c&&i25[e[0]]!=null);const w=es.reduce((a,e)=>a+(e[2]||1),0);const pos=w?es.reduce((a,e)=>a+i25[e[0]]*(e[2]||1),0)/w:1e3+(q.bl?-q.bl:0);return {...q,pos}}).sort((a,b)=>a.pos-b.pos);
+  const i26={};g26.forEach((q,i)=>i26[q.c]=i);
+  const RH=W<560?34:40,T=26,BW=Math.round(W*(W<560?.4:.34)),n=Math.max(g25.length,g26.length),H=T+n*RH+6;
+  const off25=(n-g25.length)*RH/2,off26=(n-g26.length)*RH/2;
+  const y25=i=>T+off25+i*RH+RH/2,y26=i=>T+off26+i*RH+RH/2;
+  const maxP=Math.max(1,...L.e.map(e=>e[2]||0));const NC=Math.floor((BW-12)/(W<560?11:12));
+  const cut=t=>t.length>NC?t.slice(0,NC-1)+'…':t;
+  let o=`<svg class="lin" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(s)}25年到26年专业组变化"><text class="lh" x="2" y="14">2025年的组（真实投档线）</text><text class="lh" x="${W-2}" y="14" text-anchor="end">2026年的组</text>`;
+  const fc=focus?parseInt(GBY[focus]?.name):null;
+  L.e.filter(e=>i25[e[0]]!=null&&i26[e[1]]!=null).sort((a,b)=>b[2]-a[2]).forEach(e=>{const a=y25(i25[e[0]]),b=y26(i26[e[1]]),x1=BW,x2=W-BW,mx=(x1+x2)/2;
+    const sw=Math.max(1.5,(e[2]||1)/maxP*(RH*.55));const on=fc!=null&&e[1]===fc;
+    o+=`<path class="le${on?' on':''}" data-a="${e[0]}" data-b="${e[1]}" d="M${x1} ${a} C${mx} ${a} ${mx} ${b} ${x2} ${b}" style="stroke-width:${sw.toFixed(1)}"><title>25年${e[0]}组 → 26年${e[1]}组：${esc(e[3].join('、'))}${e[2]?`（今年${e[2]}人）`:''}</title></path>`});
+  g25.forEach((q,i)=>{const y=y25(i);const out=L.e.some(e=>e[0]===q.c&&i26[e[1]]!=null);
+    o+=`<g class="lb" data-a="${q.c}"><rect x="0" y="${y-RH/2+3}" width="${BW}" height="${RH-6}" rx="6"/><text class="l1" x="8" y="${y-2}">${q.c}组 <tspan class="num">${q.l}</tspan>${q.zw?' 中外':''}<tspan class="l2" dx="6">${q.p?q.p+'人':q.pe?'约'+q.pe+'人':''}</tspan></text><text class="l2" x="8" y="${y+12}">${esc(cut(q.ms.length?q.ms.join('、'):out?'':'去向没匹配上'))}</text></g>`});
+  g26.forEach((q,i)=>{const y=y26(i),g=GBY[q.id];const x0=W-BW;const inn=L.e.some(e=>e[1]===q.c&&i25[e[0]]!=null);
+    const ln=g?.line!=null?`26年线${g.line}`:'无26年线';
+    o+=`<g class="rb${fc===q.c?' on':''}" data-b="${q.c}" data-gid="${q.id}"><rect x="${x0}" y="${y-RH/2+3}" width="${BW}" height="${RH-6}" rx="6" style="stroke:var(${(VC[g?.v]||['--line'])[0]})"/><text class="l1" x="${x0+8}" y="${y-2}">${q.c}组 ${esc(g?ab(g.ref||g.main):'')}${g?.sp?' 中外':''}<tspan class="l2" dx="6">${q.p}人</tspan></text><text class="l2" x="${x0+8}" y="${y+12}">${esc(ln)}${!inn?' · 新增':q.rl==null?' · 组有变动':''}</text></g>`});
+  return o+'</svg>';
+}
+function linBind(box){box.querySelectorAll('.lb,.rb').forEach(el=>{el.addEventListener('mouseenter',()=>{const a=el.dataset.a,b=el.dataset.b;box.querySelector('svg').classList.add('hov');box.querySelectorAll('.le').forEach(p=>p.classList.toggle('hl',(a&&p.dataset.a===a)||(b&&p.dataset.b===b)))});el.addEventListener('mouseleave',()=>{box.querySelector('svg').classList.remove('hov');box.querySelectorAll('.le').forEach(p=>p.classList.remove('hl'))})});
+  box.querySelectorAll('.rb').forEach(el=>el.addEventListener('click',()=>{const it=document.getElementById('it-sv-'+el.dataset.gid);if(it){it.scrollIntoView({behavior:RM()?'auto':'smooth',block:'start'});it.classList.add('flash');setTimeout(()=>it.classList.remove('flash'),1600)}}))}
+function coopCard(g){const c=g.majors.find(m=>m.coop)?.coop;if(!c)return '';
+  const kv=(k,v)=>v?`<div class="kv"><div class="k">${k}</div><div class="v"><small>${esc(v)}</small></div></div>`:'';
+  return `<div class="subhd">中外合作项目</div><div class="kvgrid">${kv('合作院校',c.pt)}${kv('学院',c.col)}${kv('学费',c.fee)}${kv('授课语言',c.lang)}${kv('出国安排',c.ab)}${kv('是否必须出国',c.must)}${kv('证书',c.cert)}${kv('能否转专业',c.tr)}${kv('校区',c.camp)}${kv('毕业去向',c.out)}</div>`}
+function detail(g,ctx=''){
+  const a=analyze(g),sc=D.schools[g.s],sg=strong(g),S=st.S,vi=volIndex(g.id),vsel=vi>=0?VOL[vi].m:[];
+  const secs=[['ok','稳妥能选'],['edge','卡线（上下2分）'],['no','够不着或已排除'],['unk','26新增专业·无去年分数']];
+  const row=m=>{const rk=m.rk===3?'<span class="rk-x">坑</span>':m.rk===2?'<span class="rk-w">不太理想</span>':'';
+    const bk=medBlk(m)?'<span class="medb">体检限报</span>':avoided(m)?'<span class="medb">你不学的</span>':'';
+    const gr=grade(m.ev);const ord=vsel.indexOf(m.i);const pd=m.p25!=null&&m.p25!==m.p?`<span class="sub">25年${m.p25}</span>`:'';const tr0=(m.s25!=null&&m.s24!=null)?m.s25-m.s24:null;
+    const tr=(m.sc!=null&&m.s24!=null)?m.sc-m.s24:null;
+    return `<tr class="${isPref(m)?'pf':''}${m.blk?' blk':''}"><td><input type="checkbox" data-vm="${g.id}|${m.i}" ${ord>=0?'checked':''} aria-label="把${esc(m.n)}填进专业志愿"> ${ord>=0?`<b style="color:var(--accent)">${ord+1}</b>`:''}</td>
+      <td><span class="mname">${esc(m.n)}</span> ${rk}${bk}${m.nw?' <span class="nwb">新增</span>':''}${a.fl&&m.i===a.fl.i?' <span class="floor">往年卡线落点</span>':''}${m.note?`<span class="sub">${esc(m.note)}</span>`:''}${m.src&&m.rk>=2?`<span class="sub">问题：${esc(m.src)}</span>`:''}</td>
+      <td class="n">${m.p}${pd}</td><td class="n"><b>${m.sc??'—'}</b>${m.sc==null&&m.pe!=null?`<span class="sub">表中预估${m.pe}，不作依据</span>`:''}</td><td class="n">${m.s25??'—'}${tr0!=null&&Math.abs(tr0)>=3?`<span class="sub ${tr0>0?'up':'down'}">比24年${tr0>0?'涨':'降'}${Math.abs(tr0)}</span>`:''}</td><td class="n">${m.s24??'—'}</td>
+      <td>${gr?`${esc(gr.g)} <span class="sub">${gr.r}</span>`:'<span class="sub">—</span>'}</td>
+      <td>${/国一/.test(m.lv)?'国家一流':(/省一/.test(m.lv)?'省一流':'—')}${m.bo?'<span class="sub">博士点</span>':m.ma?'<span class="sub">硕士点</span>':''}</td>
+      <td class="n">${m.fee>=10000?m.fee.toLocaleString():''}</td></tr>`};
+  const body=secs.map(([k,t])=>{const ms=a.ms.filter(m=>m.reach===k).sort((x,y)=>(y.sc??y.pe??-1)-(x.sc??x.pe??-1));if(!ms.length)return '';
+    return `<tr class="sec"><td colspan="9">${t}<span class="cnt">${ms.length}个</span></td></tr>`+ms.map(row).join('')}).join('');
+  const strongTxt=sg.top.length?`本组里的本校强势学科：${sg.top.slice(0,3).map(x=>`${x.m.n}（${x.gr.r}${x.gr.g}）`).join('、')}。`:'';
+  const weakButStrong=g.v==='主体偏弱'&&sg.top.length?`<div class="say good">这个组按方向看偏冷，但${esc(sg.top[0].m.n)}是本校强项（${sg.top[0].gr.r}${sg.top[0].gr.g}）。如果就是冲着这个专业去、以读研为目标，可以认真考虑。</div>`:'';
+  return `<div class="actbar"><button type="button" class="btn ${vi>=0?'':'primary'} sm" data-vol="${g.id}">${vi>=0?`已在志愿表第${vi+1}位 · 移出`:'加入志愿表'}</button>${ctx?'':`<button type="button" class="btn sm" data-sv="${esc(g.s)}">看${esc(g.s)}全部专业组</button><button type="button" class="btn sm" data-locate="${g.id}">在划线图上定位</button>`}<span class="hintk">勾左侧方框，把专业按顺序填进本组的6个专业志愿</span></div>
+    ${chgNote(g)}<div class="say ${a.risk==='hi'?'hi':a.risk==='lo'?'good':''}"><b>${RISKT[a.risk][1]}。</b>${esc(a.text)}</div>${weakButStrong}
+    <div class="tblwrap"><table class="mt"><thead><tr><th>志愿</th><th>专业</th><th>26计划</th><th title="25年真实最低分按位次折合到26年分数尺度">折合26</th><th>25最低分</th><th>24</th><th>学科评估</th><th>专业水平</th><th>学费/年</th></tr></thead><tbody>${body}</tbody></table></div>
+    ${g.pit?`<div class="hint">组里的坑：${esc(g.pit)}</div>`:''}${coopCard(g)}
+    ${strongTxt?`<div class="hint">${esc(strongTxt)}</div>`:''}`;
+}
+function lineTxt(g){if(g.line!=null)return `26年投档线 ${g.line} · 位次${(g.r26||0).toLocaleString()}`;if(g.pre)return `前身25年${g.pre.c}组 ${g.pre.l}${g.pre.p?`（${g.pre.p}人）`:''}${g.bl!=null?` · 按今年组成回算 ${g.bl}`:''}`;return g.bl!=null?`新增组 · 按组内专业回算 ${g.bl}`:'新增组 · 无去年分数'}
+function chgChip(g){if(g.isNew)return '<span class="chg n">26新增组</span>';if(!g.cmp)return `<span class="chg n">26组有变动</span>`;const t=CHGT[g.chg];return t?`<span class="chg">${t}</span>`:''}
+function item(g,ctx=''){
+  const a=analyze(g),sc=D.schools[g.s],sg=strong(g),key=ctx+g.id,open=st.open.has(key),rt=RISKT[a.risk],vi=volIndex(g.id);
+  const pf=prefOn()?uniq(g.majors.filter(isPref)):[];
+  const mainTxt=g.ref&&g.ref!==g.main?`主体${dn(g.main)}，查坑以${dn(g.ref)}为准`:(g.v==='主体偏弱'?`主体${dn(g.main)}`:`以${dn(g.main)}为主`);
+  const rs=ruleShort(sc);
+  return `<article class="item${open?' open':''}" id="it-${key}" data-id="${g.id}" data-ctx="${ctx}">
+    <button type="button" class="head" aria-expanded="${open}">
+      <span class="h1">${ctx?'':`<b class="sch">${esc(g.s)}</b>${sc.tags.filter(t=>t!=='保研').slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}`}<span class="gname">${ctx?'':esc(sc.prov==='江苏'?sc.city:sc.prov)+' · '}<b style="color:var(--ink)">${esc(g.name)}</b></span>${pill(g.v)}${tagsHTML(g)}${g.isNew?'':chgChip(g)}${rs&&!ctx?`<span class="rulechip">${esc(rs)}</span>`:''}${vi>=0?`<span class="volchip">志愿${vi+1}</span>`:''}</span>
+      <span class="h2"><span>${esc(mainTxt)}</span><span class="mono">${lineTxt(g)}</span>${trend(g)}<span>${esc(planTxt(g))}</span><span class="risk ${rt[0]}">${rt[1]}</span>${a.best?`<span>能够到最好的：${esc(a.best.n)}</span>`:''}${pf.length?`<span style="color:var(--accent)">含想学的：${esc(pf.slice(0,3).join('、'))}</span>`:''}${sg.top.length?`<span class="strong-chip">强项 ${esc(sg.top[0].m.n)} ${esc(sg.top[0].gr.g)}</span>`:''}</span>
+      <span class="chev" aria-hidden="true"></span>
+    </button>
+    <div class="body" ${open?'':'hidden'}>${open?detail(g,ctx):''}</div>
+  </article>`;
+}
+function bucket(){const gs=D.groups.filter(g=>baseOK(g)&&cat(g));const by={'冲':[],'稳':[],'保':[],'新':[]};gs.forEach(g=>by[cat(g)].push(g));for(const k in by)by[k].sort((a,b)=>(b.line??b.alo)-(a.line??a.alo)||a.s.localeCompare(b.s));return by}
+function list(){
+  const by=bucket();
+  const desc=st.band==='3y'?{'冲':'25、26两年的线你都没够到','稳':'两年里有一年够到','保':'两年的线你都够到了'}:{'冲':`26年投档线比你高1到${st.Fu}分，进组要冒险，进了也多半卡在最后`,'稳':`26年投档线在你分数以下${st.Fd}分以内，进得去，但要看组里能挑什么`,'保':`26年投档线比你低${st.Fd}分以上，基本能进，组里多数专业也能选`};
+  desc['新']='26年没有投档线数据的组，只按组里专业的往年分数摆放，请单独核对';
+  const lab={'冲':'冲','稳':'稳','保':'保','新':'无26年线'},cls={'冲':'chong','稳':'wen','保':'bao','新':'new'};
+  $('tabs').innerHTML=['冲','稳','保','新'].map(k=>`<button type="button" class="tab t-${cls[k]}" data-tab="${k}" aria-pressed="${st.tab===k}">${lab[k]}<b>${by[k].length}</b>个组</button>`).join('');
+  $('tabhint').textContent=desc[st.tab]+'。点一行展开，看组里每个专业。';
+  const L=by[st.tab];
+  $('list').innerHTML=L.length?L.slice(0,st.shown).map(g=>item(g)).join(''):'<p class="empty">这一档没有专业组，可以调大浮动分数，或放宽筛选条件。</p>';
+  $('more').hidden=L.length<=st.shown;$('more').textContent=`再显示15个（还有${Math.max(0,L.length-st.shown)}个）`;
+}
+/* ---------- 学校视图 ---------- */
+function schoolView(name){
+  const s=D.schools[name];if(!s)return;
+  const gs=D.groups.filter(g=>g.s===name&&g.kl===st.kl).sort((a,b)=>(b.line??b.alo??0)-(a.line??a.alo??0));
+  const life=s.life||{};const kv=(k,v,hl)=>v?`<div class="kv${hl?' hl':''}"><div class="k">${k}</div><div class="v">${v}</div></div>`:'';
+  const rs=ruleShort(s);
+  $('svhead').innerHTML=`<div class="t"><h2 id="sv-t">${esc(name)} <span class="gtags">${s.tags.map(t=>`<span class="tag">${esc(t==='保研'?'有保研资格':t)}</span>`).join('')}</span></h2><button type="button" class="btn sm" id="svclose">关闭</button></div>
+   <div class="hintk">${esc(s.prov)} · ${esc(s.city)} · ${esc(s.type)} · ${esc(s.own)}　保研率 ${s.by!=null?s.by+'%':'—'}　博士学科 ${s.bo??'—'} · 硕士学科 ${s.ma??'—'}　${st.kl}类本科批 ${gs.length} 个专业组</div>
+   <div class="policy">${kv('录取规则',esc(s.rule||'未注明'),!!rs)}${kv('转专业',esc(s.zz&&!/^http/.test(s.zz)?s.zz:(s.zz?'见学校教务处文件':'—')))}${kv('宿舍',esc(life.dorm||''))}${kv('交通 / 管理',esc([life.tr,life.mg].filter(Boolean).join('；')))}</div>`;
+  const loc=localCard(name);
+  const lw=Math.min(980,($('school').clientWidth||900)-40);const lsv=linSVG(name,st.kl,Math.max(340,lw));
+  $('svbody').innerHTML=loc+(lsv?`<details class="linbox" open><summary>25年 → 26年 专业组变化（连线粗细＝今年转过去的计划人数，悬停看是哪些专业，点右侧的组跳到它）</summary><div class="linwrap" id="svlin">${lsv}</div><p class="hintk">连线是按25、26年招生计划里的专业名自动对上的，个别专业改名、拆合可能对不准。左右两侧都是真实投档线：左边25年，右边26年。</p></details>`:'')+gs.map(g=>item(g,'sv-')).join('')||'<p class="empty">这所学校在这个科类没有本科批专业组。</p>';
+  if($('svlin'))linBind($('svlin'));
+  $('school').hidden=false;$('scrim').hidden=false;$('svclose').addEventListener('click',closeSchool);$('svclose').focus();
+}
+function closeSchool(){$('school').hidden=true;$('scrim').hidden=$('drawer').hidden&&$('provv').hidden}
+/* ---------- 各省本地高校与产业 ---------- */
+let BYS=null,PROV=null,provSel=null,provTab='sch',provPick=new Set();
+const md=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+function loadBys(){if(BYS)return Promise.resolve(BYS);return fetch('bySchool.json').then(r=>r.json()).then(d=>BYS=d).catch(()=>BYS={})}
+function loadProv(){if(PROV)return Promise.resolve(PROV);return fetch('prov.json').then(r=>r.json()).then(d=>PROV=d)}
+const BORDER=['建议优先级','同级对标','省内师范建议优先级','省内医学建议优先级','优势就业','区域产业','特色说明','更名提示','行业须知','录取提示'];
+function bullets(b){return b.slice().sort((x,y)=>(BORDER.indexOf(x[0])+99)%99-(BORDER.indexOf(y[0])+99)%99).map(([k,v])=>`<li>${k?`<b>${esc(k)}</b>：`:''}${md(v)}</li>`).join('')}
+function localCard(name){
+  if(!BYS){loadBys().then(()=>{if(!$('school').hidden&&$('sv-t')?.textContent.startsWith(name)){const el=$('loccard');if(el)el.outerHTML=localCard(name)}});return '<div id="loccard"></div>'}
+  const es=BYS[name];if(!es||!es.length)return '<div id="loccard"></div>';
+  return `<details class="loc" id="loccard" open><summary>本地视角 · 来自你的《${esc(es.map(e=>e.p).filter((v,i,a)=>a.indexOf(v)===i).join('、'))}本地高校选择》</summary>${es.map(e=>`<div class="locitem"><div class="loch"><b>${esc(e.n)}</b> <span class="tag">${esc(e.p)}${e.kind==='民办'?'民办':''}第${e.i}位</span>${e.meta?` <span class="hintk">${esc(e.meta)}</span>`:''}</div>${e.tier?`<div class="loct">${esc(e.p)}本省档位：${esc(e.tier)} <span class="hintk">（这是${esc(e.p)}考生的分数，和江苏分数无关）</span></div>`:''}<ul>${bullets(e.b)}</ul><button type="button" class="linkbtn" data-prov="${esc(e.p)}">看${esc(e.p)}专题 ›</button></div>`).join('')}</details>`}
+function jsStat(name){const s=D.schools[name];if(!s)return null;const gs=D.groups.filter(g=>g.s===name&&g.kl===st.kl);if(!gs.length)return {n:0};
+  const ls=gs.map(g=>g.line).filter(v=>v!=null);const vc={};gs.forEach(g=>vc[g.v]=(vc[g.v]||0)+1);
+  return {n:gs.length,lo:ls.length?Math.min(...ls):null,hi:ls.length?Math.max(...ls):null,vc}}
+function openProv(p){provSel=p||provSel||(PRESET.pv?.[0]==='江苏'?'江苏':null);$('provv').hidden=false;$('scrim').hidden=false;$('pvbody').innerHTML='<p class="hintk">载入中……</p>';
+  loadProv().then(()=>{if(!provSel||!PROV[provSel])provSel=Object.keys(PROV)[0];renderProv()}).catch(()=>{$('pvbody').innerHTML='<p class="empty">省份资料没有载入成功。</p>'});$('pvclose').focus()}
+function closeProv(){$('provv').hidden=true;$('scrim').hidden=$('drawer').hidden&&$('school').hidden}
+function renderProv(){
+  const keys=Object.keys(PROV);const P=PROV[provSel];
+  $('pvchips').innerHTML=keys.map(k=>`<button type="button" class="chip${k===provSel?' on':''}" data-pv="${esc(k)}" aria-pressed="${k===provSel}">${esc(k)}</button>`).join('');
+  $('pvtabs').innerHTML=[['sch',`本地高校选择顺序（${P.schools.length}所）`],['ind','产业与就业']].map(([k,t])=>`<button type="button" data-pt="${k}" aria-pressed="${provTab===k}">${t}</button>`).join('');
+  if(provTab==='sch'){
+    let tier=null,kind=null,h='';
+    P.schools.forEach((e,i)=>{if(e.kind!==kind){kind=e.kind;tier=null;h+=`<h3 class="pvk">${e.kind}本科</h3>`}
+      if(e.tier&&e.tier!==tier){tier=e.tier;h+=`<div class="pvtier">${esc(P.short)}本省档位：${esc(tier)}</div>`}
+      const js=e.m?jsStat(e.m):null;const k=e.m||e.n;const on=provPick.has(k);
+      const jsTxt=!e.m||!js?'<span class="pvno">本科批不在江苏招生，或本页不含</span>':js.n===0?`<span class="pvno">本科批不招${st.kl}类</span>`:`<span class="pvjs">江苏${st.kl}类 ${js.n}个组 · 26年线 ${js.lo??'—'}${js.hi!==js.lo?'–'+js.hi:''}</span>${Object.entries(js.vc).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([v,n])=>`<span class="pvv"><i class="sw" style="background:var(${(VC[v]||['--v-ruo'])[0]})"></i>${esc(vn(v))}${n}</span>`).join('')}`;
+      h+=`<div class="pvrow"><label class="pvck">${e.m&&js&&js.n?`<input type="checkbox" data-pk="${esc(k)}" ${on?'checked':''} aria-label="勾选${esc(e.n)}">`:''}</label><span class="pvi">${e.i}</span>
+        <div class="pvm"><div class="pvn">${e.m&&js&&js.n?`<button type="button" class="linkbtn strong" data-sv="${esc(e.m)}">${esc(e.n)}</button>`:`<b>${esc(e.n)}</b>`} <span class="hintk">${esc(e.meta)}</span></div><div class="pvl">${jsTxt}</div>
+        ${e.b.length?`<details><summary>${esc(e.b.map(x=>x[0]).filter(Boolean).slice(0,3).join(' · ')||'要点')}</summary><ul>${bullets(e.b)}</ul></details>`:''}</div></div>`});
+    $('pvbody').innerHTML=`<p class="hint">按你资料里的${esc(P.name)}本地选择顺序排列；“本省档位”是${esc(P.short)}考生的分数位次，和江苏无关。右侧是这所学校26年在江苏本科批的组线。勾选后点下方按钮，划线图就只看这些学校。</p>`+h;
+  }else{
+    $('pvbody').innerHTML=P.chap.map((c,ci)=>`<details class="pvch"${ci<2?' open':''}><summary>${esc(c.t)}</summary>${c.intro.map(t=>`<p>${md(t)}</p>`).join('')}${c.tbl?tbl(c.tbl.rows):''}${c.subs.map(x=>`<div class="pvsub"><h4>${esc(x.t)}</h4>${x.txt.map(t=>`<p>${md(t)}</p>`).join('')}${x.rows.length?tbl(x.rows):''}</div>`).join('')}</details>`).join('');
+  }
+  $('pvpick').textContent=provPick.size?`划线图只看这 ${provPick.size} 所学校`:'先勾选学校';$('pvpick').disabled=!provPick.size;
+}
+function tbl(rows){if(!rows.length)return '';const [h,...b]=rows;return `<div class="tblwrap"><table class="pvt"><thead><tr>${h.map(c=>`<th>${md(c)}</th>`).join('')}</tr></thead><tbody>${b.map(r=>`<tr>${r.map(c=>`<td>${md(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+function onlyChip(){const c=$('onlychip');if(!c)return;c.hidden=!st.only.size;c.innerHTML=st.only.size?`只看 ${st.only.size} 所学校：${esc([...st.only].slice(0,3).join('、'))}${st.only.size>3?'等':''} <b aria-hidden="true">✕</b>`:''}
+/* ---------- 志愿表 ---------- */
+const VKEY='hxvol-'+(PRESET.key||'nat');let TABS=[{n:'志愿表1',v:[]}],TI=0,VOL=TABS[0].v;
+try{const o=JSON.parse(localStorage.getItem(VKEY)||'null');if(Array.isArray(o))TABS=[{n:'志愿表1',v:o}];else if(o&&Array.isArray(o.tabs)&&o.tabs.length){TABS=o.tabs;TI=Math.min(o.ti||0,TABS.length-1)}VOL=TABS[TI].v}catch(e){}
+function setTabs(tabs,ti){TABS=(tabs&&tabs.length?tabs:[{n:'志愿表1',v:[]}]).map(t=>({n:t.n||'志愿表',v:(t.v||[]).filter(x=>!D||GBY[x.id])}));TI=Math.max(0,Math.min(ti||0,TABS.length-1));VOL=TABS[TI].v}
+function saveVol(){TABS[TI].v=VOL;if(CUR&&!dirty&&PLANS.length){dirty=true;planBadge()}try{localStorage.setItem(VKEY,JSON.stringify({tabs:TABS,ti:TI}))}catch(e){}$('volbtn').textContent=`志愿表 ${VOL.length}/40`}
+const volIndex=id=>VOL.findIndex(v=>v.id===id);
+function volToggle(id,why){const i=volIndex(id);if(i>=0)VOL.splice(i,1);else{if(VOL.length>=40){flashMsg('志愿表已满40个，请先移出一些');return}VOL.push({id,m:[],obey:true,why:why||''})}saveVol();refreshAll(id)}
+function volMajor(id,mi,on){let i=volIndex(id);if(i<0){if(VOL.length>=40){flashMsg('志愿表已满40个');return false}VOL.push({id,m:[],obey:true});i=VOL.length-1}
+  const v=VOL[i];const k=v.m.indexOf(mi);if(on&&k<0){if(v.m.length>=6){flashMsg('每个专业组最多填6个专业');return false}v.m.push(mi)}if(!on&&k>=0)v.m.splice(k,1);saveVol();return true}
+function flashMsg(t){const m=$('volmsg');m.textContent=t;setTimeout(()=>{if(m.textContent===t)m.textContent=''},3000);$('volbtn').title=t}
+function bandOf(g){const c=cat(g);if(c==='新'||g.line==null)return '组有变动';if(c)return c;return g.line>st.S?'冲(超范围)':'保(超范围)'}
+function volCounts(){const c={冲:0,稳:0,保:0,其他:0};VOL.forEach(v=>{const g=GBY[v.id];if(!g)return;const b=cat(g);if(b==='冲'||b==='稳'||b==='保')c[b]++;else if(g.line!=null&&g.line>st.S)c.冲++;else if(g.line!=null)c.保++;else c.其他++});return c}
+function volCheck(){const out=[],S=st.S,n=VOL.length;if(!n)return out;
+  const add=(lv,t)=>out.push({lv,t});const c=volCounts();
+  const bandOfV=v=>{const g=GBY[v.id];return g.line==null?'无':g.line>S?'冲':g.line>=S-st.Fd?'稳':'保'};
+  // 体检
+  const medList=[];VOL.forEach((v,i)=>{const g=GBY[v.id];if(!g)return;const lim=g.majors.filter(m=>m.medSet.size);if(!lim.length)return;
+    const blk=st.med.size?lim.filter(medBlk):[];const chosen=v.m.map(mi=>g.majors[mi]).filter(m=>m&&medBlk(m));
+    if(st.med.size){if(chosen.length)add('hi',`第${i+1}位 ${g.s}${g.name}：你勾选的 ${uniq(chosen).join('、')} 按学生体检条件限报，会被退档或不予录取。`);else if(blk.length&&v.obey)add('mid',`第${i+1}位 ${g.s}${g.name}：组里有 ${uniq(blk).join('、')} 学生体检限报，服从调剂时学校一般不会调到限报专业，但请核对招生章程。`)}
+    else medList.push(`${g.s}${g.name.slice(0,2)}组（${uniq(lim).slice(0,2).join('、')}）`)});
+  if(!st.med.size&&medList.length)add('mid',`没有填学生体检情况。表里有 ${medList.length} 个组含色觉等体检限报专业：${medList.slice(0,6).join('；')}${medList.length>6?'等':''}。如果孩子有色弱色盲，请先在“体检”里勾选。`);
+  // 数量与梯度
+  if(n<30)add(n<20?'hi':'mid',`只填了 ${n} 个组。江苏本科批可填 40 个，建议尽量填满，尤其要补保底的组。`);
+  if(c.保<Math.max(3,Math.round(n*0.2)))add('hi',`保底的组只有 ${c.保} 个（26年线比学生低 ${st.Fd} 分以上）。保底不足是退档或滑档的最大风险，建议至少 ${Math.max(4,Math.round(n*0.25))} 个。`);
+  if(c.冲>n*0.4)add('mid',`冲的组有 ${c.冲} 个，占 ${Math.round(c.冲/n*100)}%，偏多。`);
+  if(c.稳<n*0.3&&n>=10)add('mid',`稳的组只有 ${c.稳} 个，略少，当目标院校位次波动时容易一下子掉层次。`);
+  if(c.其他)add('mid',`有 ${c.其他} 个组26年没有投档线，冲稳保无法判断，请单独核对。`);
+  // 顺序
+  for(let i=1;i<VOL.length;i++){const a=GBY[VOL[i-1].id],b=GBY[VOL[i].id];if(a&&b&&a.line!=null&&b.line!=null&&b.line-a.line>=5){add('mid',`第${i+1}位 ${b.s}${b.name}（26年线${b.line}）排在第${i}位 ${a.s}${a.name}（${a.line}）后面，线高了 ${b.line-a.line} 分。平行志愿按顺序检索，线高的一般应排在前面，确认是有意为之。`);break}}
+  // 组内
+  VOL.forEach((v,i)=>{const g=GBY[v.id];if(!g)return;const a=analyze(g);const tag=`第${i+1}位 ${g.s}${g.name}`;
+    if(!v.obey){const live=a.ms.filter(m=>!m.blk&&m.sc!=null);const ch=v.m.map(mi=>g.majors[mi]).filter(Boolean);const allAbove=ch.length&&ch.every(m=>m.sc!=null&&m.sc>S+2);
+      if(!(bandOfV(v)!=='保'||allAbove))add('mid',`${tag}：不服从调剂。所填专业都录满会被退档，确认学生确实只接受这几个专业。`);else add('hi',`${tag}：不服从调剂。所填专业都录满时会被退档，${allAbove?'而且你选的专业按往年分数都够不着，':''}退档后这一批次很难再补救。`)}
+    else{if(a.fl&&a.fl.rk>=2&&g.line!=null&&g.line<=S+2&&g.line>=S-6)add('mid',`${tag}：服从调剂，往年卡线进组的人去的是 ${a.fl.n}${a.fl.rk===3?'（坑）':'（不太理想）'}，学生能不能接受？`);
+      const av=a.ms.filter(m=>avoided(m)&&m.sc!=null&&m.sc<=S+2);if(av.length)add('hi',`${tag}：组里有学生明确不学的 ${uniq(av).slice(0,3).join('、')}，而且按分数能被调剂过去。`)}
+    if(a.risk==='hi'&&bandOfV(v)!=='冲')add('mid',`${tag}：${RISKT.hi[1]}——${a.text.slice(0,60)}…`)});
+  const nom=VOL.map((v,i)=>v.m.length?null:i+1).filter(Boolean);if(nom.length)add('mid',`第 ${nom.join('、')} 位还没有勾选专业（每组最多6个）。`);
+  const dup={};VOL.forEach(v=>{const g=GBY[v.id];if(g)dup[g.s]=(dup[g.s]||0)+1});const many=Object.entries(dup).filter(x=>x[1]>=4);if(many.length)add('ok',`同一所学校填了较多组：${many.map(x=>x[0]+x[1]+'个').join('、')}，可以考虑是否挤占了其他学校的位置。`);
+  if(!out.some(x=>x.lv!=='ok'))add('ok','没有发现明显问题。');
+  return out}
+function volRender(){
+  const c=volCounts(),n=VOL.length||1;
+  $('voltabs').innerHTML=TABS.map((t,i)=>`<button type="button" class="chip${i===TI?' on':''}" data-ti="${i}" aria-pressed="${i===TI}">${esc(t.n)} <small>${t.v.length}</small></button>`).join('')+`<button type="button" class="chip" id="tabnew">＋ 新建一张</button><button type="button" class="chip" id="tabdup">复制当前</button>`;
+  $('voltabname').value=TABS[TI].n;
+  $('volstat').innerHTML=`<span class="vc chong">冲 <b>${c.冲}</b></span><span class="vc wen">稳 <b>${c.稳}</b></span><span class="vc bao">保 <b>${c.保}</b></span>${c.其他?`<span class="vc">无26线 <b>${c.其他}</b></span>`:''}<span class="vcbar"><i class="chong" style="width:${c.冲/n*100}%"></i><i class="wen" style="width:${c.稳/n*100}%"></i><i class="bao" style="width:${c.保/n*100}%"></i></span>`;
+  const ck=volCheck();const bad=ck.filter(x=>x.lv!=='ok').length;
+  $('volcheck').innerHTML=VOL.length?`<details ${bad?'open':''}><summary>志愿表检查：${bad?`<b>${bad} 条提醒</b>`:'没有明显问题'}</summary><ul>${ck.map(x=>`<li class="ck ${x.lv}">${esc(x.t)}</li>`).join('')}</ul><p class="hintk">按26年真实投档线、组内专业往年分数和你填的学生条件自动检查，以学校招生章程为准。</p></details>`:'';
+  $('volbody').innerHTML=VOL.length?VOL.map((v,i)=>{const g=GBY[v.id];if(!g)return '';const b=cat(g)||bandOf(g);
+    return `<div class="vrow"><span class="no">${i+1}</span><span class="vt"><span class="vb ${b==='冲'?'chong':b==='稳'?'wen':b==='保'?'bao':''}">${esc(b.slice(0,2))}</span> ${esc(g.s)} · ${esc(g.name)} ${pill(g.v)} <span class="hintk">${esc(g.kl)} · 26年线${g.line??'无'}${g.r26?' · 位次'+g.r26.toLocaleString():''}</span></span>
+      <span class="ops"><button type="button" data-vup="${i}" aria-label="上移">↑</button><button type="button" data-vdown="${i}" aria-label="下移">↓</button><button type="button" data-vdel="${i}" aria-label="移出">✕</button></span>
+      <span class="vm">${v.m.length?v.m.map((mi,k)=>`<span class="mn">${k+1}.${esc(g.majors[mi]?.n||'')}</span>`).join(''):'<span class="hintk">还没选专业：展开这个组，在专业表左侧勾选</span>'} <label class="hintk"><input type="checkbox" data-vobey="${i}" ${v.obey?'checked':''}> 服从调剂</label> <button type="button" class="linkbtn" data-vgo="${v.id}">去这个组</button></span>${v.why?`<span class="why">AI：${esc(v.why)}</span>`:''}</div>`}).join(''):'<p class="empty">还没有加入任何专业组。在划线图左侧方框打勾，或展开一个组点“加入志愿表”。</p>';
+}
+function volRows(){return VOL.map((v,i)=>{const g=GBY[v.id];if(!g)return null;const ms=v.m.map(mi=>g.majors[mi]?.n||'');while(ms.length<6)ms.push('');
+  return [i+1,g.s,g.name,g.kl,g.line??'无',bandOf(g),vn(g.v),...ms,v.obey?'服从':'不服从',g.pit||'',v.why||'']}).filter(Boolean)}
+const VHEAD=['序号','院校','专业组','科类','26年投档线','冲稳保','组结论','专业1','专业2','专业3','专业4','专业5','专业6','调剂','组里的坑','备注'];
+function volText(){return `【${TABS[TI].n}】${st.kl}类${st.S}分\n`+volRows().map(r=>`${r[0]}. ${r[1]} ${r[2]}（${r[3]}，26年线${r[4]}，${r[5]}）专业：${r.slice(7,13).filter(Boolean).map((n,k)=>`${k+1}.${n}`).join(' ')||'未选'}；${r[13]}调剂`).join('\n')}
+let downloads=null;
+function xesc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')}
+function colL(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s}
+/* rows: [{c:[values], s:styleId}], merges:['A1:B2'], cols:[widths] ; styles: 0普通 1表头 2组行 3标题 4专业行 5红字 */
+function sheetXml(rows,merges,cols){
+  const r=rows.map((row,ri)=>`<row r="${ri+1}"${row.h?` ht="${row.h}" customHeight="1"`:''}>${row.c.map((v,ci)=>{const ref=colL(ci)+(ri+1);const st=Array.isArray(row.s)?row.s[ci]:row.s;
+    if(v==null||v==='')return `<c r="${ref}" s="${st||0}"/>`;if(typeof v==='number')return `<c r="${ref}" s="${st||0}"><v>${v}</v></c>`;return `<c r="${ref}" s="${st||0}" t="inlineStr"><is><t xml:space="preserve">${xesc(v)}</t></is></c>`}).join('')}</row>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${r}</sheetData>${merges.length?`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`}
+const XSTY=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="5"><font><sz val="10"/><name val="等线"/></font><font><b/><sz val="10"/><name val="等线"/></font><font><b/><sz val="14"/><name val="等线"/></font><font><sz val="10"/><color rgb="FFC0392B"/><name val="等线"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="等线"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F5A7A"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFCFE3F0"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4F7FA"/></patternFill></fill></fills><borders count="2"><border/><border><left style="thin"><color rgb="FFB7C4CF"/></left><right style="thin"><color rgb="FFB7C4CF"/></right><top style="thin"><color rgb="FFB7C4CF"/></top><bottom style="thin"><color rgb="FFB7C4CF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="6"><xf fontId="0" borderId="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf fontId="4" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf fontId="1" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf fontId="2" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf fontId="0" fillId="4" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" horizontal="center" wrapText="1"/></xf><xf fontId="3" borderId="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+async function buildXlsx(){
+  const S=st.S,R=s2r(st.kl,S),c=volCounts();const who=CUR?.name||'未命名学生';
+  const H=['序号','院校','层次','地区','选科','档位','专业组 / 专业','26计划','学费/年','26最低分','26最低位次','25最低分','25最低位次','24最低分','结论 / 风险','调剂'];
+  const rows=[{c:[`${who} · ${TABS[TI].n} · 江苏 ${st.kl}类 ${S}分（位次约${R.toLocaleString()}） · 再选${[...st.subs].join('')||'未填'} · 冲${c.冲} 稳${c.稳} 保${c.保}`],s:3,h:30},
+    {c:['','','','','','','','26年（组为真实投档线；专业为25年分数按位次折合）','','','','25年','','24年','',''],s:1},{c:H,s:1,h:22}];
+  const merges=[`A1:${colL(H.length-1)}1`,'H2:K2','L2:M2'];
+  VOL.forEach((v,i)=>{const g=GBY[v.id];if(!g)return;const sc=D.schools[g.s];const a=analyze(g);const r0=rows.length+1;
+    const y=g.y25;const band=cat(g)||bandOf(g);
+    rows.push({c:[i+1,g.s,sc.tags.filter(t=>t!=='保研').join('/')+(sc.tags.includes('保研')?'/保研':''),sc.prov+(sc.city&&sc.city!==sc.prov?'/'+sc.city:''),g.sel||'不限',band,`${g.name}（已填${v.m.length}个）`,g.plan,'',g.line??'—',g.r26??'—',y?y.l+(y.t==='前身'?`（前身${y.c}组）`:''):'—',y?y.r:'—','',`${vn(g.v)} · ${RISKT[a.risk][1]}${g.pit?' · 坑：'+g.pit:''}`,v.obey?'服从':'不服从'],s:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,v.obey?2:5]});
+    v.m.forEach((mi,k)=>{const m=g.majors[mi];if(!m)return;const flag=[m.rk===3?'坑':m.rk===2?'不太理想':'',medBlk(m)?'体检限报':'',avoided(m)?'学生不学':'',m.nw?'26新增专业':''].filter(Boolean).join('、');
+      rows.push({c:['','','','','','',`${k+1}. ${m.n}${m.note?' '+m.note:''}`,m.p,m.fee||'',m.sc!=null?`≈${m.sc}`:'—','',m.s25??'—',m.s25!=null?s2rY(g.kl,m.s25):'—',m.s24??'—',flag,''],s:[0,0,0,0,0,0,0,4,4,4,4,4,4,4,flag?5:0,0]})});
+    const r1=rows.length;if(r1>r0)for(const col of ['A','B','C','D','E','F'])merges.push(`${col}${r0}:${col}${r1}`)});
+  const ck=volCheck();const rows2=[{c:['志愿表检查'],s:3,h:26},{c:['级别','内容'],s:1},...ck.map(x=>({c:[x.lv==='hi'?'重要':x.lv==='mid'?'提醒':'提示',x.t],s:[x.lv==='hi'?5:0,0]}))];
+  const meta=[['学生',who],['志愿表',TABS[TI].n],['科类',st.kl],['分数',S],['位次（按26年换算）',R],['再选',[...st.subs].join('、')||'未填'],['地区',[...st.pv].join('、')||'全国'],['层次',[...st.lv].join('、')||'不限'],['想学',[...st.dirs].map(dn).concat([...st.mj].map(tokName)).join('、')],['不学',[...st.avoid].map(dn).join('、')],['体检',[...st.med].join('/')||'无'],['备注',$('plnote')?.value||''],['导出时间',new Date().toLocaleString()],['说明','26年组线为江苏真实投档线；组内专业的“26最低分”为25年真实最低分按位次折合，26年专业分公布后以实际为准。']];
+  const rows3=[{c:['学生信息与筛选条件'],s:3,h:26},...meta.map(r=>({c:r,s:[1,0]}))];
+  const zip=new JSZip();
+  zip.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${[1,2,3].map(i=>`<Override PartName="/xl/worksheets/sheet${i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`);
+  zip.file('_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
+  zip.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="志愿表" sheetId="1" r:id="rId1"/><sheet name="志愿表检查" sheetId="2" r:id="rId2"/><sheet name="学生信息" sheetId="3" r:id="rId3"/></sheets></workbook>`);
+  zip.file('xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${[1,2,3].map(i=>`<Relationship Id="rId${i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i}.xml"/>`).join('')}<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  zip.file('xl/styles.xml',XSTY);
+  zip.file('xl/worksheets/sheet1.xml',sheetXml(rows,merges,[5,16,13,11,9,6,36,7,8,9,10,15,10,8,38,7]));
+  zip.file('xl/worksheets/sheet2.xml',sheetXml(rows2,['A1:B1'],[8,110]));
+  zip.file('xl/worksheets/sheet3.xml',sheetXml(rows3,['A1:B1'],[18,90]));
+  return await zip.generateAsync({type:'uint8array'});
+}
+function s2rY(kl,s){const c=D.conv[kl];if(!c)return '';s=Math.round(s);if(s>c.hi)return c.rank[c.hi-c.lo];if(s<c.lo)return c.rank[0];return c.rank[s-c.lo]}
+async function exportXlsx(){
+  if(!VOL.length){flashMsg('志愿表是空的');return}
+  if(!window.JSZip){flashMsg('表格组件还没加载好，稍后再试');return}
+  let data;try{data=await buildXlsx()}catch(e){console.error(e);flashMsg('生成表格时出错');return}
+  window.__lastXlsx=data;
+  const fname=`${CUR?.name||'志愿表'}-${TABS[TI].n}-${st.kl}${st.S}.xlsx`;
+  if(!downloads){try{const u=URL.createObjectURL(new Blob([data],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));const a=document.createElement('a');a.href=u;a.download=fname;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);flashMsg('已导出')}catch(e){flashMsg('这里不能直接下载，可以先用“复制为文字”')}return}
+  try{await downloads.save({filename:`${CUR?.name||'志愿表'}-${TABS[TI].n}-${st.kl}${st.S}.xlsx`,data});flashMsg('已导出')}catch(e){flashMsg(e?.code==='declined'?'已取消导出':'这里暂时不能导出，可以先用“复制为文字”')}
+}
+function openDrawer(){volRender();$('drawer').hidden=false;$('scrim').hidden=false;$('drclose').focus()}
+function closeDrawer(){$('drawer').hidden=true;$('scrim').hidden=$('school').hidden;$('volbtn').focus()}
+function refreshAll(id){
+  document.querySelectorAll(`.item[data-id="${id}"]`).forEach(el=>{const ctx=el.dataset.ctx||'';const g=GBY[id];const open=st.open.has(ctx+id);const tmp=document.createElement('div');tmp.innerHTML=item(g,ctx);const n=tmp.firstElementChild;el.replaceWith(n);if(open){const b=n.querySelector('.body');b.hidden=false;b.innerHTML=detail(g,ctx)}});
+  const r=ROWS.findIndex(x=>x.g.id===id);if(r>=0)chart();if(!$('drawer').hidden)volRender()}
+/* ---------- 控件 ---------- */
+function famChips(box){const fam={};D.dirs.forEach(([n,f])=>{(fam[f]=fam[f]||[]).push(n)});
+  $(box).innerHTML=Object.entries(fam).map(([f,ns])=>`<span class="famtag">${esc(f)}</span>${ns.map(n=>`<label class="chip${box==='avoid'?' danger':''}"><input type="checkbox" value="${esc(n)}">${esc(dn(n))}</label>`).join('')}`).join('')}
+function provUI(){const pc={};Object.values(D.schools).forEach(s=>{pc[s.prov]=(pc[s.prov]||0)+1});
+  $('provs').innerHTML=Object.keys(pc).sort((a,b)=>(b==='江苏')-(a==='江苏')||pc[b]-pc[a]).map(p=>`<label class="chip"><input type="checkbox" value="${esc(p)}">${esc(p)}<small>${pc[p]}</small></label>`).join('');
+  $('regions').innerHTML=REGIONS.map(([n,v])=>`<button type="button" class="chip big region" data-q="${v}" aria-pressed="false">${n}</button>`).join('')}
+function medUI(){const C=D.medCodes||{};$('medlist').innerHTML=Object.keys(C).filter(c=>!/^1[1-6]$/.test(c)).map(c=>`<label><input type="checkbox" value="${c}"><b>${c}</b><span>${esc(C[c])}</span></label>`).join('')+`<div class="sub">代码11–16（严重心脏病、肝炎、结核等）学校可以不予录取，不按专业区分，这里不列。</div>`}
+function legend(){const ks=['高危','有坑','需注意','基本干净','干净','主体偏弱'];$('legend').innerHTML=ks.map(k=>`<span><i class="sw" style="background:var(${VC[k][0]})"></i>${esc(vn(k))}</span>`).join('')+`<span><i class="ti"></i>专业</span><span><i class="ti p"></i>坑</span><span><i class="ti f"></i>想学</span><span><i class="ti e"></i>无去年分·预估</span><span><i class="glk"></i>26年投档线</span><span><i class="hist"></i>25年本组线</span><span><i class="hist o"></i>25年前身组线</span>`}
+function helpUI(){
+  const sw=c=>`<i class="sw" style="background:var(${c})"></i>`;
+  $('helpbody').innerHTML=`<p class="hint" style="max-width:none">选专业组分两步：<b>初筛</b>在划线图上找出你够得着、能接受的组；<b>细筛</b>展开每个组，看组里每个专业去年多少分、你能挑到哪几个、会不会被调剂，再排顺序。</p>
+  <div class="subhd">划线图上每一行</div>
+  <div class="legrid">
+   <span class="sym"><svg width="14" height="14"><rect x="1" y="1" width="12" height="12" rx="2.5" fill="none" stroke="currentColor"/></svg></span><span>打勾＝放进志愿表初选。也可以在棒子上点右键。</span>
+   <span class="sym"><span class="stk"></span></span><span><b>实心横棒</b>：组里各专业的分数范围。26年专业分大多还没公布，这里用<b>25年真实专业最低分，按位次折合到26年的分数尺度</b>（比如25年600分是第33986名，26年同名次约601分）。</span>
+   <span class="sym"><svg width="30" height="10"><rect x="1" y="1" width="28" height="8" rx="4" fill="none" stroke="currentColor" stroke-dasharray="3 2"/></svg></span><span><b>虚线框</b>：表里的预估范围（26新增专业或新增组）。只作参考，不参与任何判断。</span>
+   <span class="sym"><i class="ti"></i></span><span>棒上的圆点：组里每个专业（25年分数折合到26年）。<b>空心</b>普通，<b>红</b>是坑，<b>黄</b>是不太理想，<b>蓝</b>是你想学的，<b>虚线圈</b>是没有去年分数的新增专业。</span>
+   <span class="sym"><i class="glk"></i></span><span>棒上的<b>竖短线</b>：这个组<b>2026年真实投档线</b>，冲稳保就按它判断。</span>
+   <span class="sym"><i class="hist"></i></span><span>实心小三角：这个组<b>25年</b>的投档线（折合到26年分数）；<b>空心</b>小三角表示26年组有变动，画的是<b>前身组</b>25年的线。和竖短线比，看这个组26年是涨是跌。</span>
+   <span class="sym"><svg width="4" height="16"><line x1="2" y1="0" x2="2" y2="16" stroke="currentColor" stroke-width="2"/></svg></span><span>竖线是你的分数，浅色带是上浮、下浮的范围。竖线左边的圆点你都够得着。</span>
+  </div>
+  <div class="subhd">棒子的颜色＝组的结论</div>
+  <div class="legrid">
+   <span class="sym">${sw('--v-ganjing')}</span><span><b>干净</b>：组里只有一个方向。</span>
+   <span class="sym">${sw('--v-jiben')}</span><span><b>基本干净</b>：只有相近方向，调剂也跑不远。</span>
+   <span class="sym">${sw('--v-zhuyi')}</span><span><b>需注意</b>：有“不太理想”的专业。</span>
+   <span class="sym">${sw('--v-youkeng')}</span><span><b>有坑</b>：有明显不搭的冷门专业，服从调剂可能被调过去。</span>
+   <span class="sym">${sw('--v-gaowei')}</span><span><b>高危</b>：有坑，而且往年卡线进组的人就落在坑里，或坑只有一两个名额、很隐蔽。</span>
+   <span class="sym">${sw('--v-ruo')}</span><span><b>主体偏冷</b>：组的主体方向本身偏冷，夹带的少量热门专业是诱饵。</span>
+  </div>
+  <div class="subhd">左边的小字</div>
+  <div class="legrid"><span class="sym"><span class="gtg">拔尖</span></span><span>组号后的紫色/蓝色小字是组的特点：新增、中外、拔尖或实验班、高学费、校区等。</span>
+   <span class="sym" style="font-size:12px;color:var(--warn-ink)">坑：…</span><span>一句话备注里的红字是坑专业和名额；蓝字“夹带…”是偏冷组里的热门诱饵。</span></div>
+  <div class="subhd">冲、稳、保</div>
+  <p class="hint" style="max-width:none">只按<b>2026年真实投档线</b>判断：线在你分数以上、上浮范围内为冲；在你分数以下、下浮范围内为稳；再往下为保。你的分数按27年预估分或位次输入（输入位次会按26年的分数位次换算）。点学校名可以看25年到26年的组别变化图，理解为什么有的组26年涨、有的跌；27年的组要等明年计划公布后再对。</p>`;
+}
+function syncUI(){
+  const setP=(id,v)=>document.querySelectorAll(`#${id} button`).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===v)));
+  setP('kl',st.kl);setP('gt',st.gt);setP('zw',st.zw);setP('bandmode',st.band);
+  $('score').value=st.S;$('range').value=st.S;if(document.activeElement!==$('rank'))$('rank').value=D?s2r(st.kl,st.S):'';$('fu').value=st.Fu;$('fd').value=st.Fd;$('mb').checked=st.mb;$('dropavoid').checked=st.dropAvoid;
+  const chk=(sel,set)=>document.querySelectorAll(sel+' input[type=checkbox]').forEach(i=>{if(i.value)i.checked=set.has(i.value)});
+  chk('#subs',st.subs);chk('#lv',st.lv);chk('#provs',st.pv);chk('#dirs',st.dirs);chk('#avoid',st.avoid);chk('#medlist',st.med);
+  document.querySelectorAll('#regions button').forEach(b=>{const ps=b.dataset.q.split(',').filter(Boolean);b.setAttribute('aria-pressed',String(ps.length?ps.every(x=>st.pv.has(x)):st.pv.size===0))});
+  $('provsum').textContent=st.pv.size?`已选${st.pv.size}省：`+[...st.pv].slice(0,6).join('、')+(st.pv.size>6?'…':''):'按省份选';
+  $('provbox').classList.toggle('on',st.pv.size>0);
+  $('medsum').textContent=st.med.size?'限报 '+[...st.med].join('/'):'无限报';$('medbox').classList.toggle('on',st.med.size>0);
+  $('wantsum').textContent=st.dirs.size?'想学：'+[...st.dirs].map(ab).slice(0,4).join('、')+(st.dirs.size>4?'…':''):'想学的方向';$('wantbox').classList.toggle('on',st.dirs.size>0);
+  $('avoidsum').textContent=st.avoid.size?'不学：'+[...st.avoid].map(ab).slice(0,4).join('、')+(st.avoid.size>4?'…':''):'不学的方向';$('avoidbox').classList.toggle('on',st.avoid.size>0);
+  document.documentElement.style.setProperty('--ctlh',($('controls').offsetHeight||0)+'px');
+}
+let raf=0;
+function render(){syncUI();onlyChip();mjChips();if(!$('kwsug').hidden&&document.activeElement===$('kw'))mjSuggest();if(CUR&&!dirty){dirty=true;planBadge()}lead();chart();list();saveState()}
+function soon(){cancelAnimationFrame(raf);raf=requestAnimationFrame(render)}
+const SKEY='hxstate3-'+(PRESET.key||'nat');
+function saveState(){try{localStorage.setItem(SKEY,JSON.stringify({kl:st.kl,S:st.S,Fu:st.Fu,Fd:st.Fd,mb:st.mb,gt:st.gt,zw:st.zw,band:st.band,tab:st.tab,kw:st.kw,dropAvoid:st.dropAvoid,only:[...st.only],mj:[...st.mj],dirs:[...st.dirs],avoid:[...st.avoid],lv:[...st.lv],pv:[...st.pv],subs:[...st.subs],med:[...st.med]}))}catch(e){}}
+function loadState(){try{const o=JSON.parse(localStorage.getItem(SKEY)||'null');if(!o)return;if(o.kw&&!o.mj)o.mj=['t:'+o.kw];o.kw='';['kl','S','Fu','Fd','mb','gt','zw','band','tab','kw','dropAvoid'].forEach(k=>{if(o[k]!=null)st[k]=o[k]});['only','mj','dirs','avoid','lv','pv','subs','med'].forEach(k=>{if(Array.isArray(o[k]))st[k]=new Set(o[k])})}catch(e){}}
+const reset=()=>{st.shown=15;st.rows=120};
+/* ---------- 专业搜索：门类 / 专业类 / 具体专业 ---------- */
+let MJI=null,mjDrill='';
+function mjIndex(){if(MJI&&MJI.kl===st.kl)return MJI;const c={},k={},m={},kOf={},cOf={};
+  D.groups.forEach(g=>{if(g.kl!==st.kl)return;const seen=new Set();g.majors.forEach(x=>{const a=x.mc||'其他',b=x.zl||'其他',n=bnm(x.n);
+    [['c:'+a,c],['k:'+b,k],['m:'+n,m]].forEach(([t,o])=>{if(!seen.has(t)){seen.add(t);o[t]=(o[t]||0)+1}});kOf['k:'+b]='c:'+a;cOf['m:'+n]=cOf['m:'+n]||'k:'+b})});
+  return MJI={kl:st.kl,c,k,m,kOf,cOf}}
+const tokName=t=>({c:'门类',k:'专业类',m:'专业',t:'含'})[t[0]]+'：'+t.slice(2);
+function mjTokFor(v){const I=mjIndex();if(I.k['k:'+v])return 'k:'+v;if(I.c['c:'+v])return 'c:'+v;if(I.m['m:'+v])return 'm:'+v;return 't:'+v}
+function mjAdd(t){st.mj.add(t);reset();render()}
+function mjRow(t,n,drill){const on=st.mj.has(t);return `<div class="sgrow"><button type="button" class="sgadd${on?' on':''}" data-add="${esc(t)}">${on?'✓ ':'＋ '}${esc(t.slice(2))}</button><span class="sgk">${({c:'门类',k:'专业类',m:'专业'})[t[0]]}</span><span class="sgn">${n}个组</span>${drill?`<button type="button" class="sgdr" data-drill="${esc(t)}">看下一级 ›</button>`:''}</div>`}
+function mjSuggest(){const I=mjIndex(),q=$('kw').value.trim(),box=$('kwsug');let h='';
+  if(q){mjDrill='';const f=(o,lim)=>Object.entries(o).filter(([t])=>t.slice(2).includes(q)).sort((a,b)=>b[1]-a[1]).slice(0,lim);
+    const cs=f(I.c,4),ks=f(I.k,8),ms=f(I.m,14);
+    h=[...cs.map(([t,n])=>mjRow(t,n,true)),...ks.map(([t,n])=>mjRow(t,n,true)),...ms.map(([t,n])=>mjRow(t,n,false))].join('')+`<div class="sgrow"><button type="button" class="sgadd" data-add="t:${esc(q)}">＋ 专业名含“${esc(q)}”</button><span class="sgk">模糊</span><span class="hintk">回车也可以</span></div>`;
+    if(!cs.length&&!ks.length&&!ms.length)h=`<div class="hintk">没有叫“${esc(q)}”的门类、专业类或专业，可以按模糊匹配添加：</div>`+h}
+  else if(!mjDrill){h='<div class="sghd">按门类浏览（点“看下一级”逐层展开到具体专业）</div>'+Object.entries(I.c).sort((a,b)=>b[1]-a[1]).map(([t,n])=>mjRow(t,n,true)).join('')}
+  else if(mjDrill[0]==='c'){h=`<div class="sghd"><button type="button" class="linkbtn" data-back="">‹ 全部门类</button> ${esc(mjDrill.slice(2))} 下的专业类</div>`+Object.entries(I.k).filter(([t])=>I.kOf[t]===mjDrill).sort((a,b)=>b[1]-a[1]).map(([t,n])=>mjRow(t,n,true)).join('')}
+  else{const up=I.kOf[mjDrill]||'';h=`<div class="sghd"><button type="button" class="linkbtn" data-back="${esc(up)}">‹ ${esc(up.slice(2)||'返回')}</button> ${esc(mjDrill.slice(2))} 下的专业</div>`+Object.entries(I.m).filter(([t])=>I.cOf[t]===mjDrill).sort((a,b)=>b[1]-a[1]).map(([t,n])=>mjRow(t,n,false)).join('')}
+  box.innerHTML=h;box.hidden=false}
+function mjChips(){$('mjchips').innerHTML=[...st.mj].map(t=>`<button type="button" class="chip on" data-rm="${esc(t)}" title="点一下去掉">${esc(tokName(t))} ✕</button>`).join('')}
+/* ---------- 学生方案：保存 / 打开 / 一键清空 ---------- */
+const PKEY='hxplans-'+(PRESET.key||'nat');let PDB=null,PLANS=[],CUR=null,dirty=false;
+function snap(){return {kl:st.kl,S:st.S,Fu:st.Fu,Fd:st.Fd,mb:st.mb,gt:st.gt,zw:st.zw,band:st.band,tab:st.tab,kw:st.kw,dropAvoid:st.dropAvoid,only:[...st.only],mj:[...st.mj],dirs:[...st.dirs],avoid:[...st.avoid],lv:[...st.lv],pv:[...st.pv],subs:[...st.subs],med:[...st.med]}}
+function applySnap(o){const d={kl:'物理',S:600,Fu:10,Fd:10,mb:false,gt:'',zw:'',band:'line',tab:'稳',kw:'',dropAvoid:false};Object.assign(st,d);['kl','S','Fu','Fd','mb','gt','zw','band','tab','kw','dropAvoid'].forEach(k=>{if(o&&o[k]!=null)st[k]=o[k]});
+  ['only','mj','dirs','avoid','lv','pv','subs','med'].forEach(k=>{st[k]=new Set(o&&Array.isArray(o[k])?o[k]:[])});if(PRESET.pv&&PRESET.lockProv)st.pv=new Set(PRESET.pv);st.open.clear();st.pin.clear();st.sel=null;reset()}
+async function planStore(){if(PDB)return PDB;try{if(window.claude?.use){const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);const uid=user?await user.id():null;if(db&&uid){PDB={kind:'db',col:db.doc('data/users/'+uid+'/profile').collection('plans')};return PDB}}}catch(e){}
+  PDB={kind:'local'};return PDB}
+async function planList(){const S=await planStore();
+  if(S.kind==='db'){try{const q=await S.col.get();PLANS=q.docs.map(d=>({id:d.id,...d.data()}))}catch(e){PLANS=[]}}
+  else{try{PLANS=JSON.parse(localStorage.getItem(PKEY)||'[]')}catch(e){PLANS=[]}}
+  PLANS.sort((a,b)=>(b.t||0)-(a.t||0));return PLANS}
+async function planSave(name){name=(name||'').trim();if(!name){planMsg('先给这个学生起个名字');$('plname').focus();return}
+  const S=await planStore();const id=CUR&&CUR.name===name?CUR.id:('p'+Date.now().toString(36));
+  saveVol();const doc={name,t:Date.now(),st:snap(),vol:VOL,tabs:TABS,ti:TI,note:$('plnote').value.slice(0,2000)};
+  try{if(S.kind==='db')await S.col.doc(id).set(doc);else{const all=await planList();const i=all.findIndex(x=>x.id===id);const rec={id,...doc};if(i>=0)all[i]=rec;else all.unshift(rec);localStorage.setItem(PKEY,JSON.stringify(all))}
+    CUR={id,name};dirty=false;planBadge();planMsg(`已保存“${name}”`);planRender()}catch(e){planMsg(e?.code==='not_granted'?'没有获得保存权限':'保存没有成功，稍后再试')}}
+async function planOpen(id){const p=PLANS.find(x=>x.id===id);if(!p)return;applySnap(p.st);setTabs(p.tabs||[{n:'志愿表1',v:p.vol||[]}],p.ti);saveVol();CUR={id:p.id,name:p.name};$('plnote').value=p.note||'';render();dirty=false;planBadge();$('planm').hidden=true;flashMsg(`已打开“${p.name}”`)}
+async function planDel(id){const S=await planStore();try{if(S.kind==='db')await S.col.doc(id).delete();else{localStorage.setItem(PKEY,JSON.stringify(PLANS.filter(x=>x.id!==id)))}}catch(e){}if(CUR&&CUR.id===id)CUR=null;planBadge();planRender()}
+function clearAll(){setTabs(null,0);saveVol();CUR=null;dirty=false;$('plnote').value='';render();planBadge();flashMsg('已清空，可以开始新学生')}
+function planBadge(){$('planbtn').innerHTML=CUR?`学生：<b>${esc(CUR.name)}</b>${dirty?' <span class="dot" title="有改动未保存">●</span>':''}`:'学生方案'}
+function planMsg(t){$('plmsg').textContent=t}
+async function planRender(){await planList();$('plname').value=CUR?.name||$('plname').value;
+  const where=PDB?.kind==='db'?'保存在你的账号里，换电脑、换浏览器打开这个页面也在':'保存在这台电脑的浏览器里（换浏览器或清缓存会丢失）';
+  $('plwhere').textContent=where;
+  $('pllist').innerHTML=PLANS.length?PLANS.map(p=>`<div class="plrow${CUR&&CUR.id===p.id?' on':''}"><div><b>${esc(p.name)}</b> <span class="hintk">${esc(p.st?.kl||'')}${p.st?.S??''}分 · ${(p.tabs||[1]).length}张表 · 当前${(p.vol||[]).length}个组 · ${new Date(p.t||0).toLocaleString()}</span>${p.note?`<div class="hintk">${esc(p.note.slice(0,60))}</div>`:''}</div><span><button type="button" class="btn sm primary" data-plopen="${p.id}">打开</button> <button type="button" class="btn sm danger" data-pldel="${p.id}">删除</button></span></div>`).join(''):'<p class="empty">还没有保存过学生方案。</p>'}
+let clrArm=0;
+/* ---------- 悬浮：同分专业合并成一行 ---------- */
+const tip=$('tip');let curRow=-1,curTick=null;
+function hideAll(){tip.hidden=true;$('mtip').hidden=true;curRow=-1;curTick=null;const h=$('hl');if(h){h.setAttribute('cx',-20);h.setAttribute('cy',-20)}}
+function mergeByScore(ms,S){const out=[];const map=new Map();
+  ms.forEach(m=>{const v=m.sc;const k=v==null?'x':v;if(!map.has(k)){const e={v,ms:[]};map.set(k,e);out.push(e)}const e=map.get(k);if(!e.ms.some(x=>x.n===m.n))e.ms.push(m)});
+  return out.sort((a,b)=>(b.v??-1)-(a.v??-1))}
+function showTip(el){const g=GBY[el.dataset.id];if(!g)return;const a=analyze(g),S=st.S,scx=D.schools[g.s];
+  let lines='',done=false;
+  mergeByScore(g.majors,S).forEach(e=>{
+    if(e.v==null){lines+=`<div class="ln"><span>${esc(e.ms.map(m=>m.n).join('、'))}</span><span>无去年分</span></div>`;return}
+    if(!done&&e.v<=S){lines+=`<div class="ln me"><span>你 ${S}分</span><span>↓ 以下都够得着</span></div>`;done=true}
+    const pit=e.ms.some(m=>m.rk>=2),pf=e.ms.some(isPref);
+    lines+=`<div class="ln${pf?' pf':''}${pit?' pt':''}" data-k="${e.v}"><span>${e.ms.map(m=>esc(m.n)+(m.rk===3?'·坑':m.rk===2?'·不太理想':'')+(blocked(m)?'·排除':'')).join('、')}</span><span>${e.v}</span></div>`});
+  if(!done&&g.lo!=null)lines+=`<div class="ln me"><span>你 ${S}分</span><span>比所有专业都低</span></div>`;
+  let head=g.line==null?'26年没有投档线数据':a.best?`大概率能录到：<b>${esc(a.best.n)}</b>（25年${a.best.s25}，折合26年${a.best.sc}）`:`以你的分数，组里没有够得着的专业`;
+  if(g.lo!=null&&S>=g.hi&&g.line!=null)head='组里所有专业都够得着，可以按喜好挑';
+  const rs=ruleShort(scx);
+  tip.innerHTML=`<b>${esc(g.s)} · ${esc(g.name)}</b><div class="hintk">${esc(scx.prov)} · ${esc(scx.city)}${scx.tags.length?' · '+esc(scx.tags.join(' ')):''}${rs?` · <span style="color:var(--warn-ink)">${esc(rs)}</span>`:''}</div><div>${pill(g.v)} ${g.line!=null?`26年投档线 ${g.line}`:'无26年线'} · ${esc(planTxt(g))}${g.line!=null?` · <span class="risk ${RISKT[a.risk][0]}">${RISKT[a.risk][1]}</span>`:''}</div>${trend(g)?`<div>${trend(g)}</div>`:''}<div class="say2">${head}</div>${lines}<div class="hintk">点一下看详情 · 右键放进志愿表</div>`;
+  tip.hidden=false}
+function svgX(svg,cx,cy){const p=svg.createSVGPoint();p.x=cx;p.y=cy;return p.matrixTransform(svg.getScreenCTM().inverse()).x}
+function placeTip(rowEl,cx,cy){const r=rowEl.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight,mt=$('mtip');const y=cy??(r.top+r.height/2);
+  const m=mt.hidden?{left:cx,right:cx,top:y,bottom:y}:mt.getBoundingClientRect();const clampT=t=>Math.max(12,Math.min(t,innerHeight-h-12));let l,t;
+  const right=Math.max(m.right,cx)+16,left=Math.min(m.left,cx)-16-w;
+  if(right+w<=innerWidth-16){l=right;t=clampT(y-h/3)}else if(left>=16){l=left;t=clampT(y-h/3)}
+  else{l=Math.max(16,Math.min(cx-w/2,innerWidth-w-16));t=Math.max(r.bottom,m.bottom)+10;if(t+h>innerHeight-12)t=Math.max(12,Math.min(r.top,m.top)-h-10)}
+  tip.style.left=l+'px';tip.style.top=t+'px'}
+function markTipLine(v){tip.querySelectorAll('.ln').forEach(x=>x.classList.toggle('hov',v!=null&&x.dataset.k===String(v)))}
+function showMajor(svg,row,cx,cy){const mt=$('mtip'),hl=$('hl');const R=ROWS[row];if(!R||!R.ticks||!R.ticks.length){mt.hidden=true;return false}
+  const vx=svgX(svg,cx,cy);const scale=svg.getBoundingClientRect().width/svg.viewBox.baseVal.width;
+  let best=null,bd=1e9;R.ticks.forEach(t=>{const d=Math.abs(t.x-vx);if(d<bd){bd=d;best=t}});
+  if(!best||bd*scale>9){mt.hidden=true;curTick=null;hl.setAttribute('cx',-20);hl.setAttribute('cy',-20);return false}
+  const ms=[...new Map(R.ticks.filter(t=>Math.abs(t.x-best.x)*scale<3).map(t=>[t.m.n,t])).values()];
+  const S=st.S,v=best.v,real=best.m.sc!=null;
+  const re=!real?'没有25年分数（表中预估，不作依据）':v<=S-2?'能选':v<=S+2?'卡线':'够不着';
+  const marks=[...new Set(ms.flatMap(t=>{const m=t.m;return [medBlk(m)?'体检限报':'',avoided(m)?'不学':'',isPref(m)?'想学':'',m.rk===3?'坑':m.rk===2?'不太理想':'']}).filter(Boolean))];
+  mt.innerHTML=`<b>${esc(ms.map(t=>t.m.n).join('、'))}</b> · ${real?`25年${best.m.s25}，折合26年`:'预估'}${v}分 · ${re}${marks.map(k=>`<span class="mk ${k==='想学'?'f':k==='不太理想'?'w':'x'}">${k}</span>`).join('')}`;
+  mt.hidden=false;hl.setAttribute('cx',best.x);hl.setAttribute('cy',R.cy);curTick=best;
+  const w=mt.offsetWidth,h=mt.offsetHeight;let l=Math.min(Math.max(16,cx-w/2),innerWidth-w-16),t=cy-h-14;if(t<12)t=cy+18;mt.style.left=l+'px';mt.style.top=t+'px';return true}
+/* ---------- 跳转 ---------- */
+function scrollToEl(el,block='center'){el.scrollIntoView({behavior:RM()?'auto':'smooth',block})}
+function jump(id){const g=GBY[id];if(!g)return;const c=cat(g);st.sel=id;
+  if(c){st.tab=c;st.open.add(id);const L=bucket()[c];const i=L.findIndex(x=>x.id===id);if(i>=st.shown)st.shown=Math.ceil((i+1)/15)*15}
+  render();let el=$('it-'+id);
+  if(!el){$('list').insertAdjacentHTML('afterbegin',item(g));st.open.add(id);el=$('it-'+id);el.classList.add('open');const b=el.querySelector('.body');b.hidden=false;b.innerHTML=detail(g);el.querySelector('.head').setAttribute('aria-expanded','true')}
+  scrollToEl(el,'start');el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1600)}
+function locate(id){closeSchool();st.pin.add(id);st.sel=id;chart();const i=ROWS.findIndex(r=>r.g.id===id);if(i<0)return;const hit=$('chartwrap').querySelector(`.hit[data-row="${i}"]`);if(hit){scrollToEl(hit);hit.focus({preventScroll:true})}}
+/* ---------- AI ---------- */
+let sample=null,aiCtl=null;
+function dirNames(){return D.dirs.map(d=>d[0])}
+async function aiRead(){
+  const txt=$('aitext').value.trim();if(!txt){aiSay('先把沟通记录贴进来。');return}
+  const prov=[...new Set(Object.values(D.schools).map(s=>s.prov))];
+  const prompt=`你是江苏高考志愿填报助手。从下面这段老师和学生/家长的沟通记录里，提取用于筛选院校专业组的条件，只输出一个JSON对象，不要任何其他文字。
+字段：
+- kl: "物理" 或 "历史"（不确定用null）
+- score: 整数分数（只给了位次就null）
+- up: 向上浮动分数（整数，默认8）
+- down: 向下浮动分数（整数，默认12；风险偏好保守就大一些）
+- subs: 再选科目数组，从["化学","生物","政治","地理"]里选
+- provinces: 能接受的省份数组，只能从这个列表里选：${JSON.stringify(prov)}；没提就[]
+- levels: 学校层次要求数组，从["985","211","双一流","国重点","省重点","保研"]里选；没提就[]
+- want: 想学的方向数组，只能从这个列表里选：${JSON.stringify(dirNames())}
+- avoid: 不学的方向数组，同上列表
+- keywords: 一个最能代表想学专业的关键词（字符串，可空）
+- med: 体检受限代码数组，从${JSON.stringify(Object.keys(D.medCodes||{}).filter(c=>!/^1[1-6]$/.test(c)))}里选（如色弱21、色盲22）；没提就[]
+- noCoop: 是否排除中外合作（true/false）
+- private: 是否接受民办（true/false，默认false）
+- summary: 用中文两三句话概括这个学生的情况和偏好
+- concerns: 中文，提醒老师还需要追问的关键信息（一句话）
+
+沟通记录：
+"""${txt}"""`;
+  aiBusy(true);aiSay('正在读……（第一次使用需要你同意）');
+  try{aiCtl=new AbortController();const r=await sample.json(prompt,{signal:aiCtl.signal,modelTier:'default'});applyAI(r)}catch(e){aiErr(e)}finally{aiBusy(false)}
+}
+function applyAI(r){if(!r||typeof r!=='object'){aiSay('没有读出条件，可以把信息写得更具体些再试。');return}
+  const dn0=new Set(dirNames());const pick=(a,ok)=>new Set((Array.isArray(a)?a:[]).filter(x=>ok(x)));
+  if(r.kl==='物理'||r.kl==='历史')st.kl=r.kl;
+  if(Number.isFinite(+r.score)&&+r.score>300)st.S=Math.round(+r.score);
+  if(Number.isFinite(+r.up))st.Fu=Math.max(0,Math.min(40,Math.round(+r.up)));
+  if(Number.isFinite(+r.down))st.Fd=Math.max(0,Math.min(60,Math.round(+r.down)));
+  st.subs=pick(r.subs,x=>['化学','生物','政治','地理'].includes(x));
+  const provs=new Set(Object.values(D.schools).map(s=>s.prov));st.pv=pick(r.provinces,x=>provs.has(x));
+  st.lv=pick(r.levels,x=>['985','211','双一流','国重点','省重点','保研'].includes(x));
+  st.dirs=pick(r.want,x=>dn0.has(x));st.avoid=pick(r.avoid,x=>dn0.has(x));
+  st.mj=new Set(typeof r.keywords==='string'&&r.keywords.trim()&&!st.dirs.size?[mjTokFor(r.keywords.trim().slice(0,12))]:[]);
+  st.med=pick(r.med,x=>(D.medCodes||{})[x]&&!/^1[1-6]$/.test(x));
+  st.zw=r.noCoop?'no':'';st.mb=!!r.private;st.tab='稳';reset();render();
+  aiSay(`已按记录勾好条件：${st.kl}类 ${st.S}分（上浮${st.Fu}、下浮${st.Fd}）；再选 ${[...st.subs].join('、')||'未提'}；地区 ${[...st.pv].join('、')||'不限'}；层次 ${[...st.lv].join('、')||'不限'}；想学 ${[...st.dirs].map(dn).join('、')||'未提'}；不学 ${[...st.avoid].map(dn).join('、')||'未提'}；体检 ${[...st.med].join('/')||'无'}${st.zw==='no'?'；不含中外合作':''}。\n\n${r.summary||''}${r.concerns?`\n\n还需追问：${r.concerns}`:''}`);
+  $('aipick').disabled=false;
+}
+async function aiPick(){
+  const by=bucket();const S=st.S;
+  const brief=g=>{const a=analyze(g);return {id:g.id,学校:g.s,组:g.name,层次:D.schools[g.s].tags.join('/'),地区:D.schools[g.s].prov,线26:g.line,档:cat(g),结论:vn(g.v),主体:dn(g.ref||g.main),能选:uniq(a.okGood).slice(0,4),坑:uniq(a.pits).slice(0,3),调剂风险:RISKT[a.risk][1],趋势:g.h}};
+  const cand=[...by['冲'].slice(0,25),...by['稳'].slice(0,35),...by['保'].slice(0,25)].map(brief);
+  if(!cand.length){aiSay('当前条件下没有候选组，先放宽条件。');return}
+  const prompt=`你是江苏高考志愿填报顾问。学生${st.kl}类${S}分，想学：${[...st.dirs].map(dn).join('、')||'未定'}；不学：${[...st.avoid].map(dn).join('、')||'无'}。
+江苏本科批可填40个院校专业组，按冲稳保梯度排列（冲约占1/4，稳约1/2，保约1/4），尽量避开调剂风险高、有坑且坑是学生不学方向的组，优先学生想学的方向和学科强的学校。
+从下面候选组（已按26年投档线筛过，"档"是冲稳保）里挑选并排序，最多40个。只输出JSON：{"picks":[{"id":"组id","why":"不超过20字的理由"}],"note":"一两句整体说明"}。
+候选：${JSON.stringify(cand)}`;
+  aiBusy(true);aiSay('正在挑选和排序……可能要一分钟左右');
+  try{aiCtl=new AbortController();const r=await sample.json(prompt,{signal:aiCtl.signal,modelTier:'complex'});
+    const picks=(r&&Array.isArray(r.picks)?r.picks:[]).filter(p=>GBY[p.id]&&cand.some(c=>c.id===p.id)).slice(0,40);
+    if(!picks.length){aiSay('没有挑出结果，可以调整条件再试。');return}
+    let added=0;picks.forEach(p=>{if(volIndex(p.id)<0&&VOL.length<40){VOL.push({id:p.id,m:[],obey:true,why:String(p.why||'').slice(0,40)});added++}});saveVol();render();
+    aiSay(`AI 挑了 ${picks.length} 个组，新放进志愿表 ${added} 个（已有的不重复加）。${r.note||''}\n\n打开右下角“志愿表”查看和调整顺序；每个组的专业还需要你展开后勾选。`)}catch(e){aiErr(e)}finally{aiBusy(false)}
+}
+function aiSay(t){const o=$('aiout');o.hidden=false;o.textContent=t}
+function aiBusy(b){$('aigo').disabled=b;$('aipick').disabled=b||!$('aiout').textContent.startsWith('已按');$('aistop').hidden=!b}
+function aiErr(e){const c=e?.code;aiSay(c==='cancelled'?'已停止。':c==='not_granted'?'没有获得使用 AI 的许可，这个功能暂时不可用。':c==='rate_limited'?'请求太频繁，稍等一会再试。':'这次没有成功，可以稍后再试。')}
+/* ---------- 事件 ---------- */
+function bindSeg(id,key,after){$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.dataset.v==null)return;st[key]=b.dataset.v;reset();if(after)after();render()})}
+function bindSet(id,key){$(id).addEventListener('change',e=>{const i=e.target;if(i.type!=='checkbox'||!i.value)return;i.checked?st[key].add(i.value):st[key].delete(i.value);if(i.checked&&key==='dirs')st.avoid.delete(i.value);if(i.checked&&key==='avoid')st.dirs.delete(i.value);reset();render()})}
+bindSeg('kl','kl',()=>{st.open.clear();st.pin.clear();st.subs.clear()});bindSeg('gt','gt');bindSeg('zw','zw');bindSeg('bandmode','band');
+bindSet('subs','subs');bindSet('lv','lv');bindSet('provs','pv');bindSet('dirs','dirs');bindSet('avoid','avoid');bindSet('medlist','med');
+$('range').addEventListener('input',e=>{st.S=Number(e.target.value);$('score').value=st.S;reset();soon()});
+$('rank').addEventListener('change',e=>{const r=Number(e.target.value);if(r>0){st.S=r2s(st.kl,r);reset();render()}});
+$('score').addEventListener('change',e=>{const v=Number(e.target.value);if(v>=400&&v<=720){st.S=Math.round(v);reset();render()}});
+$('fu').addEventListener('change',e=>{const v=Number(e.target.value);if(v>=0&&v<=40){st.Fu=Math.round(v);reset();render()}});
+$('fd').addEventListener('change',e=>{const v=Number(e.target.value);if(v>=0&&v<=60){st.Fd=Math.round(v);reset();render()}});
+$('mb').addEventListener('change',e=>{st.mb=e.target.checked;reset();render()});
+$('dropavoid').addEventListener('change',e=>{st.dropAvoid=e.target.checked;reset();render()});
+$('kw').addEventListener('input',()=>mjSuggest());$('kw').addEventListener('focus',()=>mjSuggest());
+$('kw').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=$('kw').value.trim();if(v){mjAdd(mjTokFor(v));$('kw').value='';mjSuggest()}}else if(e.key==='Escape'){$('kwsug').hidden=true}});
+$('kwsug').addEventListener('mousedown',e=>e.preventDefault());
+$('kwsug').addEventListener('click',e=>{const a=e.target.closest('[data-add]');if(a){mjAdd(a.dataset.add);$('kw').value='';mjSuggest();return}const d=e.target.closest('[data-drill]');if(d){mjDrill=d.dataset.drill;mjSuggest()}const b=e.target.closest('[data-back]');if(b){mjDrill=b.dataset.back;mjSuggest()}});
+$('kw').addEventListener('blur',()=>setTimeout(()=>{if(document.activeElement!==$('kw'))$('kwsug').hidden=true},150));
+$('mjchips').addEventListener('click',e=>{const x=e.target.closest('[data-rm]');if(!x)return;st.mj.delete(x.dataset.rm);reset();render()});
+$('clearwant').addEventListener('click',()=>{st.dirs.clear();reset();render()});
+$('clearavoid').addEventListener('click',()=>{st.avoid.clear();st.dropAvoid=false;reset();render()});
+$('medclear').addEventListener('click',()=>{st.med.clear();reset();render()});
+$('regions').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(!b.dataset.q){st.pv.clear()}else{const ps=b.dataset.q.split(',');const all=ps.every(x=>st.pv.has(x));ps.forEach(x=>all?st.pv.delete(x):st.pv.add(x))}reset();render()});
+document.querySelectorAll('details.pop').forEach(d=>d.addEventListener('toggle',()=>{if(!d.open)return;const p=d.querySelector('.panelpop');p.classList.remove('right');const r=p.getBoundingClientRect();if(r.right>innerWidth-12)p.classList.add('right')}));
+document.addEventListener('click',e=>{document.querySelectorAll('details.pop[open]').forEach(d=>{if(!d.contains(e.target))d.open=false})});
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;st.tab=b.dataset.tab;st.shown=15;render()});
+$('more').addEventListener('click',()=>{st.shown+=15;list()});
+$('chartmore').addEventListener('click',()=>{st.rows+=120;chart()});
+$('chartwrap').addEventListener('mousemove',e=>{const sn0=e.target.closest('.sname');if(sn0){if(tip.dataset.sch!==sn0.dataset.school||tip.hidden){hideAll();const v=linSVG(sn0.dataset.school,st.kl,420);tip.innerHTML=`<b>${esc(sn0.dataset.school)} · 25→26年组别变化</b>${v||'<div class="hintk">没有找到这所学校25年的组</div>'}<div class="hintk">点学校名看大图和全部专业组</div>`;tip.dataset.sch=sn0.dataset.school;tip.hidden=false;const r=sn0.getBoundingClientRect();tip.style.left=Math.min(r.right+12,innerWidth-tip.offsetWidth-16)+'px';tip.style.top=Math.max(12,Math.min(r.top-40,innerHeight-tip.offsetHeight-12))+'px'}return}
+  tip.dataset.sch='';if(e.target.closest('.pick')){hideAll();return}const hit=e.target.closest('.hit');const svg=e.target.closest('svg');if(!hit||!svg){hideAll();return}
+  const row=Number(hit.dataset.row);if(!showMajor(svg,row,e.clientX,e.clientY)){hideAll();return}
+  if(row!==curRow||tip.hidden){curRow=row;showTip(hit)}markTipLine(curTick&&curTick.v);placeTip(hit,e.clientX,e.clientY)});
+$('chartwrap').addEventListener('mouseleave',hideAll);
+$('chartwrap').addEventListener('click',e=>{const p=e.target.closest('[data-pick]');if(p){volToggle(p.dataset.pick);return}
+  const sn=e.target.closest('[data-school]');if(sn){hideAll();schoolView(sn.dataset.school);return}
+  const d=e.target.closest('.hit');if(d){hideAll();jump(d.dataset.id)}});
+$('chartwrap').addEventListener('contextmenu',e=>{const d=e.target.closest('.hit,[data-pick]');if(!d)return;e.preventDefault();hideAll();const id=d.dataset.id||d.dataset.pick;volToggle(id);flashMsg(volIndex(id)>=0?'已放进志愿表':'已从志愿表移出')});
+$('chartwrap').addEventListener('keydown',e=>{const d=e.target.closest('.hit');if(d&&(e.key==='Enter'||e.key===' ')){e.preventDefault();jump(d.dataset.id)}});
+$('chartwrap').addEventListener('focusin',e=>{const d=e.target.closest('.hit');if(d){showTip(d);const r=d.getBoundingClientRect();placeTip(d,r.left+r.width/2,r.top+r.height/2)}});
+$('chartwrap').addEventListener('focusout',hideAll);
+function listClick(e){
+  const vb=e.target.closest('[data-vol]');if(vb){volToggle(vb.dataset.vol);return}
+  const lb=e.target.closest('[data-locate]');if(lb){locate(lb.dataset.locate);return}
+  const sv=e.target.closest('[data-sv]');if(sv){schoolView(sv.dataset.sv);return}
+  const h=e.target.closest('.head');if(!h)return;const it=h.parentElement,id=it.dataset.id,ctx=it.dataset.ctx||'',g=GBY[id],k=ctx+id;
+  const o=!st.open.has(k);o?st.open.add(k):st.open.delete(k);it.classList.toggle('open',o);h.setAttribute('aria-expanded',String(o));const b=it.querySelector('.body');b.hidden=!o;if(o)b.innerHTML=detail(g,ctx)}
+function listChange(e){const c=e.target.closest('[data-vm]');if(!c)return;const [id,mi]=c.dataset.vm.split('|');const ok=volMajor(id,Number(mi),c.checked);if(!ok)c.checked=!c.checked;refreshAll(id)}
+['list','svbody'].forEach(id=>{$(id).addEventListener('click',listClick);$(id).addEventListener('change',listChange)});
+$('volbtn').addEventListener('click',()=>{$('drawer').hidden?openDrawer():closeDrawer()});
+$('drclose').addEventListener('click',closeDrawer);$('scrim').addEventListener('click',()=>{closeDrawer();closeSchool();closeProv()});
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{$(b.dataset.close).hidden=true}));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.hidden=true}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.modal:not([hidden])').forEach(m=>m.hidden=true);if(!$('school').hidden)closeSchool();else if(!$('provv').hidden)closeProv();else if(!$('drawer').hidden)closeDrawer();document.querySelectorAll('details.pop[open]').forEach(d=>d.open=false)}});
+$('volbody').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.vup){const i=+t.dataset.vup;if(i>0){[VOL[i-1],VOL[i]]=[VOL[i],VOL[i-1]];saveVol();volRender()}}
+  else if(t.dataset.vdown){const i=+t.dataset.vdown;if(i<VOL.length-1){[VOL[i+1],VOL[i]]=[VOL[i],VOL[i+1]];saveVol();volRender()}}
+  else if(t.dataset.vdel){const i=+t.dataset.vdel;const id=VOL[i].id;VOL.splice(i,1);saveVol();volRender();refreshAll(id)}
+  else if(t.dataset.vgo){closeDrawer();jump(t.dataset.vgo)}});
+$('volbody').addEventListener('change',e=>{const c=e.target.closest('[data-vobey]');if(!c)return;VOL[+c.dataset.vobey].obey=c.checked;saveVol();volRender()});
+$('volcopy').addEventListener('click',()=>{const t=volText();if(!t){flashMsg('志愿表是空的');return}
+  navigator.clipboard?.writeText(t).then(()=>flashMsg('已复制，可以粘贴到微信或表格里')).catch(()=>{flashMsg('浏览器不允许直接复制，已在下方显示文字，请手动复制');$('volbody').insertAdjacentHTML('beforeend',`<textarea style="width:100%;min-height:10em;font:inherit;font-size:12.5px">${esc(t)}</textarea>`)})});
+$('volxlsx').addEventListener('click',exportXlsx);
+$('voltabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const old=VOL.map(v=>v.id);
+  if(b.dataset.ti!=null){TI=+b.dataset.ti;VOL=TABS[TI].v}
+  else if(b.id==='tabnew'){TABS.push({n:'志愿表'+(TABS.length+1),v:[]});TI=TABS.length-1;VOL=TABS[TI].v}
+  else if(b.id==='tabdup'){TABS.push({n:TABS[TI].n+' 副本',v:JSON.parse(JSON.stringify(VOL))});TI=TABS.length-1;VOL=TABS[TI].v}
+  saveVol();volRender();[...new Set([...old,...VOL.map(v=>v.id)])].forEach(id=>refreshAll(id));chart()});
+$('voltabname').addEventListener('change',e=>{const v=e.target.value.trim().slice(0,20);if(v){TABS[TI].n=v;saveVol();volRender()}});
+let tabDelArm=0;$('tabdel').addEventListener('click',()=>{if(TABS.length<=1){flashMsg('至少保留一张表');return}if(Date.now()-tabDelArm>3000){tabDelArm=Date.now();$('tabdel').textContent='再点一次删除';setTimeout(()=>$('tabdel').textContent='删除这张表',3000);return}
+  const old=VOL.map(v=>v.id);TABS.splice(TI,1);TI=Math.max(0,TI-1);VOL=TABS[TI].v;saveVol();volRender();old.forEach(refreshAll);chart();$('tabdel').textContent='删除这张表'});
+let clearArm=0;$('volclear').addEventListener('click',()=>{if(!VOL.length)return;if(Date.now()-clearArm>3000){clearArm=Date.now();$('volclear').textContent='再点一次确认清空';setTimeout(()=>{$('volclear').textContent='清空'},3000);return}
+  const ids=VOL.map(v=>v.id);VOL=[];TABS[TI].v=VOL;saveVol();volRender();ids.forEach(refreshAll);$('volclear').textContent='清空';flashMsg('已清空')});
+$('toTop').addEventListener('click',()=>window.scrollTo({top:0,behavior:RM()?'auto':'smooth'}));
+$('toChart').addEventListener('click',()=>{const c=$('chartwrap');window.scrollTo({top:c.getBoundingClientRect().top+scrollY-(($('controls').offsetHeight||0)+70),behavior:RM()?'auto':'smooth'})});
+$('howto').addEventListener('click',()=>{$('helpm').hidden=false});
+$('provopen').addEventListener('click',()=>openProv());
+$('planbtn').addEventListener('click',()=>{$('planm').hidden=false;planMsg('');planRender();$('plname').focus()});
+$('plsave').addEventListener('click',()=>planSave($('plname').value));
+$('plnew').addEventListener('click',()=>{clearAll();$('plname').value='';$('planm').hidden=true});
+$('pllist').addEventListener('click',e=>{const o=e.target.closest('[data-plopen]');if(o){planOpen(o.dataset.plopen);return}const d=e.target.closest('[data-pldel]');if(d){if(d.dataset.arm!=='1'){d.dataset.arm='1';d.textContent='确认删除';setTimeout(()=>{d.dataset.arm='';d.textContent='删除'},3000);return}planDel(d.dataset.pldel)}});
+$('clearall').addEventListener('click',()=>{if(Date.now()-clrArm>3000){clrArm=Date.now();$('clearall').textContent=CUR&&dirty?'有改动未保存，再点一次清空':'再点一次确认清空';setTimeout(()=>{$('clearall').textContent='一键清空'},3000);return}clrArm=0;$('clearall').textContent='一键清空';clearAll()});$('pvclose').addEventListener('click',closeProv);
+$('onlychip').addEventListener('click',()=>{st.only.clear();provPick.clear();reset();render()});
+$('pvchips').addEventListener('click',e=>{const b=e.target.closest('[data-pv]');if(!b)return;provSel=b.dataset.pv;$('pvbody').scrollTop=0;renderProv()});
+$('pvtabs').addEventListener('click',e=>{const b=e.target.closest('[data-pt]');if(!b)return;provTab=b.dataset.pt;renderProv()});
+$('pvbody').addEventListener('change',e=>{const c=e.target.closest('[data-pk]');if(!c)return;c.checked?provPick.add(c.dataset.pk):provPick.delete(c.dataset.pk);$('pvpick').textContent=provPick.size?`划线图只看这 ${provPick.size} 所学校`:'先勾选学校';$('pvpick').disabled=!provPick.size});
+$('pvbody').addEventListener('click',e=>{const b=e.target.closest('[data-sv]');if(b){schoolView(b.dataset.sv)}});
+$('pvpick').addEventListener('click',()=>{st.only=new Set(provPick);st.pv.clear();reset();closeProv();render();$('toChart').click()});
+$('svbody').addEventListener('click',e=>{const b=e.target.closest('[data-prov]');if(b){closeSchool();openProv(b.dataset.prov)}});
+$('aiopen').addEventListener('click',()=>{$('aim').hidden=false;$('aitext').focus()});
+$('aigo').addEventListener('click',aiRead);$('aipick').addEventListener('click',aiPick);$('aistop').addEventListener('click',()=>aiCtl?.abort());
+window.addEventListener('scroll',()=>{hideAll();const far=scrollY>500;$('toTop').hidden=!far;$('toChart').hidden=!far},{passive:true});
+let rzT=0,lastW=0;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{document.documentElement.style.setProperty('--ctlh',($('controls').offsetHeight||0)+'px');const w=$('chartwrap').clientWidth;if(D&&Math.abs(w-lastW)>20){lastW=w;chart()}},150)});
+if(PRESET.hideProv)$('provrow').hidden=true;
+if(PRESET.site){$('volxlsx').hidden=false;if(PRESET.home){const a=document.createElement('a');a.className='howto';a.href=PRESET.home;a.textContent='← 返回知识库';document.querySelector('.mh-actions').prepend(a)}}
+loadState();if(PRESET.pv&&PRESET.lockProv)st.pv=new Set(PRESET.pv);
+saveVol();
+(async()=>{try{if(window.claude?.use){const [s,dl]=await Promise.all([claude.use('sample'),claude.use('downloads')]);planStore();sample=s;downloads=dl;if(sample)$('aiopen').hidden=false;if(downloads)$('volxlsx').hidden=false}}catch(e){}})();
+fetch('data.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=d;prep();famChips('dirs');famChips('avoid');provUI();medUI();legend();helpUI();setTabs(TABS,TI);saveVol();render();setTimeout(loadBys,800)}).catch(err=>{$('lead').innerHTML='<div class="big">数据没有载入成功，请刷新页面重试。</div>';console.error(err)});
+
+</script>
+</body>
+</html>
