@@ -334,7 +334,8 @@ for (let part = 1; part <= 4; part += 1) {
     { filename: file },
   );
 }
-inlineContext.DB = inlineContext.DB_PARTS.flat();
+vm.runInContext(await fs.readFile(path.join(root, "data-db.js"), "utf8"), inlineContext, { filename: "data-db.js" });
+inlineContext.DB = inlineContext.window.DB;
 const inlineExport =
   "\nwindow.__INLINE_MAJOR_CHANGE_TEST__={" +
   [
