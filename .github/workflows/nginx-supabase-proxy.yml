@@ -1,0 +1,102 @@
+name: Nginx — Supabase proxy + HTTP/2 (apply once)
+
+# 手动运行。作用：
+# 1) 在服务器 Nginx 上增加 /sbapi/ 转发：浏览器只访问 ycxukun.cn，由服务器去连 Supabase，
+#    解决国内用户直连 supabase.co 时“网络波动、无法登录”的问题。
+# 2) 443 端口打开 HTTP/2，多个小文件不再排队。
+# 安全措施：先整体备份 /etc/nginx；nginx -t 不通过就自动还原，不会把网站弄挂。
+# 可以重复运行：已经改过的地方不会重复修改。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aliyun-ecs-production
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_SSH_PRIVATE_KEY: ${{ secrets.ECS_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$ECS_SSH_PRIVATE_KEY" > ~/.ssh/aliyun_deploy_key
+          chmod 600 ~/.ssh/aliyun_deploy_key
+          ssh-keyscan -H "$ECS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Apply on server
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_USER: ${{ secrets.ECS_USER }}
+        run: |
+          ssh -i ~/.ssh/aliyun_deploy_key "$ECS_USER@$ECS_HOST" 'bash -s' <<'REMOTE'
+          set -uo pipefail
+          SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo -n"
+          TS=$(date +%Y%m%d-%H%M%S)
+          BK=/root/nginx-backup-$TS
+          $SUDO cp -a /etc/nginx "$BK" && echo "已备份到 $BK"
+          $SUDO mkdir -p /etc/nginx/snippets
+          $SUDO tee /etc/nginx/snippets/ycxukun-supabase-proxy.conf >/dev/null <<'CONF'
+          # 由 GitHub Actions 写入：把 /sbapi/ 转发到 Supabase
+          location /sbapi/ {
+              proxy_pass https://qnspmqsrbjcgrgpqkzgl.supabase.co/;
+              proxy_ssl_server_name on;
+              proxy_ssl_name qnspmqsrbjcgrgpqkzgl.supabase.co;
+              proxy_set_header Host qnspmqsrbjcgrgpqkzgl.supabase.co;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_http_version 1.1;
+              proxy_set_header Connection "";
+              proxy_connect_timeout 15s;
+              proxy_send_timeout 120s;
+              proxy_read_timeout 120s;
+              client_max_body_size 100m;
+              proxy_request_buffering off;
+              proxy_buffering off;
+              add_header Cache-Control "no-store" always;
+          }
+          CONF
+          $SUDO python3 - <<'PY'
+          import glob,re
+          files=['/etc/nginx/nginx.conf']+glob.glob('/etc/nginx/conf.d/*.conf')
+          inc='        include /etc/nginx/snippets/ycxukun-supabase-proxy.conf;'
+          for f in files:
+              s=open(f).read();lines=s.split('\n');out=[];changed=False
+              for i,l in enumerate(lines):
+                  if re.match(r'^\s*listen\s+(\[::\]:)?443\s+ssl\s*;',l):
+                      l=l.replace('ssl;','ssl http2;');changed=True
+                  out.append(l)
+                  if re.match(r'^\s*server_name\s+.*\bycxukun\.cn\b',l):
+                      ctx='\n'.join(lines[max(0,i-6):i])
+                      if re.search(r'^\s*listen\s+(\[::\]:)?443',ctx,re.M) and 'ycxukun-supabase-proxy.conf' not in s:
+                          out.append(inc);changed=True
+              if changed:
+                  open(f,'w').write('\n'.join(out));print('已修改',f)
+          PY
+          if $SUDO nginx -t; then
+            $SUDO systemctl reload nginx && echo "Nginx 已重新加载"
+          else
+            echo "::error::nginx -t 未通过，正在还原备份"
+            $SUDO rm -rf /etc/nginx && $SUDO cp -a "$BK" /etc/nginx && $SUDO nginx -t && $SUDO systemctl reload nginx
+            exit 1
+          fi
+          echo "== 生效的配置片段 =="
+          $SUDO nginx -T 2>/dev/null | grep -nE "listen .*443|ycxukun-supabase-proxy|location /sbapi" | head -20
+          echo "== 自测：经本机转发访问 Supabase =="
+          sleep 2
+          for i in 1 2 3; do
+            curl -s -o /dev/null --resolve ycxukun.cn:443:127.0.0.1 \
+              -H "apikey: sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V" \
+              -w "auth health HTTP %{http_code} 协议 HTTP/%{http_version} 总计 %{time_total}s\n" \
+              https://ycxukun.cn/sbapi/auth/v1/health
+          done
+          REMOTE
