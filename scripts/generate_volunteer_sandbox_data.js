@@ -94,7 +94,8 @@ function loadSchools() {
     const content = fs.readFileSync(path.join(ROOT, name), 'utf8');
     vm.runInContext(content, context, { filename: name });
   }
-  return { schools: context.window.DB_PARTS.flat(), partFiles };
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'data-db.js'), 'utf8'), context, { filename: 'data-db.js' });
+  return { schools: context.window.DB, partFiles };
 }
 
 function chooseGroups(groups) {
