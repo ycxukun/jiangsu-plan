@@ -438,6 +438,9 @@ button.chip{font:inherit;font-size:13px;color:var(--ink)}
 .ck.hi{color:var(--warn-ink);font-weight:600} .ck.ok{color:var(--muted)}
 .vb{display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 4px;color:#fff;background:var(--muted)}
 .vb.chong{background:var(--v-youkeng)} .vb.wen{background:var(--accent)} .vb.bao{background:var(--v-ganjing)}
+/* 嵌入学生页时：去掉大标题，留操作按钮 */
+body.embed .masthead h1,body.embed .masthead p,body.embed .srcnote{display:none}
+body.embed .masthead{padding-top:6px;padding-bottom:6px}
 </style>
 </head>
 <body>
@@ -530,6 +533,8 @@ button.chip{font:inherit;font-size:13px;color:var(--ink)}
 <script>window.PRESET={"key": "site-nat", "site": true, "home": "../index.html"};</script>
 <script>
 const PRESET=window.PRESET||{};
+const EMB=!!PRESET.site&&/[?&]embed=1/.test(location.search);let embReady=false,embT=0;
+function postState(){if(!EMB||!embReady)return;clearTimeout(embT);embT=setTimeout(()=>{try{parent.postMessage({type:'hx:state',st:snap(),tabs:TABS,ti:TI,counts:volCounts(),n:VOL.length},location.origin)}catch(e){}},500)}
 let D=null; const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const RM=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -867,7 +872,7 @@ function onlyChip(){const c=$('onlychip');if(!c)return;c.hidden=!st.only.size;c.
 const VKEY='hxvol-'+(PRESET.key||'nat');let TABS=[{n:'志愿表1',v:[]}],TI=0,VOL=TABS[0].v;
 try{const o=JSON.parse(localStorage.getItem(VKEY)||'null');if(Array.isArray(o))TABS=[{n:'志愿表1',v:o}];else if(o&&Array.isArray(o.tabs)&&o.tabs.length){TABS=o.tabs;TI=Math.min(o.ti||0,TABS.length-1)}VOL=TABS[TI].v}catch(e){}
 function setTabs(tabs,ti){TABS=(tabs&&tabs.length?tabs:[{n:'志愿表1',v:[]}]).map(t=>({n:t.n||'志愿表',v:(t.v||[]).filter(x=>!D||GBY[x.id])}));TI=Math.max(0,Math.min(ti||0,TABS.length-1));VOL=TABS[TI].v}
-function saveVol(){TABS[TI].v=VOL;if(CUR&&!dirty&&PLANS.length){dirty=true;planBadge()}try{localStorage.setItem(VKEY,JSON.stringify({tabs:TABS,ti:TI}))}catch(e){}$('volbtn').textContent=`志愿表 ${VOL.length}/40`}
+function saveVol(){TABS[TI].v=VOL;if(EMB){$('volbtn').textContent=`志愿表 ${VOL.length}/40`;postState();return}if(CUR&&!dirty&&PLANS.length){dirty=true;planBadge()}try{localStorage.setItem(VKEY,JSON.stringify({tabs:TABS,ti:TI}))}catch(e){}$('volbtn').textContent=`志愿表 ${VOL.length}/40`}
 const volIndex=id=>VOL.findIndex(v=>v.id===id);
 function volToggle(id,why){const i=volIndex(id);if(i>=0)VOL.splice(i,1);else{if(VOL.length>=40){flashMsg('志愿表已满40个，请先移出一些');return}VOL.push({id,m:[],obey:true,why:why||''})}saveVol();refreshAll(id)}
 function volMajor(id,mi,on){let i=volIndex(id);if(i<0){if(VOL.length>=40){flashMsg('志愿表已满40个');return false}VOL.push({id,m:[],obey:true});i=VOL.length-1}
@@ -1023,7 +1028,7 @@ let raf=0;
 function render(){syncUI();onlyChip();mjChips();if(!$('kwsug').hidden&&document.activeElement===$('kw'))mjSuggest();if(CUR&&!dirty){dirty=true;planBadge()}lead();chart();list();saveState()}
 function soon(){cancelAnimationFrame(raf);raf=requestAnimationFrame(render)}
 const SKEY='hxstate3-'+(PRESET.key||'nat');
-function saveState(){try{localStorage.setItem(SKEY,JSON.stringify({kl:st.kl,S:st.S,Fu:st.Fu,Fd:st.Fd,mb:st.mb,gt:st.gt,zw:st.zw,band:st.band,tab:st.tab,kw:st.kw,dropAvoid:st.dropAvoid,only:[...st.only],mj:[...st.mj],dirs:[...st.dirs],avoid:[...st.avoid],lv:[...st.lv],pv:[...st.pv],subs:[...st.subs],med:[...st.med]}))}catch(e){}}
+function saveState(){if(EMB){postState();return}try{localStorage.setItem(SKEY,JSON.stringify({kl:st.kl,S:st.S,Fu:st.Fu,Fd:st.Fd,mb:st.mb,gt:st.gt,zw:st.zw,band:st.band,tab:st.tab,kw:st.kw,dropAvoid:st.dropAvoid,only:[...st.only],mj:[...st.mj],dirs:[...st.dirs],avoid:[...st.avoid],lv:[...st.lv],pv:[...st.pv],subs:[...st.subs],med:[...st.med]}))}catch(e){}}
 function loadState(){try{const o=JSON.parse(localStorage.getItem(SKEY)||'null');if(!o)return;if(o.kw&&!o.mj)o.mj=['t:'+o.kw];o.kw='';['kl','S','Fu','Fd','mb','gt','zw','band','tab','kw','dropAvoid'].forEach(k=>{if(o[k]!=null)st[k]=o[k]});['only','mj','dirs','avoid','lv','pv','subs','med'].forEach(k=>{if(Array.isArray(o[k]))st[k]=new Set(o[k])})}catch(e){}}
 const reset=()=>{st.shown=15;st.rows=120};
 /* ---------- 专业搜索：门类 / 专业类 / 具体专业 ---------- */
@@ -1275,10 +1280,12 @@ window.addEventListener('scroll',()=>{hideAll();const far=scrollY>500;$('toTop')
 let rzT=0,lastW=0;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{document.documentElement.style.setProperty('--ctlh',($('controls').offsetHeight||0)+'px');const w=$('chartwrap').clientWidth;if(D&&Math.abs(w-lastW)>20){lastW=w;chart()}},150)});
 if(PRESET.hideProv)$('provrow').hidden=true;
 if(PRESET.site){$('volxlsx').hidden=false;if(PRESET.home){const a=document.createElement('a');a.className='howto';a.href=PRESET.home;a.textContent='← 返回知识库';document.querySelector('.mh-actions').prepend(a)}}
-loadState();if(PRESET.pv&&PRESET.lockProv)st.pv=new Set(PRESET.pv);
+if(!EMB)loadState();if(PRESET.pv&&PRESET.lockProv)st.pv=new Set(PRESET.pv);
+if(EMB){document.body.classList.add('embed');['planbtn','clearall'].forEach(id=>{const e=$(id);if(e)e.hidden=true});document.querySelector('.mh-actions a.howto')?.remove();
+  window.addEventListener('message',e=>{if(e.origin!==location.origin||!e.data||e.data.type!=='hx:init')return;const m=e.data;applySnap(m.st||null);setTabs(m.tabs,m.ti);CUR=m.name?{id:'emb',name:m.name}:null;dirty=false;embReady=true;if(D){VOL=VOL.filter(v=>GBY[v.id]);render();saveVol()}});}
 saveVol();
 (async()=>{try{if(window.claude?.use){const [s,dl]=await Promise.all([claude.use('sample'),claude.use('downloads')]);planStore();sample=s;downloads=dl;if(sample)$('aiopen').hidden=false;if(downloads)$('volxlsx').hidden=false}}catch(e){}})();
-fetch('data.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=d;prep();famChips('dirs');famChips('avoid');provUI();medUI();legend();helpUI();setTabs(TABS,TI);saveVol();render();setTimeout(loadBys,800)}).catch(err=>{$('lead').innerHTML='<div class="big">数据没有载入成功，请刷新页面重试。</div>';console.error(err)});
+fetch('data.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=d;prep();famChips('dirs');famChips('avoid');provUI();medUI();legend();helpUI();setTabs(TABS,TI);saveVol();render();setTimeout(loadBys,800);if(EMB)try{parent.postMessage({type:'hx:ready'},location.origin)}catch(e){}}).catch(err=>{$('lead').innerHTML='<div class="big">数据没有载入成功，请刷新页面重试。</div>';console.error(err)});
 
 </script>
 </body>
