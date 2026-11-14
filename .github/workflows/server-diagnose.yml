@@ -1,0 +1,64 @@
+name: Server diagnose (read-only)
+
+# 只读诊断：不改服务器任何配置。在 Actions 页面手动运行。
+# 检查：服务器所在地域与规格、能否连上 Supabase、Nginx 版本/HTTP2/压缩配置、磁盘与内存。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_SSH_PRIVATE_KEY: ${{ secrets.ECS_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$ECS_SSH_PRIVATE_KEY" > ~/.ssh/aliyun_deploy_key
+          chmod 600 ~/.ssh/aliyun_deploy_key
+          ssh-keyscan -H "$ECS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run read-only checks on server
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_USER: ${{ secrets.ECS_USER }}
+        run: |
+          ssh -i ~/.ssh/aliyun_deploy_key "$ECS_USER@$ECS_HOST" 'bash -s' <<'REMOTE'
+          set +e
+          SB=https://qnspmqsrbjcgrgpqkzgl.supabase.co
+          KEY=sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V
+          md(){ curl -s -m 2 "http://100.100.100.200/latest/meta-data/$1"; echo; }
+          echo "== 服务器地域与规格（阿里云元数据）=="
+          echo -n "region: "; md region-id
+          echo -n "zone: "; md zone-id
+          echo -n "instance-type: "; md instance/instance-type
+          echo -n "os: "; . /etc/os-release 2>/dev/null; echo "$PRETTY_NAME"
+          echo "cpu: $(nproc) 核"; free -m | sed -n '1,2p'; df -h / | tail -1
+          echo
+          echo "== DNS 解析 supabase =="
+          getent hosts qnspmqsrbjcgrgpqkzgl.supabase.co || echo "解析失败"
+          echo
+          echo "== 从服务器连 Supabase（各 3 次）=="
+          for p in /auth/v1/health "/rest/v1/volunteer_forms?select=id&limit=1"; do
+            for i in 1 2 3; do
+              curl -s -o /dev/null -m 15 -H "apikey: $KEY" \
+                -w "$p  HTTP %{http_code}  连接 %{time_connect}s  TLS %{time_appconnect}s  总计 %{time_total}s\n" "$SB$p" \
+                || echo "$p  失败（curl 退出码 $?）"
+            done
+          done
+          echo
+          echo "== Nginx =="
+          nginx -v 2>&1
+          nginx -V 2>&1 | tr ' ' '\n' | grep -E "http_v2|http_v3|gzip_static|brotli" | sort -u
+          echo "-- listen 行 --"
+          grep -RhnE "^\s*listen|http2|^\s*gzip|server_name" /etc/nginx/nginx.conf /etc/nginx/conf.d /etc/nginx/sites-enabled 2>/dev/null | sed 's/^\s*//' | sort -u
+          echo
+          echo "== 网站目录大小 =="
+          du -sh /var/www/jiangsu-plan/current 2>/dev/null
+          REMOTE
