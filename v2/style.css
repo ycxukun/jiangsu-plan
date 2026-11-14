@@ -275,3 +275,10 @@ tr.r-del .mbg{text-decoration:none}
   .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
   .fpop-b{position:fixed;left:16px;right:16px;top:120px;width:auto}
 }
+
+/* 登录 / 申请 / 账号 */
+.login .alt{margin:12px 0 0;font-size:13px;color:var(--muted);text-align:center}
+.empty.sm{padding:12px;font-size:13px}
+table.list td.act{text-align:right;white-space:nowrap}
+table.list td.act .btn+.btn{margin-left:6px}
+.bench-h .chk{margin:0 0 0 12px}
