@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
+  const SUPABASE_URL=(/(^|\.)ycxukun\.cn$/.test(location.hostname)?location.origin+'/sbapi':'https://qnspmqsrbjcgrgpqkzgl.supabase.co');
   const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
   const AUTH_STORAGE_KEY='js-plan-auth-v1';
   const CURRENT_STUDENT_STORAGE_KEY='js-plan-current-student-v1';

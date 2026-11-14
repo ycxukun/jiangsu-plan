@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const VERSION='专科版｜V1.1.69 专科批次规则版';
-const SUPABASE_URL='https://qnspmqsrbjcgrgpqkzgl.supabase.co';
+const SUPABASE_URL=(/(^|\.)ycxukun\.cn$/.test(location.hostname)?location.origin+'/sbapi':'https://qnspmqsrbjcgrgpqkzgl.supabase.co');
 const SUPABASE_ANON_KEY='sb_publishable_pVjv5t2S338SsCW98VvwpA_PcpXBL7V';
 const ADMIN_EMAIL='ycxukun@gmail.com';
 const GISCUS_CONFIG={
