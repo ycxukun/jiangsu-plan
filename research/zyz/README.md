@@ -9,3 +9,5 @@
 - school_act.py：各校重组程度与回报
 - pref.py：各分段偏好变化（属性拆解）
 - profile.py：单校专业组画像
+- price.py / price_reg.py / price_loso.py：第一轮，同校内各属性的价格（学校固定效应），24/25/26 三年 + 稳健性
+- school_price.py：第二轮，学校属性在各档次的涨跌（24→25、25→26）
