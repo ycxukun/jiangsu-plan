@@ -63,7 +63,8 @@ BT = ['普通', '拔尖', '中外合作', '学分互认', '双学位', '预科']
 def btmix(rows):
     s = rows.groupby('bt').plan.sum(); return {k: int(s.get(k, 0)) for k in BT if s.get(k, 0)}
 def fmt_mix(m): return '、'.join(f'{k}{v}' for k, v in m.items())
-sch29 = ARGS if ARGS else list(json.load(open(S + 'js29.json')).keys())
+sch29 = (sorted(I26.school.unique()) if ARGS == ['ALL'] else ARGS) if ARGS else list(json.load(open(S + 'js29.json')).keys())
+OUT = 'card_all' if ARGS == ['ALL'] else 'card29'
 out = []
 for s in sch29:
     for g in sorted(I26[I26.school == s].g.unique()):
@@ -113,7 +114,7 @@ for s in sch29:
             '结果:相对涨跌': None if x is None or x.dr != x.dr else int(x.dr),
         })
 C = pd.DataFrame(out)
-C.to_pickle(S + 'card29.pkl'); C.to_csv(S + 'card29.csv', index=False, encoding='utf-8-sig')
+C.to_pickle(S + OUT + '.pkl'); C.to_csv(S + OUT + '.csv', index=False, encoding='utf-8-sig')
 print(C.shape); print(C.A结构.value_counts().to_string())
 print(C[['B本组计划变化%', 'C同档同类变化%']].describe().round(0).to_string())
 print('选科变化', (C.E选科变化 == '是').sum(), '校区变化', (C.F校区变化 == '是').sum())
